@@ -104,6 +104,8 @@ services:
       - 8.8.8.8 # 备用：Google 公共 DNS
     networks:
       - oj-network
+    depends_on:
+      - oj-backend
 
 # 网络定义
 networks:
