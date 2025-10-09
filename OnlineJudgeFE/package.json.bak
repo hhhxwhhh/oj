@@ -48,6 +48,7 @@
     "simple-hotkeys": "file:simple-hotkeys",
     "simple-module": "file:simple-module",
     "simple-uploader": "file:simple-uploader",
+    "socket.io-client": "4.5.1",
     "tar-simditor": "^3.0.5",
     "tar-simditor-markdown": "https://registry.npmmirror.com/tar-simditor-markdown/-/tar-simditor-markdown-1.2.3.tgz",
     "uglifyjs-webpack-plugin": "^1.2.5",

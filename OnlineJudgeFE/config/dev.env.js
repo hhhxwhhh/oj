@@ -1,11 +1,10 @@
 let date = require("moment")().format("YYYYMMDD");
 let commit;
 
-// 尝试执行 git 命令，失败时使用默认值
 try {
   commit = require("child_process")
     .execSync("git rev-parse HEAD", {
-      stdio: ["pipe", "pipe", "ignore"],
+      stdio: ["pipe", "pipe", "ignore"]
     })
     .toString()
     .slice(0, 5);
@@ -13,12 +12,12 @@ try {
   commit = "dev";
 }
 
-let version = `'${date}-${commit}'`;
+let version = `"${date}-${commit}"`; // 双引号包裹版本号
 
 console.log(`current version is ${version}`);
 
 module.exports = {
-  NODE_ENV: "development",
+  NODE_ENV: '"development"', // 关键：用双引号包裹，且外层用单引号
   VERSION: version,
-  USE_SENTRY: "0",
+  USE_SENTRY: '"0"' // 数值也用双引号包裹为字符串
 };
