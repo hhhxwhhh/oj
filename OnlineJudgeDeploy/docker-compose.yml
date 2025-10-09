@@ -99,7 +99,6 @@ services:
       - PORT=8081
     ports:
       - "8081:8081"
-    network_mode: "host" # 使用 host 网络模式
     dns:
       - 202.114.96.1
       - 8.8.8.8 # 备用：Google 公共 DNS

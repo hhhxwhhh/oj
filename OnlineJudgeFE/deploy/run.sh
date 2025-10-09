@@ -57,6 +57,17 @@ fi
 # 返回主目录
 cd $base
 
+# 修复 simple-hotkeys 模块，添加缺失的 main 字段
+echo "Fixing simple-hotkeys module..."
+cd /OJ_FE/simple-hotkeys
+# 备份原始 package.json
+cp package.json package.json.bak
+# 添加 main 字段
+sed -i.bak 's|"bugs": {|"main": "lib/hotkeys.js",\n  "bugs": {|' package.json
+
+# 返回主目录
+cd $base
+
 # 删除无效的符号链接（使用 -f 参数忽略错误）
 echo "Removing invalid symbolic links..."
 rm -f /OJ_FE/node_modules/simple-module
@@ -147,9 +158,12 @@ if [ $? -ne 0 ]; then
     if [ -f /OJ_FE/build/webpack.base.conf.js.bak ]; then
       mv /OJ_FE/build/webpack.base.conf.js.bak /OJ_FE/build/webpack.base.conf.js
     fi
-    # 恢复 simple-uploader 的 package.json
+    # 恢复 simple-uploader 和 simple-hotkeys 的 package.json
     if [ -f /OJ_FE/simple-uploader/package.json.bak ]; then
       mv /OJ_FE/simple-uploader/package.json.bak /OJ_FE/simple-uploader/package.json
+    fi
+    if [ -f /OJ_FE/simple-hotkeys/package.json.bak ]; then
+      mv /OJ_FE/simple-hotkeys/package.json.bak /OJ_FE/simple-hotkeys/package.json
     fi
     exit 1
 fi
@@ -161,6 +175,15 @@ if [ ! -d "/OJ_FE/dist" ]; then
     echo "ERROR: dist directory not found after build"
     exit 1
 fi
+
+# 修复 nginx 配置文件
+echo "Fixing nginx configuration..."
+cd /OJ_FE/deploy
+# 备份原始 nginx 配置
+cp nginx.conf nginx.conf.bak
+
+# 直接修改 proxy_pass 指令，使用 IP 地址而不是 upstream 名称
+sed -i.bak 's|proxy_pass http://oj-backend-dev:8000;|proxy_pass http://127.0.0.1:8000;|g' nginx.conf
 
 echo "Starting nginx..."
 exec nginx -c /OJ_FE/deploy/nginx.conf
