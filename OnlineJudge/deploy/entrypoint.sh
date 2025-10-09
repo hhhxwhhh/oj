@@ -1,7 +1,7 @@
 #!/bin/sh
 
 APP=/app
-DATA=/data
+DATA=/app/data
 
 mkdir -p $DATA/log $DATA/config $DATA/ssl $DATA/test_case $DATA/public/upload $DATA/public/avatar $DATA/public/website
 
@@ -10,17 +10,17 @@ if [ ! -f "$DATA/config/secret.key" ]; then
 fi
 
 if [ ! -f "$DATA/public/avatar/default.png" ]; then
-    cp data/public/avatar/default.png $DATA/public/avatar
+    cp /app/data/public/avatar/default.png $DATA/public/avatar
 fi
 
 if [ ! -f "$DATA/public/website/favicon.ico" ]; then
-    cp data/public/website/favicon.ico $DATA/public/website
+    cp /app/data/public/website/favicon.ico $DATA/public/website
 fi
 
 SSL="$DATA/ssl"
 if [ ! -f "$SSL/server.key" ]; then
     openssl req -x509 -newkey rsa:2048 -keyout "$SSL/server.key" -out "$SSL/server.crt" -days 1000 \
-        -subj "/C=CN/ST=Beijing/L=Beijing/O=Beijing OnlineJudge Technology Co., Ltd./OU=Service Infrastructure Department/CN=`hostname`" -nodes
+        -subj "/C=CN/ST=Beijing/L=Beijing/O=Beijing OnlineJudge Technology Co., Ltd./OU=Service Infrastructure Department/CN=[hostname](file:///Users/wang/oj/OnlineJudge/conf/models.py#L5-L5)" -nodes
 fi
 
 cd $APP/deploy/nginx
@@ -37,6 +37,8 @@ else
     sed -i "s/__IP_HEADER__/\$remote_addr/g" api_proxy.conf;
 fi
 
+cd $APP
+
 if [ -z "$MAX_WORKER_NUM" ]; then
     export CPU_CORE_NUM=$(grep -c ^processor /proc/cpuinfo)
     if [[ $CPU_CORE_NUM -lt 2 ]]; then
@@ -46,14 +48,18 @@ if [ -z "$MAX_WORKER_NUM" ]; then
     fi
 fi
 
-cd $APP/dist
-if [ ! -z "$STATIC_CDN_HOST" ]; then
-    find . -name "*.*" -type f -exec sed -i "s/__STATIC_CDN_HOST__/\/$STATIC_CDN_HOST/g" {} \;
-else
-    find . -name "*.*" -type f -exec sed -i "s/__STATIC_CDN_HOST__\///g" {} \;
+# 只有在生产环境中才处理dist目录
+if [ "$OJ_ENV" != "development" ]; then
+    if [ -d "$APP/dist" ]; then
+        cd $APP/dist
+        if [ ! -z "$STATIC_CDN_HOST" ]; then
+            find . -name "*.*" -type f -exec sed -i "s/__STATIC_CDN_HOST__/\/$STATIC_CDN_HOST/g" {} \;
+        else
+            find . -name "*.*" -type f -exec sed -i "s/__STATIC_CDN_HOST__\///g" {} \;
+        fi
+        cd $APP
+    fi
 fi
-
-cd $APP
 
 n=0
 while [ $n -lt 5 ]
@@ -71,7 +77,13 @@ done
 addgroup -g 903 spj
 adduser -u 900 -S -G spj server
 
-chown -R server:spj $DATA $APP/dist
+# 只有在生产环境中才尝试更改dist目录的所有者
+if [ "$OJ_ENV" != "development" ] && [ -d "$APP/dist" ]; then
+    chown -R server:spj $DATA $APP/dist
+else
+    chown -R server:spj $DATA
+fi
+
 find $DATA/test_case -type d -exec chmod 710 {} \;
 find $DATA/test_case -type f -exec chmod 640 {} \;
 exec supervisord -c /app/deploy/supervisord.conf

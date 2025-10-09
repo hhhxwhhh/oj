@@ -1,0 +1,10 @@
+# 排除node_modules
+node_modules
+
+# 排除其他不需要的文件和目录
+.git
+.gitignore
+README.md
+LICENSE
+yarn.lock
+.DS_Store

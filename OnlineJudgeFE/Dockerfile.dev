@@ -1,0 +1,71 @@
+FROM node:16-alpine
+
+# 安装 yarn 和其他依赖
+RUN apk add --no-cache nginx git python3 make g++ openssh-client yarn
+
+# 配置 git 使用 HTTPS 替代 SSH
+RUN git config --global url."https://github.com/".insteadOf "ssh://git@github.com" && \
+    git config --global url."https://github.com/".insteadOf "git@github.com:" && \
+    git config --global url."https://".insteadOf "git://" && \
+    git config --global advice.detachedHead false
+
+# 配置 SSH 禁用连接
+RUN mkdir -p ~/.ssh && \
+    echo "Host github.com" > ~/.ssh/config && \
+    echo "    Hostname github.com" >> ~/.ssh/config && \
+    echo "    User git" >> ~/.ssh/config && \
+    echo "    ProxyCommand /bin/false" >> ~/.ssh/config && \
+    chmod 600 ~/.ssh/config
+
+# 配置 npm 和 yarn 使用国内镜像源
+RUN npm config set registry https://registry.npmmirror.com && \
+    yarn config set registry https://registry.npmmirror.com && \
+    npm config set strict-ssl false && \
+    npm config set git-tag-version false
+
+WORKDIR /OJ_FE
+
+# 先复制本地依赖目录到项目根目录
+COPY simple-hotkeys /OJ_FE/simple-hotkeys
+COPY simple-module /OJ_FE/simple-module
+COPY simple-uploader /OJ_FE/simple-uploader
+
+# 然后复制依赖文件
+COPY package*.json ./
+COPY .npmrc ./
+
+# 删除 package-lock.json 并清理缓存
+RUN rm -f package-lock.json && \
+    npm cache clean --force || true
+
+# 替换有问题的依赖项
+RUN sed -i 's|"tar-simditor-markdown": "^1.2.3"|"tar-simditor-markdown": "https://registry.npmmirror.com/tar-simditor-markdown/-/tar-simditor-markdown-1.2.3.tgz"|' package.json
+
+# 确保本地依赖配置正确
+RUN sed -i 's|"simple-hotkeys": "[^"]*"|"simple-hotkeys": "file:./simple-hotkeys"|' package.json && \
+    sed -i 's|"simple-module": "[^"]*"|"simple-module": "file:./simple-module"|' package.json && \
+    sed -i 's|"simple-uploader": "[^"]*"|"simple-uploader": "file:./simple-uploader"|' package.json
+
+# 添加 resolutions 字段来强制使用本地依赖
+RUN sed -i 's|"browserslist": \[|"resolutions": { "simple-hotkeys": "file:./simple-hotkeys", "simple-module": "file:./simple-module", "simple-uploader": "file:./simple-uploader" },\n  "browserslist": \[|' package.json
+
+# 使用 yarn 安装依赖
+RUN yarn install --network-concurrency 6 --ignore-engines --prefer-offline --no-lockfile
+
+# 完全修改 tar-simditor 的源代码以适应我们的目录结构
+RUN sed -i 's|"simple-module","simple-hotkeys","simple-uploader"|"../../simple-module","../../simple-hotkeys","../../simple-uploader"|g' node_modules/tar-simditor/lib/simditor.js && \
+    sed -i 's|require("simple-module")|require("../../simple-module")|g' node_modules/tar-simditor/lib/simditor.js && \
+    sed -i 's|require("simple-hotkeys")|require("../../simple-hotkeys")|g' node_modules/tar-simditor/lib/simditor.js && \
+    sed -i 's|require("simple-uploader")|require("../../simple-uploader")|g' node_modules/tar-simditor/lib/simditor.js
+
+# 复制源代码
+COPY . .
+
+# 修改 package.json 中的构建脚本，移除 NODE_OPTIONS
+RUN sed -i 's/NODE_OPTIONS=--openssl-legacy-provider //g' package.json
+
+# 暴露端口
+EXPOSE 8081
+
+# 启动脚本
+CMD ["/bin/sh", "/OJ_FE/deploy/run.sh"]

@@ -1,0 +1,21 @@
+FROM python:3.12-alpine
+
+ENV OJ_ENV development
+WORKDIR /app
+
+# 安装依赖
+COPY ./deploy/requirements.txt /app/deploy/
+RUN apk add --no-cache gcc musl-dev python3-dev libpq-dev libjpeg-turbo-dev zlib-dev freetype-dev supervisor openssl nginx curl
+RUN pip install --no-cache-dir -r /app/deploy/requirements.txt
+
+# 复制代码
+COPY ./ /app/
+
+# 设置权限
+RUN chmod -R u=rwX,go=rX ./ && chmod +x ./deploy/entrypoint.sh
+
+# 开放开发端口
+EXPOSE 8000
+
+# 开发模式入口
+CMD ["/bin/sh", "/app/deploy/entrypoint.sh"]

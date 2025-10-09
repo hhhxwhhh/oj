@@ -1,25 +1,40 @@
-version: "3"
 services:
-
+  # Redis服务
   oj-redis:
-    image: redis:4.0-alpine
+    image: redis:6-alpine
     restart: always
+    container_name: oj-redis-dev
+    ports:
+      - "6380:6379"
     volumes:
       - ./data/redis:/data
+    networks:
+      - oj-network
 
+  # PostgreSQL数据库
   oj-postgres:
-    image: postgres:10-alpine
+    image: postgres:13-alpine
     restart: always
+    container_name: oj-postgres-dev
+    ports:
+      - "5435:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=onlinejudge
       - POSTGRES_USER=onlinejudge
       - POSTGRES_PASSWORD=onlinejudge
+    networks:
+      - oj-network
 
+  # 判题服务器
   oj-judge:
-    image: registry.cn-hongkong.aliyuncs.com/oj-image/judge:1.6.1
+    build:
+      context: ../JudgeServer
+      dockerfile: Dockerfile
+    image: oj/judge_server:dev
     restart: always
+    container_name: oj-judge-dev
     read_only: true
     cap_drop:
       - SETPCAP
@@ -35,27 +50,61 @@ services:
       - ./data/judge_server/log:/log
       - ./data/judge_server/run:/judger
     environment:
-      - SERVICE_URL=http://oj-judge:8080
-      - BACKEND_URL=http://oj-backend:8000/api/judge_server_heartbeat/
-      - TOKEN=CHANGE_THIS
-      # - judger_debug=1
+      - SERVICE_URL=http://oj-judge-dev:8080
+      - BACKEND_URL=http://oj-backend-dev:8000/api/judge_server_heartbeat/
+      - TOKEN=CHANGE_THIS_DEV_TOKEN
+    networks:
+      - oj-network
+    ports:
+      - "12358:8080"
 
+  # 后端开发服务
   oj-backend:
-    image: registry.cn-hongkong.aliyuncs.com/oj-image/backend:1.6.1
-    restart: always
+    build:
+      context: ../OnlineJudge
+      dockerfile: Dockerfile.dev
+    image: oj/backend:dev
+    container_name: oj-backend-dev
     depends_on:
       - oj-redis
       - oj-postgres
-      - oj-judge
     volumes:
+      - ../OnlineJudge:/app
       - ./data/backend:/data
     environment:
+      - POSTGRES_HOST=oj-postgres-dev
+      - POSTGRES_PORT=5432
       - POSTGRES_DB=onlinejudge
       - POSTGRES_USER=onlinejudge
       - POSTGRES_PASSWORD=onlinejudge
-      - JUDGE_SERVER_TOKEN=CHANGE_THIS
-      # - FORCE_HTTPS=1
-      # - STATIC_CDN_HOST=cdn.oj.com
+      - REDIS_HOST=oj-redis-dev
+      - REDIS_PORT=6379
+      - JUDGE_SERVER_TOKEN=CHANGE_THIS_DEV_TOKEN
     ports:
-      - "0.0.0.0:80:8000"
-      - "0.0.0.0:443:1443"
+      - "8000:8000"
+    networks:
+      - oj-network
+
+  # 前端开发服务
+  oj-frontend:
+    build:
+      context: ../OnlineJudgeFE
+      dockerfile: Dockerfile.dev
+    image: oj/frontend:dev
+    container_name: oj-frontend-dev
+    volumes:
+      - ../OnlineJudgeFE:/OJ_FE
+    environment:
+      - TARGET=http://oj-backend-dev:8000
+      - PORT=8081
+    ports:
+      - "8081:8081"
+    network_mode: "host" # 使用 host 网络模式
+    dns:
+      - 202.114.96.1
+      - 8.8.8.8 # 备用：Google 公共 DNS
+
+# 网络定义
+networks:
+  oj-network:
+    driver: bridge
