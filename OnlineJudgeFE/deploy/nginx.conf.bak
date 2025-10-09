@@ -26,7 +26,8 @@ events {
 
 http {
     upstream oj-backend-dev {
-        server oj-backend-dev:8000;
+        server 172.18.0.2:8000;
+
     }
 	# Includes mapping of file name extensions to MIME types of responses
 	# and defines the default type.
