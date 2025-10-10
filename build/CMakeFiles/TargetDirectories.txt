@@ -1,0 +1,7 @@
+/Users/wang/oj/build/CMakeFiles/libjudger.so.dir
+/Users/wang/oj/build/CMakeFiles/edit_cache.dir
+/Users/wang/oj/build/CMakeFiles/rebuild_cache.dir
+/Users/wang/oj/build/CMakeFiles/list_install_components.dir
+/Users/wang/oj/build/CMakeFiles/install.dir
+/Users/wang/oj/build/CMakeFiles/install/local.dir
+/Users/wang/oj/build/CMakeFiles/install/strip.dir

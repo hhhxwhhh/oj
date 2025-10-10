@@ -1,0 +1,68 @@
+[
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/argtable3.c.o -c /Users/wang/oj/Judger/src/argtable3.c",
+  "file": "/Users/wang/oj/Judger/src/argtable3.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/argtable3.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/child.c.o -c /Users/wang/oj/Judger/src/child.c",
+  "file": "/Users/wang/oj/Judger/src/child.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/child.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/killer.c.o -c /Users/wang/oj/Judger/src/killer.c",
+  "file": "/Users/wang/oj/Judger/src/killer.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/killer.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/logger.c.o -c /Users/wang/oj/Judger/src/logger.c",
+  "file": "/Users/wang/oj/Judger/src/logger.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/logger.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/main.c.o -c /Users/wang/oj/Judger/src/main.c",
+  "file": "/Users/wang/oj/Judger/src/main.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/main.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/rules/c_cpp.c.o -c /Users/wang/oj/Judger/src/rules/c_cpp.c",
+  "file": "/Users/wang/oj/Judger/src/rules/c_cpp.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/rules/c_cpp.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/rules/c_cpp_file_io.c.o -c /Users/wang/oj/Judger/src/rules/c_cpp_file_io.c",
+  "file": "/Users/wang/oj/Judger/src/rules/c_cpp_file_io.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/rules/c_cpp_file_io.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/rules/general.c.o -c /Users/wang/oj/Judger/src/rules/general.c",
+  "file": "/Users/wang/oj/Judger/src/rules/general.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/rules/general.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/rules/golang.c.o -c /Users/wang/oj/Judger/src/rules/golang.c",
+  "file": "/Users/wang/oj/Judger/src/rules/golang.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/rules/golang.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/rules/node.c.o -c /Users/wang/oj/Judger/src/rules/node.c",
+  "file": "/Users/wang/oj/Judger/src/rules/node.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/rules/node.c.o"
+},
+{
+  "directory": "/Users/wang/oj/build",
+  "command": "/usr/bin/cc   -g -Wall -Werror -O3 -std=c99 -fPIC -g -arch arm64 -o CMakeFiles/libjudger.so.dir/src/runner.c.o -c /Users/wang/oj/Judger/src/runner.c",
+  "file": "/Users/wang/oj/Judger/src/runner.c",
+  "output": "CMakeFiles/libjudger.so.dir/src/runner.c.o"
+}
+]
