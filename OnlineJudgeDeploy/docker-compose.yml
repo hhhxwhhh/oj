@@ -14,7 +14,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 256M
 
   # PostgreSQL数据库
   oj-postgres:
@@ -114,6 +114,7 @@ services:
     container_name: oj-frontend-dev
     volumes:
       - ../OnlineJudgeFE:/OJ_FE
+      - /OJ_FE/node_modules
     environment:
       - TARGET=http://oj-backend-dev:8000
       - PORT=8081
@@ -129,8 +130,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 1G
+          cpus: '0.5'
+          memory: 512M
 
 # 网络定义
 networks:
