@@ -77,8 +77,47 @@ def run(max_cpu_time,
     if seccomp_rule_name:
         proc_args.append("--seccomp_rule={}".format(seccomp_rule_name))
 
+    print("Judger command:", " ".join(proc_args))  # 调试信息
     proc = subprocess.Popen(proc_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = proc.communicate()
+    print("Judger stdout:", repr(out))  # 调试信息
+    print("Judger stderr:", repr(err))  # 调试信息
+    print("Judger return code:", proc.returncode)  # 调试信息
+    
+    # 检查stderr中的错误信息
     if err:
-        raise ValueError("Error occurred while calling judger: {}".format(err))
-    return json.loads(out.decode("utf-8"))
+        err_msg = err.decode('utf-8')
+        print("Error output from judger:", err_msg)  # 调试信息
+        # 不再直接抛出异常，而是继续处理
+    
+    # 检查返回码
+    if proc.returncode != 0:
+        print("Judger process exited with non-zero return code:", proc.returncode)
+        
+    if not out:
+        # 如果没有输出，尝试从stderr获取信息
+        if err:
+            err_msg = err.decode('utf-8')
+            # 如果stderr包含JSON格式的错误信息，就返回它
+            try:
+                error_result = json.loads(err_msg)
+                return error_result
+            except json.JSONDecodeError:
+                # 如果不是JSON格式，构造一个错误结果
+                return {
+                    "result": RESULT_SYSTEM_ERROR,
+                    "error": "Judger returned empty output. Stderr: " + err_msg,
+                    "return_code": proc.returncode
+                }
+        else:
+            # 如果stdout和stderr都为空
+            return {
+                "result": RESULT_SYSTEM_ERROR,
+                "error": "Judger returned empty output with no error message",
+                "return_code": proc.returncode
+            }
+    
+    try:
+        return json.loads(out.decode("utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError("Judger output is not valid JSON: {}".format(out.decode("utf-8"))) from e

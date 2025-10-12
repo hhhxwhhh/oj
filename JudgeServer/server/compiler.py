@@ -35,6 +35,8 @@ class Compiler(object):
                              seccomp_rule_name=None,
                              uid=COMPILER_USER_UID,
                              gid=COMPILER_GROUP_GID)
+        
+        print("Compiler result:", result)
 
         if result["result"] != _judger.RESULT_SUCCESS:
             if os.path.exists(compiler_out):
