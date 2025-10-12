@@ -22,3 +22,6 @@ SPJ_GROUP_GID = grp.getgrnam("spj").gr_gid
 TEST_CASE_DIR = "/test_case"
 SPJ_SRC_DIR = "/judger/spj"
 SPJ_EXE_DIR = "/judger/spj"
+
+# 从环境变量获取Token，默认为开发Token
+token = os.environ.get("TOKEN", "5a1b3c9f4e7d8a2b6c0e1f5d9a3b7c4e") #测试用的token 无任何实际意义

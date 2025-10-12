@@ -62,11 +62,14 @@ services:
     environment:
       - SERVICE_URL=http://oj-judge-dev:8080
       - BACKEND_URL=http://oj-backend-dev:8000/api/judge_server_heartbeat/
-      - TOKEN=CHANGE_THIS_DEV_TOKEN
+      - TOKEN=5a1b3c9f4e7d8a2b6c0e1f5d9a3b7c4e #测试用的token 无任何实际意义
     networks:
       - oj-network
     ports:
       - "12358:8080"
+    dns:
+      - 202.114.96.1
+      - 8.8.8.8
     deploy:
       resources:
         limits:
@@ -94,7 +97,7 @@ services:
       - POSTGRES_PASSWORD=onlinejudge
       - REDIS_HOST=oj-redis-dev
       - REDIS_PORT=6379
-      - JUDGE_SERVER_TOKEN=CHANGE_THIS_DEV_TOKEN
+      - JUDGE_SERVER_TOKEN=5a1b3c9f4e7d8a2b6c0e1f5d9a3b7c4e #测试用的token 无任何实际意义
     ports:
       - "8000:8000"
     networks:
