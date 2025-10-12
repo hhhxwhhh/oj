@@ -17,7 +17,7 @@ build_vendor_dll()
 
 cd $base
 
-echo "Starting frontend build process..."
+echo "Starting frontend process..."
 
 # 删除 package-lock.json 和清理 npm 缓存
 echo "Removing package-lock.json and cleaning npm cache..."
@@ -127,6 +127,9 @@ if [ -f "/OJ_FE/node_modules/tar-simditor/lib/simditor.js" ]; then
   sed -i.bak 's|require("../../simple-module")|require("simple-module")|g' /OJ_FE/node_modules/tar-simditor/lib/simditor.js
   sed -i.bak 's|require("../../simple-hotkeys")|require("simple-hotkeys")|g' /OJ_FE/node_modules/tar-simditor/lib/simditor.js
   sed -i.bak 's|require("../../simple-uploader")|require("simple-uploader")|g' /OJ_FE/node_modules/tar-simditor/lib/simditor.js
+  
+  # 彻底修复 connect 方法问题
+  sed -i.bak 's/Simditor\.connect/\/\/ Simditor.connect/g' /OJ_FE/node_modules/tar-simditor/lib/simditor.js
 fi
 
 # 修改嵌套的 tar-simditor
@@ -138,12 +141,26 @@ if [ -f "/OJ_FE/node_modules/tar-simditor-markdown/node_modules/tar-simditor/lib
   sed -i.bak 's|require("../../simple-module")|require("simple-module")|g' /OJ_FE/node_modules/tar-simditor-markdown/node_modules/tar-simditor/lib/simditor.js
   sed -i.bak 's|require("../../simple-hotkeys")|require("simple-hotkeys")|g' /OJ_FE/node_modules/tar-simditor-markdown/node_modules/tar-simditor/lib/simditor.js
   sed -i.bak 's|require("../../simple-uploader")|require("simple-uploader")|g' /OJ_FE/node_modules/tar-simditor-markdown/node_modules/tar-simditor/lib/simditor.js
+  
+  # 彻底修复 connect 方法问题
+  sed -i.bak 's/Simditor\.connect/\/\/ Simditor.connect/g' /OJ_FE/node_modules/tar-simditor-markdown/node_modules/tar-simditor/lib/simditor.js
 fi
 
 echo "Building vendor DLL if needed..."
 build_vendor_dll
 
+# 检查是否为开发模式
+if [ "$NODE_ENV" = "development" ] || [ "$PORT" = "8081" ]; then
+  echo "Starting development server..."
+  # 设置开发环境
+  export NODE_ENV=development
+  export PORT=${PORT:-8081}
+  exec npm run dev
+fi
+
 echo "Running build process..."
+# 设置生产环境
+export NODE_ENV=production
 # 移除 NODE_OPTIONS 以避免 OpenSSL 错误
 if [ -f package.json.bak ]; then
   rm package.json.bak

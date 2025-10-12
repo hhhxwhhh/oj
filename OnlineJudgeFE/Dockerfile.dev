@@ -67,5 +67,5 @@ RUN sed -i 's/NODE_OPTIONS=--openssl-legacy-provider //g' package.json
 # 暴露端口
 EXPOSE 8081
 
-# 启动脚本
-CMD ["/bin/sh", "/OJ_FE/deploy/run.sh"]
+# 启动开发服务器
+CMD ["npm", "run", "dev"]

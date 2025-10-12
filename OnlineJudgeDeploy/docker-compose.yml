@@ -116,6 +116,7 @@ services:
       - ../OnlineJudgeFE:/OJ_FE
       - /OJ_FE/node_modules
     environment:
+      - NODE_ENV=development
       - TARGET=http://oj-backend-dev:8000
       - PORT=8081
     ports:
