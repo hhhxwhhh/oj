@@ -45,14 +45,9 @@ services:
     image: oj/judge_server:dev
     restart: always
     container_name: oj-judge-dev
-    read_only: true
-    cap_drop:
-      - SETPCAP
-      - MKNOD
-      - NET_BIND_SERVICE
-      - SYS_CHROOT
-      - SETFCAP
-      - FSETID
+    read_only: false
+    # 完全移除cap_drop限制
+    # cap_drop: []
     tmpfs:
       - /tmp
     volumes:
@@ -67,6 +62,12 @@ services:
       - oj-network
     ports:
       - "12358:8080"
+    privileged: true
+    # 添加所有必要的系统能力
+    cap_add:
+      - ALL
+    security_opt:
+      - seccomp=unconfined
     dns:
       - 202.114.96.1
       - 8.8.8.8

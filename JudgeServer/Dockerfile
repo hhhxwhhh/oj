@@ -57,7 +57,8 @@ needed="python3-minimal \
     gcc \
     g++ \
     nodejs \
-    strace"
+    strace \
+    curl"  
 savedAptMark="$(apt-mark showmanual) $needed"
 apt-get update
 apt-get install -y ca-certificates curl gnupg wget
