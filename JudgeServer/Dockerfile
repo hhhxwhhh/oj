@@ -23,7 +23,11 @@ set -ex
 mkdir /app/build
 cmake -S . -B build
 cmake --build build --parallel $(nproc)
+
+ls -la build/
+file build/libjudger.so
 EOS
+
 
 RUN <<EOS
 set -ex
@@ -31,6 +35,12 @@ cd bindings/Python
 python3 -m venv .venv
 .venv/bin/pip3 install build
 .venv/bin/python3 -m build -w
+
+# 验证Python包
+ls -la dist/
+# 使用具体文件名而不是通配符
+.venv/bin/pip3 install dist/judger-2.2.0-py3-none-any.whl
+.venv/bin/python3 -c "import _judger; print('_judger module works')"
 EOS
 
 FROM debian:bullseye-slim

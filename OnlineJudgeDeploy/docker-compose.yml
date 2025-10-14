@@ -46,8 +46,6 @@ services:
     restart: always
     container_name: oj-judge-dev
     read_only: false
-    # 完全移除cap_drop限制
-    # cap_drop: []
     tmpfs:
       - /tmp
     volumes:
