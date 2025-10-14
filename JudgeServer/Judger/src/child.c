@@ -1,6 +1,7 @@
 #define _DEFAULT_SOURCE
 #define _POSIX_SOURCE
 #define _GNU_SOURCE
+#include "rules/seccomp_rules.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <signal.h>
@@ -160,6 +161,11 @@ void child_process(FILE *log_fp, struct config *_config) {
         }
         else if (strcmp("node", _config->seccomp_rule_name) == 0) {
             if (node_seccomp_rules(_config) != SUCCESS ) {
+                CHILD_ERROR_EXIT(LOAD_SECCOMP_FAILED);
+            }
+        }
+        else if (strcmp("arm64", _config->seccomp_rule_name) == 0) {
+            if (arm64_seccomp_rules(_config) != SUCCESS) {
                 CHILD_ERROR_EXIT(LOAD_SECCOMP_FAILED);
             }
         }

@@ -11,11 +11,11 @@ import shlex
 
 class Compiler(object):
     def compile(self, compile_config, src_path, output_dir):
-        # 强制修改所有Python相关命令使用虚拟环境
+        # 强制所有Python相关命令使用系统Python而不是虚拟环境Python
         if "python" in compile_config.get("compile_command", "").lower():
             compile_config["compile_command"] = compile_config["compile_command"].replace(
-                "/usr/bin/python3", "/app/.venv/bin/python3")
-            print(f"Updated compile command to use virtual environment: {compile_config['compile_command']}")
+                "/app/.venv/bin/python3", "/usr/bin/python3")
+            print(f"Updated compile command to use system Python: {compile_config['compile_command']}")
         
         command = compile_config["compile_command"]
         exe_path = os.path.join(output_dir, compile_config["exe_name"])
@@ -23,11 +23,10 @@ class Compiler(object):
         compiler_out = os.path.join(output_dir, "compiler.out")
         _command = shlex.split(command)
         
-        # 再次确保使用虚拟环境Python
-        if _command and _command[0] == "/usr/bin/python3":
-            _command[0] = "/app/.venv/bin/python3"
-            print(f"Forced Python path to virtual environment: {_command[0]}")
-
+        # 确保使用系统Python
+        if _command and "/app/.venv/bin/python3" in _command[0]:
+            _command[0] = "/usr/bin/python3"
+            print(f"Forced Python path to system Python: {_command[0]}")
         print("=" * 60)
         print("COMPILER DEBUG INFO")
         print("=" * 60)
@@ -58,9 +57,21 @@ class Compiler(object):
         os.makedirs(output_dir, exist_ok=True)
         
         os.chdir(output_dir)
-        env = compile_config.get("env", [])
-        env.append("PATH=" + os.getenv("PATH"))
         
+        # 设置正确的环境变量以确保Python能在虚拟环境中正常工作
+        env = compile_config.get("env", [])
+        env.append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+        env.append("LANG=C.UTF-8")
+        env.append("LC_ALL=C.UTF-8")
+        env.append("PYTHONNOUSERSITE=1")
+        env.append("PYTHONUNBUFFERED=1")
+        env.append("PYTHONHOME=/usr")
+        env.append("PYTHONSAFEPATH=1")
+        
+        # 重要：不设置PYTHONNOZIPIMPORT=1，允许Python正常加载zip文件
+        # 重要：不设置PYTHONPATH，让Python使用默认的sys.path配置
+        
+        # 完全移除运行时修复逻辑
         print(f"Environment variables: {env}")
         print(f"Command split into args: {_command}")
         
@@ -68,6 +79,12 @@ class Compiler(object):
         if not os.path.exists(_command[0]):
             print(f"ERROR: Compiler does not exist: {_command[0]}")
             raise CompileError(f"Compiler does not exist: {_command[0]}")
+            
+        print(f"Final command: {_command}")
+        
+        # 检测是否在ARM64架构上
+        import platform
+        is_arm64 = platform.machine() in ['aarch64', 'arm64']
         
         # 使用 root 权限进行编译
         print("Starting compilation with _judger.run...")
@@ -84,9 +101,11 @@ class Compiler(object):
                              args=_command[1::],
                              env=env,
                              log_path=COMPILER_LOG_PATH,
-                             seccomp_rule_name=None,
+                             # 如果是ARM64架构，使用ARM64 seccomp规则
+                             seccomp_rule_name="arm64" if is_arm64 else None,
                              uid=0,    # 使用 root UID
                              gid=0)    # 使用 root GID
+
         
         print("Compiler command:", command)
         print("Compiler result:", json.dumps(result, indent=2))

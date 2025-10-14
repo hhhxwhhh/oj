@@ -1,5 +1,14 @@
 #include "argtable3.h"
 #include "runner.h"
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+// 添加信号处理函数
+void sigsegv_handler(int sig) {
+    fprintf(stderr, "Segmentation fault caught\n");
+    exit(1);
+}
 
 #define INT_PLACE_HOLDER "<n>"
 #define STR_PLACE_HOLDER "<str>"
@@ -11,6 +20,9 @@ struct arg_str *exe_path, *input_path, *output_path, *error_path, *args, *env, *
 struct arg_end *end;
 
 int main(int argc, char *argv[]) {
+    // 注册信号处理函数
+    signal(SIGSEGV, sigsegv_handler);
+    
     void *arg_table[] = {
             help = arg_litn(NULL, "help", 0, 1, "Display This Help And Exit"),
             version = arg_litn(NULL, "version", 0, 1, "Display Version Info And Exit"),
@@ -65,6 +77,23 @@ int main(int argc, char *argv[]) {
 
     struct config _config;
     struct result _result = {0, 0, 0, 0, 0, 0, 0};
+
+    // 添加默认值以防止未初始化的内存问题
+    _config.max_cpu_time = 0;
+    _config.max_real_time = 0;
+    _config.max_memory = 0;
+    _config.max_stack = 0;
+    _config.max_process_number = 0;
+    _config.max_output_size = 0;
+    _config.memory_limit_check_only = 0;
+    _config.exe_path = NULL;
+    _config.input_path = NULL;
+    _config.output_path = NULL;
+    _config.error_path = NULL;
+    _config.log_path = NULL;
+    _config.seccomp_rule_name = NULL;
+    _config.uid = 0;
+    _config.gid = 0;
 
     if (max_cpu_time->count > 0) {
         _config.max_cpu_time = *max_cpu_time->ival;

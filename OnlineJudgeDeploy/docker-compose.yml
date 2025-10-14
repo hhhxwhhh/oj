@@ -49,7 +49,7 @@ services:
     tmpfs:
       - /tmp
     volumes:
-      - ./data/backend/test_case:/test_case:ro
+      - ../OnlineJudge/data/test_case:/test_case:ro
       - ./data/judge_server/log:/log
       - ./data/judge_server/run:/judger
     environment:

@@ -7,7 +7,7 @@
 				{
 					"build" : ".",
 					"hasInstallRule" : true,
-					"jsonFile" : "directory-.-Debug-8c9446916af4a37828d1.json",
+					"jsonFile" : "directory-.-Debug-eb311e351e1d64d5b1d5.json",
 					"minimumCMakeVersion" : 
 					{
 						"string" : "3.5"
@@ -40,7 +40,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "libjudger.so::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-libjudger.so-Debug-1b765efb4828223fef51.json",
+					"jsonFile" : "target-libjudger.so-Debug-4d27149b7f2022260c99.json",
 					"name" : "libjudger.so",
 					"projectIndex" : 0
 				}
