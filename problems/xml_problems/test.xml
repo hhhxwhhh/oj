@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fps version="1.2">
+  <item>
+    <title><![CDATA[计算阶乘]]></title>
+    <time_limit unit="s"><![CDATA[1]]></time_limit>
+    <memory_limit unit="mb"><![CDATA[256]]></memory_limit>
+    <description><![CDATA[<p>计算给定正整数的阶乘。</p><p>阶乘定义为：n! = 1 × 2 × 3 × ... × n</p><p>特别地，0! = 1</p>]]></description>
+    <input><![CDATA[<p>输入包含一个整数 n (0 &lt;= n &lt;= 10)。</p>]]></input>
+    <output><![CDATA[<p>输出 n 的阶乘。</p>]]></output>
+    <sample_input><![CDATA[5]]></sample_input>
+    <sample_output><![CDATA[120]]></sample_output>
+    <sample_input><![CDATA[0]]></sample_input>
+    <sample_output><![CDATA[1]]></sample_output>
+    <test_input><![CDATA[5
+]]></test_input>
+    <test_output><![CDATA[120
+]]></test_output>
+    <test_input><![CDATA[0
+]]></test_input>
+    <test_output><![CDATA[1
+]]></test_output>
+    <test_input><![CDATA[3
+]]></test_input>
+    <test_output><![CDATA[6
+]]></test_output>
+    <test_input><![CDATA[10
+]]></test_input>
+    <test_output><![CDATA[3628800
+]]></test_output>
+    <hint><![CDATA[<p>注意处理 n=0 的特殊情况。</p><p>10! = 3628800，不会超出 32 位整数范围。</p>]]></hint>
+    <source><![CDATA[基础数学题]]></source>
+  </item>
+</fps>
