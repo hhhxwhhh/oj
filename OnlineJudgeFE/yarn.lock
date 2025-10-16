@@ -3643,7 +3643,7 @@ follow-redirects@1.5.10, follow-redirects@^1.0.0:
 
 font-awesome@^4.7.0:
   version "4.7.0"
-  resolved "https://registry.npmmirror.com/font-awesome/-/font-awesome-4.7.0.tgz"
+  resolved "https://registry.npmmirror.com/font-awesome/-/font-awesome-4.7.0.tgz#8fa8cf0411a1a31afd07b06d2902bb9fc815a133"
   integrity sha512-U6kGnykA/6bFmg1M/oT9EkFeIYv7JlX3bozwQJWiiLz6L0w3F5vBVPxHlwyX/vtNq1ckcpRKOB9f2Qal/VtFpg==
 
 for-each@^0.3.3, for-each@^0.3.5:
@@ -7475,7 +7475,7 @@ simple-uploader@^2.0.7, "simple-uploader@file:./simple-uploader", "simple-upload
   version "3.0.0"
   dependencies:
     jquery "=3.1.1"
-    simple-module "file:../../Library/Caches/Yarn/v6/npm-simple-uploader-3.0.0-74e0b425-41e6-4407-9e71-f609d8c06a50-1760597451374/node_modules/simple-module"
+    simple-module "file:../usr/local/share/.cache/yarn/v6/npm-simple-uploader-3.0.0-d13aa83c-a219-452a-a4d8-012ae3f269f7-1760598283369/node_modules/simple-module"
 
 slash@^1.0.0:
   version "1.0.0"

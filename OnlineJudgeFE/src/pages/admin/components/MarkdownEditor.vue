@@ -6,6 +6,7 @@
 
 <script>
 import EasyMDE from 'easymde'
+import 'font-awesome/css/font-awesome.min.css'
 import 'easymde/dist/easymde.min.css'
 
 export default {
