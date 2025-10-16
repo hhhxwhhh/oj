@@ -25,6 +25,7 @@
     "chalk": "^2.4.1",
     "copy-webpack-plugin": "^4.5.1",
     "css-loader": "^0.28.11",
+    "easymde": "^2.20.0",
     "echarts": "^3.8.5",
     "element-ui": "^2.3.7",
     "extract-text-webpack-plugin": "^3.0.0",

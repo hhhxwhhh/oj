@@ -10,24 +10,18 @@
           </el-col>
           <el-col :span="24">
             <el-form-item :label="$t('m.ContestDescription')" required>
-              <Simditor v-model="contest.description"></Simditor>
+              <MarkdownEditor v-model="contest.description"></MarkdownEditor>
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item :label="$t('m.Contest_Start_Time')" required>
-              <el-date-picker
-                v-model="contest.start_time"
-                type="datetime"
-                :placeholder="$t('m.Contest_Start_Time')">
+              <el-date-picker v-model="contest.start_time" type="datetime" :placeholder="$t('m.Contest_Start_Time')">
               </el-date-picker>
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item :label="$t('m.Contest_End_Time')" required>
-              <el-date-picker
-                v-model="contest.end_time"
-                type="datetime"
-                :placeholder="$t('m.Contest_End_Time')">
+              <el-date-picker v-model="contest.end_time" type="datetime" :placeholder="$t('m.Contest_End_Time')">
               </el-date-picker>
             </el-form-item>
           </el-col>
@@ -44,19 +38,13 @@
           </el-col>
           <el-col :span="8">
             <el-form-item :label="$t('m.Real_Time_Rank')">
-              <el-switch
-                v-model="contest.real_time_rank"
-                active-color="#13ce66"
-                inactive-color="#ff4949">
+              <el-switch v-model="contest.real_time_rank" active-color="#13ce66" inactive-color="#ff4949">
               </el-switch>
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item :label="$t('m.Contest_Status')">
-              <el-switch
-                v-model="contest.visible"
-                active-text=""
-                inactive-text="">
+              <el-switch v-model="contest.visible" active-text="" inactive-text="">
               </el-switch>
             </el-form-item>
           </el-col>
@@ -83,77 +71,77 @@
 </template>
 
 <script>
-  import api from '../../api.js'
-  import Simditor from '../../components/Simditor.vue'
+import api from '../../api.js'
+import MarkdownEditor from '../../components/MarkdownEditor.vue';
 
-  export default {
-    name: 'CreateContest',
-    components: {
-      Simditor
-    },
-    data () {
-      return {
-        title: 'Create Contest',
-        disableRuleType: false,
-        contest: {
-          title: '',
-          description: '',
-          start_time: '',
-          end_time: '',
-          rule_type: 'ACM',
-          password: '',
-          real_time_rank: true,
-          visible: true,
-          allowed_ip_ranges: [{
-            value: ''
-          }]
-        }
-      }
-    },
-    methods: {
-      saveContest () {
-        let funcName = this.$route.name === 'edit-contest' ? 'editContest' : 'createContest'
-        let data = Object.assign({}, this.contest)
-        let ranges = []
-        for (let v of data.allowed_ip_ranges) {
-          if (v.value !== '') {
-            ranges.push(v.value)
-          }
-        }
-        data.allowed_ip_ranges = ranges
-        api[funcName](data).then(res => {
-          this.$router.push({name: 'contest-list', query: {refresh: 'true'}})
-        }).catch(() => {
-        })
-      },
-      addIPRange () {
-        this.contest.allowed_ip_ranges.push({value: ''})
-      },
-      removeIPRange (range) {
-        let index = this.contest.allowed_ip_ranges.indexOf(range)
-        if (index !== -1) {
-          this.contest.allowed_ip_ranges.splice(index, 1)
-        }
-      }
-    },
-    mounted () {
-      if (this.$route.name === 'edit-contest') {
-        this.title = 'Edit Contest'
-        this.disableRuleType = true
-        api.getContest(this.$route.params.contestId).then(res => {
-          let data = res.data.data
-          let ranges = []
-          for (let v of data.allowed_ip_ranges) {
-            ranges.push({value: v})
-          }
-          if (ranges.length === 0) {
-            ranges.push({value: ''})
-          }
-          data.allowed_ip_ranges = ranges
-          this.contest = data
-        }).catch(() => {
-        })
+export default {
+  name: 'CreateContest',
+  components: {
+    MarkdownEditor
+  },
+  data() {
+    return {
+      title: 'Create Contest',
+      disableRuleType: false,
+      contest: {
+        title: '',
+        description: '',
+        start_time: '',
+        end_time: '',
+        rule_type: 'ACM',
+        password: '',
+        real_time_rank: true,
+        visible: true,
+        allowed_ip_ranges: [{
+          value: ''
+        }]
       }
     }
+  },
+  methods: {
+    saveContest() {
+      let funcName = this.$route.name === 'edit-contest' ? 'editContest' : 'createContest'
+      let data = Object.assign({}, this.contest)
+      let ranges = []
+      for (let v of data.allowed_ip_ranges) {
+        if (v.value !== '') {
+          ranges.push(v.value)
+        }
+      }
+      data.allowed_ip_ranges = ranges
+      api[funcName](data).then(res => {
+        this.$router.push({ name: 'contest-list', query: { refresh: 'true' } })
+      }).catch(() => {
+      })
+    },
+    addIPRange() {
+      this.contest.allowed_ip_ranges.push({ value: '' })
+    },
+    removeIPRange(range) {
+      let index = this.contest.allowed_ip_ranges.indexOf(range)
+      if (index !== -1) {
+        this.contest.allowed_ip_ranges.splice(index, 1)
+      }
+    }
+  },
+  mounted() {
+    if (this.$route.name === 'edit-contest') {
+      this.title = 'Edit Contest'
+      this.disableRuleType = true
+      api.getContest(this.$route.params.contestId).then(res => {
+        let data = res.data.data
+        let ranges = []
+        for (let v of data.allowed_ip_ranges) {
+          ranges.push({ value: v })
+        }
+        if (ranges.length === 0) {
+          ranges.push({ value: '' })
+        }
+        data.allowed_ip_ranges = ranges
+        this.contest = data
+      }).catch(() => {
+      })
+    }
   }
+}
 </script>
