@@ -703,3 +703,20 @@ class FPSProblemImport(CSRFExemptAPIView):
                 problem_data["test_case_score"] = score
                 self._create_problem(problem_data, request.user)
         return self.success({"import_count": len(problems)})
+    
+
+class ProblemBulkOperation(APIView):
+    @problem_permission_required
+    def post(self,request):
+        """批量操作题目"""
+        data=request.data
+        operation=data.get("operation")
+
+        if operation=="make_visible":
+            Problem.objects.filter(contest_id__isnull=True).update(visible=True)
+            return self.success("所有题目已设置为可见")
+        elif operation=="make_invisible":
+            Problem.objects.filter(contest_id__isnull=True).update(visible=False)
+            return self.success("所有题目已设置为不可见")
+        else:
+            return self.error("无效的操作")
