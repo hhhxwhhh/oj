@@ -14,6 +14,7 @@ from .serializers import (
     AIFeedbackSerializer, CreateAIFeedbackSerializer
 )
 from .service import AIService
+from submission.models import Submission
 
 
 class AIModelAdminAPI(APIView):
@@ -197,6 +198,29 @@ class AIFeedbackAPI(APIView):
                 comment=data["comment"]
             )
             return self.success(AIFeedbackSerializer(feedback).data)
+        except Exception as e:
+            return self.error(str(e))
+        
+class AIDiagnoseSubmissionAPI(APIView):
+    @login_required
+    def post(self,request):
+        submission_id=request.data.get("submission_id")
+        if not submission_id:
+            return self.error("Parameter error")
+        try:
+            diagnosis=AIService.diagnose_submission(submission_id)
+            return self.success({"diagnosis":diagnosis})
+        except Exception as e:
+            return self.error(str(e))
+        
+
+class AIRecommendProblemsAPI(APIView):
+    @login_required
+    def get(self,request):
+        user=request.user
+        try:
+            recommendations=AIService.recommend_problems(user.id)
+            return self.success(recommendations)
         except Exception as e:
             return self.error(str(e))
 
