@@ -301,6 +301,27 @@ export default {
     return ajax("admin/problem_bulk_operation", "post", {
       data
     });
+  },
+  // AI Models
+  getAIModels() {
+    return ajax("admin/ai_model/list", "get");
+  },
+  createAIModel(data) {
+    return ajax("admin/ai_model", "post", {
+      data
+    });
+  },
+  updateAIModel(data) {
+    return ajax("admin/ai_model", "put", {
+      data
+    });
+  },
+  deleteAIModel(id) {
+    return ajax("admin/ai_model", "delete", {
+      params: {
+        id
+      }
+    });
   }
 };
 
@@ -326,11 +347,11 @@ function ajax(url, method, options) {
     }).then(
       res => {
         // API正常返回(status=20x), 是否错误通过有无error判断
-        if (res.data.error !== null) {
+        if (res.data && res.data.error !== null) {
           Vue.prototype.$error(res.data.data);
           reject(res);
           // // 若后端返回为登录，则为session失效，应退出当前登录用户
-          if (res.data.data.startsWith("Please login")) {
+          if (res.data.data && res.data.data.startsWith("Please login")) {
             router.push({ name: "login" });
           }
         } else {
@@ -340,10 +361,26 @@ function ajax(url, method, options) {
           }
         }
       },
-      res => {
+      err => {
         // API请求异常，一般为Server error 或 network error
-        reject(res);
-        Vue.prototype.$error(res.data.data);
+        reject(err);
+        // 检查是否有响应数据
+        if (err.response) {
+          // 服务器返回了错误状态码
+          if (err.response.data && err.response.data.data) {
+            Vue.prototype.$error(err.response.data.data);
+          } else {
+            Vue.prototype.$error(
+              `Error ${err.response.status}: ${err.response.statusText}`
+            );
+          }
+        } else if (err.request) {
+          // 请求已发出但没有收到响应
+          Vue.prototype.$error("Network error or server not responding");
+        } else {
+          // 其他错误
+          Vue.prototype.$error("An error occurred: " + err.message);
+        }
       }
     );
   });
