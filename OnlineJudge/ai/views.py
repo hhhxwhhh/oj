@@ -80,6 +80,17 @@ class AIModelAdminAPI(APIView):
         except Exception as e:
             return self.error(str(e))
         
+
+class AIModelListAPI(APIView):
+    @login_required
+    def get(self,request):
+        try:
+            ai_models=AIModel.objects.filter(is_active=True)
+            return self.success(AIModelSerializer(ai_models,many=True).data)
+        except Exception as e:
+            return self.error(str(e))
+        
+
 class AIModelListAdminAPI(APIView):
     def get(self,request):
         try:
@@ -139,12 +150,17 @@ class AIMessageAPI(APIView):
                 role=data.get("role", "user"),
                 content=data["content"]
             )
-            # 只有在需要时才调用AI服务
-            # 检查是否有激活的AI模型
             active_model_exists = AIModel.objects.filter(is_active=True).exists()
             if active_model_exists:
                 messages = AIService.get_chat_history(data["conversation_id"])
-                ai_response = AIService.call_ai_model(messages)
+                if "model_id" in data and data['model_id']:
+                    try:
+                        ai_model=AIModel.objects.get(id=data['model_id'],is_active=True)
+                        ai_response = AIService.call_ai_model(messages,ai_model)
+                    except AIModel.DoesNotExist:
+                        ai_response=AIService.call_ai_model(messages)
+                else:
+                    ai_response = AIService.call_ai_model(messages)
                 ai_message = AIMessage.objects.create(
                     conversation_id=data["conversation_id"],
                     role="assistant",

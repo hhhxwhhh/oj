@@ -40,10 +40,13 @@ class CreateAIMessageSerializer(serializers.ModelSerializer):
     conversation_id=serializers.IntegerField()
     role=serializers.CharField(max_length=128,required=False)
     content=serializers.CharField(max_length=4096)
+    model_id=serializers.IntegerField(required=False)
 
     class Meta:
         model=AIMessage
-        fields=["conversation_id","role","content"]
+        fields=["conversation_id","role","content","model_id"]
+
+
 
 class AICodeReviewSerializer(serializers.ModelSerializer):
     class Meta:

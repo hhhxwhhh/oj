@@ -29,6 +29,7 @@ class AIService:
             return AIService._call_openkey(messages, ai_model)
         else:
             raise Exception(f"Unsupported AI provider: {ai_model.provider}")
+
     @staticmethod
     def _call_openkey(messages, ai_model):
         import openai

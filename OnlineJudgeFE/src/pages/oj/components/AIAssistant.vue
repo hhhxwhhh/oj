@@ -9,8 +9,15 @@
                     </Button>
                 </div>
             </div>
-
             <div v-show="isAIExpanded" class="ai-content">
+                <div class="model-selection" v-if="aiModels.length > 0">
+                    <Select v-model="selectedModel" size="small" style="width:200px">
+                        <Option v-for="model in aiModels" :value="model.id" :key="model.id">
+                            {{ model.name }}
+                        </Option>
+                    </Select>
+                </div>
+
                 <div class="chat-history" ref="chatHistory">
                     <div v-for="(message, index) in chatMessages" :key="index" :class="['message', message.type]">
                         <div class="avatar">
@@ -85,11 +92,14 @@ export default {
             userMessage: '',
             chatMessages: [],
             isLoading: false,
-            conversationId: null
+            conversationId: null,
+            aiModels: [],
+            selectedModel: null
         }
     },
     mounted() {
         this.initAIAssistant()
+        this.loadAIModels()
     },
     methods: {
         initAIAssistant() {
@@ -104,7 +114,18 @@ export default {
                 this.isAIExpanded = !this.isAIExpanded
             }
         },
-
+        //加载AI模型列表
+        async loadAIModels() {
+            try {
+                const res = await api.getAIModels()
+                this.aiModels = res.data.data
+                if (this.aiModels.length > 0) {
+                    this.selectedModel = this.aiModels[0].id
+                }
+            } catch (err) {
+                console.error("Failed to load AI models.", err)
+            }
+        },
         async sendMessage() {
             if (!this.userMessage.trim() || this.isLoading) return
 
@@ -143,7 +164,8 @@ export default {
                     content: messageToSend,
                     problem_id: this.problem._id,
                     code: this.code,
-                    role: "user"
+                    role: "user",
+                    model_id: this.selectedModel
                 })
 
                 // 添加AI回复到聊天记录
@@ -212,6 +234,11 @@ export default {
 
     .ai-content {
         margin-top: 10px;
+    }
+
+    .model-selection {
+        margin-bottom: 10px;
+        text-align: right;
     }
 
     .chat-history {

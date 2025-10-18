@@ -5,6 +5,8 @@ urlpatterns = [
     url(r"^admin/ai_model/?$", views.AIModelAdminAPI.as_view(), name="ai_model_admin_api"),
     url(r"^admin/ai_model/list/?$", views.AIModelListAdminAPI.as_view(), name="ai_model_list_admin_api"),
     
+    url(r"^ai/models/?$", views.AIModelListAPI.as_view(), name="ai_model_list_api"),  # 添加这一行
+    
     url(r"^ai/conversation/?$", views.AIConversationAPI.as_view(), name="ai_conversation_api"),
     url(r"^ai/message/?$", views.AIMessageAPI.as_view(), name="ai_message_api"),
     url(r"^ai/conversations/?$", views.AIConversationListAPI.as_view(), name="ai_conversation_list_api"),

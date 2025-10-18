@@ -22,6 +22,9 @@ export default {
       params
     });
   },
+  getAIModels() {
+    return ajax("ai/models", "get");
+  },
   login(data) {
     return ajax("login", "post", {
       data
