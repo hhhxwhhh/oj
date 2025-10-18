@@ -284,5 +284,11 @@ export const m = {
   Send: "Send",
   Clear: "Clear",
   AI_Assistant: "AI Assistant",
-  Failed_to_get_AI_response: "Failed to get response"
+  Failed_to_get_AI_response: "Failed to get response",
+  Explain_Code: "Explain Code",
+  Code_Explanation: "Code Explanation",
+  Generating_Explanation: "Generating explanation...",
+  No_Code_To_Explain: "No code to explain",
+  Failed_to_get_Code_Explanation: "Failed to get code explanation",
+  No_Explanation_Available: "No explanation available"
 };

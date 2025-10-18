@@ -8,14 +8,19 @@ import logging
 
 
 logger=logging.getLogger(__name__)
+
 class AIService:
     @staticmethod
     def get_active_ai_model():
         try:
-            return AIModel.objects.get(is_active=True)
-        except AIModel.DoesNotExist:
-            raise Exception("No active AI model found")
-    
+            # 获取所有激活的AI模型
+            active_models = AIModel.objects.filter(is_active=True)
+            if not active_models.exists():
+                raise Exception("No active AI model found")
+            # 返回第一个激活的模型
+            return active_models.first()
+        except Exception as e:
+            raise Exception(f"Error getting active AI model: {str(e)}")
     @staticmethod
     def call_ai_model(messages, ai_model=None):
         if ai_model is None:
@@ -77,17 +82,6 @@ class AIService:
     def get_chat_history(conversation_id):
         messages=AIMessage.objects.filter(conversation_id=conversation_id).order_by("create_time")
         return [{"role":message.role,"content":message.content} for message in messages]
-    
-    @staticmethod
-    def generate_code_explanation(code,language):
-        prompt = f"请解释以下{language}代码:\n\n{code}\n\n解释:"
-        messages = [{"role": "user", "content": prompt}]
-        
-        ai_model = AIService.get_active_ai_model()
-        if not ai_model:
-            raise Exception("No active AI model found")
-        
-        return AIService.call_ai_model(messages, ai_model)
     
     @staticmethod
     def generate_problem_solution(problem_id):
@@ -216,6 +210,21 @@ class AIService:
             "problems": [{"id": p.id, "title": p.title} for p in recommended_problems],
             "recommendation": recommendation
         }
+    @staticmethod
+    def generate_code_explanation(code, language):
+        try:
+            prompt = f"请用中文详细解释以下{language}代码的功能和逻辑:\n\n{code}\n\n解释:"
+            messages = [{"role": "user", "content": prompt}]
+            
+            ai_model = AIService.get_active_ai_model()
+            if not ai_model:
+                raise Exception("No active AI model found")
+            
+            return AIService.call_ai_model(messages, ai_model)
+        except Exception as e:
+            logger.error(f"Error in generate_code_explanation: {str(e)}")
+            raise Exception(f"Failed to generate code explanation: {str(e)}")
+
 
 
 

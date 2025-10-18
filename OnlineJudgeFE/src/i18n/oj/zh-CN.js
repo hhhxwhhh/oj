@@ -121,5 +121,11 @@ export const m = {
   Welcome_to_Login: "欢迎登录",
   GO: "登录",
   username: "用户名",
-  password: "密码"
+  password: "密码",
+  Explain_Code: "解释代码",
+  Code_Explanation: "代码解释",
+  Generating_Explanation: "正在生成解释...",
+  No_Code_To_Explain: "没有代码可解释",
+  Failed_to_get_Code_Explanation: "获取代码解释失败",
+  No_Explanation_Available: "暂无代码解释"
 };

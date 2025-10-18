@@ -15,8 +15,8 @@ from .serializers import (
 )
 from .service import AIService
 from submission.models import Submission
-
-
+import logging
+logger = logging.getLogger(__name__)
 class AIModelAdminAPI(APIView):
     def get(self,request):
         model_id=request.GET.get("id")
@@ -182,19 +182,28 @@ class AIMessageAPI(APIView):
 class AICodeExplanationAPI(APIView):
     @login_required
     def post(self,request):
-        code=request.data.get("code")
-        language=request.data.get("language")
+        code = request.data.get("code")
+        language = request.data.get("language")
+        logger.info(f"Received code explanation request: language={language}, code_length={len(code) if code else 0}")
+        
         if not code or not language:
+            logger.error("Code explanation failed: Missing code or language parameter")
             return self.error("Parameter error")
         try:
             # 检查是否有激活的AI模型
             active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            logger.info(f"Active model exists: {active_model_exists}")
+            
             if not active_model_exists:
+                logger.error("Code explanation failed: No active AI model found")
                 return self.error("No active AI model found. Please configure an AI model first.")
-            explanation=AIService.generate_code_explanation(code,language)
-            return self.success({"explanation":explanation})
+            
+            explanation = AIService.generate_code_explanation(code, language)
+            logger.info(f"Code explanation generated successfully, length={len(explanation) if explanation else 0}")
+            return self.success({"explanation": explanation})
         except Exception as e:
-            return self.error(str(e))
+            logger.error(f"Code explanation failed with error: {str(e)}", exc_info=True)
+            return self.error(f"Failed to generate code explanation: {str(e)}")
         
 
 class AIProblemSolutionAPI(APIView):

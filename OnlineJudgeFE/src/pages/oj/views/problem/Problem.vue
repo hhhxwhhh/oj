@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-              }}: {{
+          }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -54,6 +54,7 @@
       <Card :padding="20" id="submit-code" dis-hover>
         <CodeMirror :value.sync="code" :languages="problem.languages" :language="language" :theme="theme"
           @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"></CodeMirror>
+
         <Row type="flex" justify="space-between">
           <Col :span="10">
           <div class="status" v-if="statusVisible">
@@ -87,11 +88,19 @@
               <Input v-model="captchaCode" class="captcha-code" />
             </div>
           </template>
-          <Button type="warning" icon="edit" :loading="submitting" @click="submitCode"
-            :disabled="problemSubmitDisabled || submitted" class="fl-right">
-            <span v-if="submitting">{{ $t('m.Submitting') }}</span>
-            <span v-else>{{ $t('m.Submit') }}</span>
-          </Button>
+
+          <!-- 将解释代码按钮和提交按钮放在一起 -->
+          <div class="problem-buttons">
+            <Button type="info" icon="information-circled" @click="explainCode" :loading="explaining"
+              :disabled="!code || explaining" class="btn-explain">
+              {{ $t('m.Explain_Code') }}
+            </Button>
+            <Button type="warning" icon="edit" :loading="submitting" @click="submitCode"
+              :disabled="problemSubmitDisabled || submitted" class="btn-submit">
+              <span v-if="submitting">{{ $t('m.Submitting') }}</span>
+              <span v-else>{{ $t('m.Submit') }}</span>
+            </Button>
+          </div>
           </Col>
         </Row>
       </Card>
@@ -201,8 +210,22 @@
       </div>
     </Modal>
 
+    <!-- 添加代码解释模态框 -->
+    <Modal v-model="showExplanationModal" :title="$t('m.Code_Explanation')" width="800" :footer-hide="true">
+      <div class="code-explanation" v-if="codeExplanation && !explaining">
+        <div v-html="renderMarkdown(codeExplanation)"></div>
+      </div>
+      <div v-else-if="explaining" class="loading-explanation">
+        <Spin size="large">{{ $t('m.Generating_Explanation') }}</Spin>
+      </div>
+      <div v-else>
+        <p>{{ $t('m.No_Explanation_Available') }}</p>
+      </div>
+    </Modal>
+
   </div>
 </template>
+
 
 <script>
 import { mapGetters, mapActions } from 'vuex'
@@ -281,7 +304,11 @@ export default {
       largePieInitOpts: {
         width: '500',
         height: '480'
-      }
+      },
+      // 添加代码解释相关数据
+      explaining: false,
+      showExplanationModal: false,
+      codeExplanation: ''
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -492,6 +519,57 @@ export default {
     },
     onCopyError(e) {
       this.$error('Failed to copy code')
+    },
+    // 添加代码解释方法
+    async explainCode() {
+      // 检查是否有代码
+      if (!this.code || this.code.trim() === '') {
+        this.$error(this.$i18n.t('m.No_Code_To_Explain'));
+        return;
+      }
+
+      try {
+        // 设置加载状态
+        this.explaining = true;
+        this.showExplanationModal = true;
+        this.codeExplanation = '';
+
+        // 调用后端API获取代码解释
+        const res = await api.getCodeExplanation({
+          code: this.code,
+          language: this.language
+        });
+
+        // 设置解释结果
+        if (res.data && res.data.data && res.data.data.explanation) {
+          this.codeExplanation = res.data.data.explanation;
+        } else {
+          this.codeExplanation = this.$i18n.t('m.No_Explanation_Available');
+        }
+      } catch (err) {
+        // 处理错误
+        console.error('Code explanation error:', err);
+        this.$error(this.$i18n.t('m.Failed_to_get_Code_Explanation') + ': ' + (err.message || ''));
+
+        // 修复可选链操作符问题
+        let errorMessage = '';
+        if (err.response && err.response.data && err.response.data.data) {
+          errorMessage = err.response.data.data;
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+
+        this.codeExplanation = this.$i18n.t('m.Failed_to_get_Code_Explanation') + '. ' + errorMessage;
+      } finally {
+        // 重置加载状态
+        this.explaining = false;
+      }
+    },
+
+
+    // 添加渲染Markdown方法
+    renderMarkdown(content) {
+      return utils.renderMarkdown(content);
     }
   },
   computed: {
@@ -619,6 +697,15 @@ export default {
   }
 }
 
+// 添加按钮样式
+.problem-buttons {
+  text-align: right;
+
+  .btn-explain {
+    margin-right: 10px;
+  }
+}
+
 #info {
   margin-bottom: 20px;
   margin-top: 20px;
@@ -666,5 +753,54 @@ export default {
   margin-top: 20px;
   width: 500px;
   height: 480px;
+}
+
+// 添加代码解释相关样式
+.code-explanation {
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+
+  /deep/ h1,
+  /deep/ h2,
+  /deep/ h3 {
+    margin: 10px 0;
+  }
+
+  /deep/ p {
+    margin: 8px 0;
+    line-height: 1.6;
+  }
+
+  /deep/ pre {
+    background: #f0f0f0;
+    padding: 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 10px 0;
+  }
+
+  /deep/ code {
+    background: #f0f0f0;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+  }
+
+  /deep/ ul,
+  /deep/ ol {
+    padding-left: 20px;
+  }
+}
+
+.loading-explanation {
+  text-align: center;
+  padding: 40px 20px;
+
+  /deep/ .ivu-spin-text {
+    margin-top: 10px;
+  }
 }
 </style>
