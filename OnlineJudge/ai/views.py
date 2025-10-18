@@ -27,19 +27,24 @@ class AIModelAdminAPI(APIView):
             return self.success(AIModelSerializer(ai_model).data)
         except AIModel.DoesNotExist:
             return self.error("Model not found")
+        except Exception as e:
+            return self.error(str(e))
         
     @validate_serializer(CreateAIModelSerializer)
     def post(self,request):
         data=request.data
-        ai_model = AIModel.objects.create(
-            name=data["name"],
-            provider=data["provider"],
-            api_key=data["api_key"],
-            model=data["model"],
-            is_active=data["is_active"],
-            config=data["config"]
-        )
-        return self.success(AIModelSerializer(ai_model).data)
+        try:
+            ai_model = AIModel.objects.create(
+                name=data["name"],
+                provider=data["provider"],
+                api_key=data["api_key"],
+                model=data["model"],
+                is_active=data["is_active"],
+                config=data["config"]
+            )
+            return self.success(AIModelSerializer(ai_model).data)
+        except Exception as e:
+            return self.error(str(e))
     
     def put(self,request):
         data=request.data
@@ -58,6 +63,8 @@ class AIModelAdminAPI(APIView):
             return self.success(AIModelSerializer(ai_model).data)
         except AIModel.DoesNotExist:
             return self.error("Model not found")
+        except Exception as e:
+            return self.error(str(e))
         
     def delete(self,request):
         model_id = request.GET.get("id")
@@ -70,31 +77,42 @@ class AIModelAdminAPI(APIView):
             return self.success()
         except AIModel.DoesNotExist:
             return self.error("AI model does not exist")
+        except Exception as e:
+            return self.error(str(e))
         
 class AIModelListAdminAPI(APIView):
     def get(self,request):
-        ai_models=AIModel.objects.all()
-        return self.success(AIModelSerializer(ai_models,many=True).data)
+        try:
+            ai_models=AIModel.objects.all()
+            return self.success(AIModelSerializer(ai_models,many=True).data)
+        except Exception as e:
+            return self.error(str(e))
     
 class AIConversationAPI(APIView):
     @login_required
     @validate_serializer(CreateAIConversationSerializer)
     def post(self,request):
         data=request.data
-        user=request.user        
-        conversation=AIConversation.objects.create(
-            user=user,
-            title=data['title']
-        )
-        return self.success(AIConversationSerializer(conversation).data)
+        user=request.user
+        try:
+            conversation=AIConversation.objects.create(
+                user=user,
+                title=data['title']
+            )
+            return self.success(AIConversationSerializer(conversation).data)
+        except Exception as e:
+            return self.error(str(e))
     
 
 class AIConversationListAPI(APIView):
     @login_required
     def get(self, request):
         user = request.user
-        conversations = AIConversation.objects.filter(user=user).order_by("-update_time")
-        return self.success(AIConversationSerializer(conversations, many=True).data)
+        try:
+            conversations = AIConversation.objects.filter(user=user).order_by("-update_time")
+            return self.success(AIConversationSerializer(conversations, many=True).data)
+        except Exception as e:
+            return self.error(str(e))
     
 
 class AIMessageAPI(APIView):
@@ -115,23 +133,33 @@ class AIMessageAPI(APIView):
     def post(self,request):
         data = request.data
         user = request.user
-        user_message = AIMessage.objects.create(
-            conversation_id=data["conversation_id"],
-            role="user",
-            content=data["content"]
-        )
-        messages = AIService.get_chat_history(data["conversation_id"])
         try:
-            ai_response = AIService.call_ai_model(messages)
-            ai_message = AIMessage.objects.create(
+            user_message = AIMessage.objects.create(
                 conversation_id=data["conversation_id"],
-                role="assistant",
-                content=ai_response
+                role="user",
+                content=data["content"]
             )
-            return self.success({
-                "user_message": AIMessageSerializer(user_message).data,
-                "ai_message": AIMessageSerializer(ai_message).data
-            })
+            # 只有在需要时才调用AI服务
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if active_model_exists:
+                messages = AIService.get_chat_history(data["conversation_id"])
+                ai_response = AIService.call_ai_model(messages)
+                ai_message = AIMessage.objects.create(
+                    conversation_id=data["conversation_id"],
+                    role="assistant",
+                    content=ai_response
+                )
+                return self.success({
+                    "user_message": AIMessageSerializer(user_message).data,
+                    "ai_message": AIMessageSerializer(ai_message).data
+                })
+            else:
+                # 如果没有激活的模型，返回只有用户消息的响应
+                return self.success({
+                    "user_message": AIMessageSerializer(user_message).data,
+                    "ai_message": None
+                })
         except Exception as e:
             return self.error(str(e))
         
@@ -143,6 +171,10 @@ class AICodeExplanationAPI(APIView):
         if not code or not language:
             return self.error("Parameter error")
         try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
             explanation=AIService.generate_code_explanation(code,language)
             return self.success({"explanation":explanation})
         except Exception as e:
@@ -156,6 +188,10 @@ class AIProblemSolutionAPI(APIView):
         if not problem_id:
             return self.error("Parameter error")
         try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
             solution = AIService.generate_problem_solution(problem_id)
             return self.success({"solution": solution})
         except Exception as e:
@@ -169,6 +205,10 @@ class AICodeReviewAPI(APIView):
         user = request.user
         
         try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
             review_result = AIService.review_code(data["problem_id"], data["code"], data["language"])
             code_review = AICodeReview.objects.create(
                 user=user,
@@ -208,6 +248,10 @@ class AIDiagnoseSubmissionAPI(APIView):
         if not submission_id:
             return self.error("Parameter error")
         try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
             diagnosis=AIService.diagnose_submission(submission_id)
             return self.success({"diagnosis":diagnosis})
         except Exception as e:
@@ -219,10 +263,11 @@ class AIRecommendProblemsAPI(APIView):
     def get(self,request):
         user=request.user
         try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
             recommendations=AIService.recommend_problems(user.id)
             return self.success(recommendations)
         except Exception as e:
             return self.error(str(e))
-
-
-

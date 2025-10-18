@@ -1,4 +1,4 @@
-<template>
+、<template>
     <div class="ai-model">
         <Panel :title="$t('m.AI_Model_Admin')">
             <div slot="header">
@@ -71,12 +71,13 @@
             <el-form ref="form" :model="form" :rules="ruleValidate" label-position="top">
 
                 <el-form-item :label="$t('m.Name')" prop="name">
-                    <el-input v-model="form.name" :placeholder="$t('m.Name')" />
+                    <el-input v-model="form.name" :placeholder="$t('m.Name')" id="ai-model-name" />
                     <div class="form-item-description">A unique name to identify this AI model</div>
                 </el-form-item>
 
                 <el-form-item :label="$t('m.Provider')" prop="provider">
-                    <el-select v-model="form.provider" :placeholder="$t('m.Provider')" style="width: 100%">
+                    <el-select v-model="form.provider" :placeholder="$t('m.Provider')" style="width: 100%"
+                        id="ai-model-provider">
                         <el-option value="openai" label="OpenAI"></el-option>
                         <el-option value="azure" label="Azure OpenAI"></el-option>
                     </el-select>
@@ -84,23 +85,24 @@
                 </el-form-item>
 
                 <el-form-item :label="$t('m.API_Key')" prop="api_key">
-                    <el-input v-model="form.api_key" :placeholder="$t('m.API_Key')" type="password" />
+                    <el-input v-model="form.api_key" :placeholder="$t('m.API_Key')" type="password"
+                        id="ai-model-api-key" />
                     <div class="form-item-description">The authentication key for accessing the AI service</div>
                 </el-form-item>
 
                 <el-form-item :label="$t('m.Model')" prop="model">
-                    <el-input v-model="form.model" :placeholder="$t('m.Model')" />
+                    <el-input v-model="form.model" :placeholder="$t('m.Model')" id="ai-model-model" />
                     <div class="form-item-description">The specific model name (e.g., gpt-3.5-turbo)</div>
                 </el-form-item>
 
                 <el-form-item :label="$t('m.Config')" prop="config">
-                    <el-input v-model="form.config" placeholder="Configuration in JSON format" type="textarea"
-                        :rows="4" />
+                    <el-input v-model="form.config" placeholder="Configuration in JSON format" type="textarea" :rows="4"
+                        id="ai-model-config" />
                     <div class="form-item-description">Additional configuration in JSON format (optional)</div>
                 </el-form-item>
 
                 <el-form-item :label="$t('m.Active')" prop="is_active">
-                    <el-switch v-model="form.is_active"></el-switch>
+                    <el-switch v-model="form.is_active" id="ai-model-active"></el-switch>
                     <div class="form-item-description">Whether this model is active and can be used</div>
                 </el-form-item>
             </el-form>

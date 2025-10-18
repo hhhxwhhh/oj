@@ -2,7 +2,6 @@ from django.conf.urls import include, url
 
 urlpatterns = [
     url(r"^api/", include("account.urls.oj")),
-    url(r"^api/admin/", include("account.urls.admin")),
     url(r"^api/", include("announcement.urls.oj")),
     url(r"^api/admin/", include("announcement.urls.admin")),
     url(r"^api/", include("conf.urls.oj")),
@@ -14,5 +13,6 @@ urlpatterns = [
     url(r"^api/", include("submission.urls.oj")),
     url(r"^api/admin/", include("submission.urls.admin")),
     url(r"^api/admin/", include("utils.urls")),
+    url(r"^api/admin/", include("account.urls.admin")),
     url(r"^api/", include("ai.urls")),
 ]

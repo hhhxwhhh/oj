@@ -278,5 +278,11 @@ export const m = {
   UserHomeserSubmissions: "Submissions",
   UserHomeScore: "Score",
   List_Solved_Problems: "List of solved problems",
-  UserHomeIntro: "The guy is so lazy that has not solved any problem yet."
+  UserHomeIntro: "The guy is so lazy that has not solved any problem yet.",
+  //ai assistant
+  Ask_something_about_this_problem: "Ask something about this problem",
+  Send: "Send",
+  Clear: "Clear",
+  AI_Assistant: "AI Assistant",
+  Failed_to_get_AI_response: "Failed to get response"
 };

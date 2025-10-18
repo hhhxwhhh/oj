@@ -14,6 +14,10 @@ class CreateAIModelSerializer(serializers.ModelSerializer):
     is_active=serializers.BooleanField()
     config=serializers.DictField()
 
+    class Meta:
+        model=AIModel
+        fields=["name","provider","api_key","model","is_active","config"]
+
 
 class AIConversationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,6 +26,10 @@ class AIConversationSerializer(serializers.ModelSerializer):
 
 class CreateAIConversationSerializer(serializers.ModelSerializer):
     title=serializers.CharField(max_length=256)
+
+    class Meta:
+        model=AIConversation
+        fields=["title"]
 
 class AIMessageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,6 +41,10 @@ class CreateAIMessageSerializer(serializers.ModelSerializer):
     role=serializers.CharField(max_length=128)
     content=serializers.CharField(max_length=4096)
 
+    class Meta:
+        model=AIMessage
+        fields=["conversation_id","role","content"]
+
 class AICodeReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model=AICodeReview
@@ -42,6 +54,10 @@ class CreateAICodeReviewSerializer(serializers.ModelSerializer):
     problem_id = serializers.IntegerField()
     code = serializers.CharField(max_length=65535)
     language = serializers.CharField(max_length=32)
+
+    class Meta:
+        model=AICodeReview
+        fields=["problem_id","code","language"]
 
 
 class AIFeedbackSerializer(serializers.ModelSerializer):
