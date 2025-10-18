@@ -17,7 +17,7 @@ class AIModel(models.Model):
 
 class AIConversation(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE)
-    title=models.TextField()
+    title=models.TextField(max_length=256)
     create_time=models.DateTimeField(auto_now_add=True)
     update_time=models.DateTimeField(auto_now=True)
 

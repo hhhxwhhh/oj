@@ -4,7 +4,10 @@ from django.db import transaction
 from .models import AIModel, AIMessage
 from problem.models import Problem
 from submission.models import Submission
+import logging
 
+
+logger=logging.getLogger(__name__)
 class AIService:
     @staticmethod
     def get_active_ai_model():
@@ -14,20 +17,56 @@ class AIService:
             raise Exception("No active AI model found")
     
     @staticmethod
-    def call_ai_model(messages,ai_model=None):
+    def call_ai_model(messages, ai_model=None):
         if ai_model is None:
-            ai_model =AIService.get_active_ai_model()
+            ai_model = AIService.get_active_ai_model()
         if not ai_model:
             raise Exception("No active AI model found")
-        if ai_model.provider =="openai":
-            return AIService._call_openai(messages,ai_model)
+        
+        if ai_model.provider == "openai":
+            return AIService._call_openai(messages, ai_model)
+        elif ai_model.provider == "openkey":
+            return AIService._call_openkey(messages, ai_model)
         else:
             raise Exception(f"Unsupported AI provider: {ai_model.provider}")
+    @staticmethod
+    def _call_openkey(messages, ai_model):
+        import openai
+        openai.api_base = "https://openkey.cloud/v1"
+        openai.api_key = ai_model.api_key
         
+        try:
+            response = openai.ChatCompletion.create(
+                model=ai_model.model,
+                messages=messages
+            )
+            return response.choices[0].message.content
+        except openai.error.APIConnectionError as e:
+            logger.error(f"OpenKey API connection error: {str(e)}")
+            raise Exception(f"无法连接到AI服务: {str(e)}")
+        except openai.error.AuthenticationError as e:
+            logger.error(f"OpenKey API authentication error: {str(e)}")
+            raise Exception(f"AI服务认证失败: {str(e)}")
+        except openai.error.RateLimitError as e:
+            logger.error(f"OpenKey API rate limit error: {str(e)}")
+            raise Exception(f"AI服务请求超限: {str(e)}")
+        except Exception as e:
+            logger.error(f"OpenKey API error: {str(e)}")
+            raise Exception(f"AI服务调用失败: {str(e)}")
+
+    
     @staticmethod
     def _call_openai(messages,ai_model):
-        openai.api_key=ai_model.api_key
-        response=openai.ChatCompletion.create(
+        import openai
+        # 检查是否使用OpenKey服务
+        if "openkey.cloud" in ai_model.api_key:
+            openai.api_base = "https://api.openkey.cloud/v1"
+            openai.api_key = ai_model.api_key
+        else:
+            # 标准OpenAI配置
+            openai.api_key = ai_model.api_key
+        
+        response = openai.ChatCompletion.create(
             model=ai_model.model,
             messages=messages
         )
@@ -137,14 +176,14 @@ class AIService:
             result=0
         ).select_related("problem")
         solved_problems=[sub.problem for sub in solved_submissions]
-        sovled_tags=[]
+        solved_tags=[]
         for problem in solved_problems:
-            sovled_tags.extend(problem.tags.all())
+            solved_tags.extend(problem.tags.all())
 
         from problem.models import Problem
 
         recommended_problems=Problem.objects.filter(
-            tags__in=sovled_tags,
+            tags__in=solved_tags,
             visible=True
         ).exclude(
             id__in=[problem.id for problem in solved_problems]

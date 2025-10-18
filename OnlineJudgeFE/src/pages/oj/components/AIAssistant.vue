@@ -129,7 +129,9 @@ export default {
             try {
                 // 如果没有会话ID，先创建会话
                 if (!this.conversationId) {
+                    const title = messageToSend.substring(0, 20);
                     const convRes = await api.createAIConversation({
+                        title: title,
                         problem_id: this.problem._id
                     })
                     this.conversationId = convRes.data.data.id
@@ -138,33 +140,45 @@ export default {
                 // 发送消息到AI
                 const res = await api.sendAIMessage({
                     conversation_id: this.conversationId,
-                    message: messageToSend,
+                    content: messageToSend,
                     problem_id: this.problem._id,
-                    code: this.code
+                    code: this.code,
+                    role: "user"
                 })
 
                 // 添加AI回复到聊天记录
-                const aiMsg = {
-                    type: 'ai',
-                    content: res.data.data.reply,
-                    timestamp: moment().format('HH:mm')
+                if (res.data && res.data.data && res.data.data.ai_message) {
+                    const aiMsg = {
+                        type: 'ai',
+                        content: res.data.data.ai_message.content,
+                        timestamp: moment().format('HH:mm')
+                    }
+                    this.chatMessages.push(aiMsg)
+                } else {
+                    // 如果没有AI模型配置，显示错误消息
+                    const errorMsg = {
+                        type: 'ai',
+                        content: this.$i18n.t('m.Failed_to_get_AI_response') + ' (No AI response received)',
+                        timestamp: moment().format('HH:mm')
+                    }
+                    this.chatMessages.push(errorMsg)
                 }
-                this.chatMessages.push(aiMsg)
             } catch (err) {
+                console.error('AI request error:', err)
                 const errorMsg = {
                     type: 'ai',
-                    content: this.$i18n.t('m.Failed_to_get_AI_response'),
+                    content: this.$i18n.t('m.Failed_to_get_AI_response') + ((err.response && err.response.status === 504) ? ' (Request timeout)' : ''),
                     timestamp: moment().format('HH:mm')
                 }
                 this.chatMessages.push(errorMsg)
             } finally {
+                // 确保在任何情况下都关闭加载状态
                 this.isLoading = false
                 this.$nextTick(() => {
                     this.scrollToBottom()
                 })
             }
         },
-
         clearChat() {
             this.chatMessages = []
             this.conversationId = null

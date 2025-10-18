@@ -25,7 +25,7 @@ class AIConversationSerializer(serializers.ModelSerializer):
         fields="__all__"
 
 class CreateAIConversationSerializer(serializers.ModelSerializer):
-    title=serializers.CharField(max_length=256)
+    title=serializers.CharField(max_length=256,required=False,allow_blank=True)
 
     class Meta:
         model=AIConversation
@@ -38,7 +38,7 @@ class AIMessageSerializer(serializers.ModelSerializer):
 
 class CreateAIMessageSerializer(serializers.ModelSerializer):
     conversation_id=serializers.IntegerField()
-    role=serializers.CharField(max_length=128)
+    role=serializers.CharField(max_length=128,required=False)
     content=serializers.CharField(max_length=4096)
 
     class Meta:

@@ -136,7 +136,7 @@ class AIMessageAPI(APIView):
         try:
             user_message = AIMessage.objects.create(
                 conversation_id=data["conversation_id"],
-                role="user",
+                role=data.get("role", "user"),
                 content=data["content"]
             )
             # 只有在需要时才调用AI服务
