@@ -296,3 +296,33 @@ class AIRecommendProblemsAPI(APIView):
             return self.success(recommendations)
         except Exception as e:
             return self.error(str(e))
+        
+
+class AICodeReviewAPI(APIView):
+    @login_required
+    def post(self,request):
+        code=request.data.get("code")
+        language=request.data.get("language")
+        problem_id=request.data.get("problem_id")
+        if not code or not language or not problem_id:
+            return self.error("Parameter error")
+        try:
+            active_model_exists=AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
+            
+            review_result=AIService.review_code(problem_id,code,language)
+
+            code_review=AICodeReview.objects.create(
+                user=request.user,
+                problem_id=problem_id,
+                code=code,
+                language=language,
+                review_result={"review":review_result},
+            )
+            return self.success({
+                "review_result":review_result,
+                "review_id":code_review.id,
+            })
+        except Exception as e:
+            return self.error(str(e))

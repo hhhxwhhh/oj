@@ -54,3 +54,5 @@ class AIFeedback(models.Model):
 
     class Meta:
         db_table='ai_feedback'
+
+

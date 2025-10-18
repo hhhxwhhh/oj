@@ -127,5 +127,11 @@ export const m = {
   Generating_Explanation: "正在生成解释...",
   No_Code_To_Explain: "没有代码可解释",
   Failed_to_get_Code_Explanation: "获取代码解释失败",
-  No_Explanation_Available: "暂无代码解释"
+  No_Explanation_Available: "暂无代码解释",
+  //ai代码审查对应的翻译
+  AI_Code_Review: "AI代码审查",
+  Code_Review: "代码审查",
+  Generating_Review: "正在生成代码审查结果...",
+  Failed_to_get_Code_Review: "获取代码审查结果失败",
+  No_Review_Available: "暂无代码审查结果"
 };
