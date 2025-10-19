@@ -1,6 +1,7 @@
 from django.db import models
 from utils.models import JSONField
 from account.models import User
+from problem.models import Problem
 
 class AIModel(models.Model):
     name=models.TextField()
@@ -56,3 +57,26 @@ class AIFeedback(models.Model):
         db_table='ai_feedback'
 
 
+class AIRecommendation(models.Model):
+    user=models.ForeignKey(User,on_delete=models.CASCADE)
+    problem=models.ForeignKey(Problem,on_delete=models.CASCADE)
+    score=models.FloatField()
+    reason=models.TextField()
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table='ai_recommendation'
+        unique_together=('user', 'problem')
+
+
+class AIRecommendationFeedback(models.Model):
+    user=models.ForeignKey(User,on_delete=models.CASCADE)
+    problem=models.ForeignKey(Problem,on_delete=models.CASCADE)
+    recommendation=models.ForeignKey(AIRecommendation,on_delete=models.CASCADE)
+    accepted=models.BooleanField(default=False)
+    solved=models.BooleanField(default=False)
+    feedback=models.TextField(blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table='ai_recommendation_feedback'

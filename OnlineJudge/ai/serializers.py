@@ -1,5 +1,5 @@
 from utils.api import serializers
-from .models import AIModel,AIMessage,AICodeReview,AIConversation,AIFeedback
+from .models import AIModel,AIMessage,AICodeReview,AIConversation,AIFeedback,AIRecommendation,AIRecommendationFeedback
 
 class AIModelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -73,3 +73,27 @@ class CreateAIFeedbackSerializer(serializers.Serializer):
     message_id = serializers.IntegerField()
     rating = serializers.IntegerField()
     comment = serializers.CharField(max_length=1024, allow_blank=True)
+
+class AIRecommendationSerializer(serializers.ModelSerializer):
+    problem_title=serializers.SerializerMethodField()
+    problem_difficulty=serializers.SerializerMethodField()
+
+    class Meta:
+        model=AIRecommendation
+        fields="__all__"
+
+    def get_problem_title(self,obj):
+        return obj.problem.title
+    def get_problem_difficulty(self,obj):
+        return obj.problem.difficulty
+    
+class CreateAIRecommendationFeedbackSerializer(serializers.Serializer):
+    recommendation_id = serializers.IntegerField()
+    accepted = serializers.BooleanField()
+    solved = serializers.BooleanField(required=False)
+    feedback = serializers.CharField(required=False, allow_blank=True)
+
+class AIRecommendationFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIRecommendationFeedback
+        fields = "__all__"

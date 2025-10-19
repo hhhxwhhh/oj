@@ -5,7 +5,10 @@ from .models import AIModel, AIMessage
 from problem.models import Problem
 from submission.models import Submission
 import logging
-
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from collections import defaultdict
 
 logger=logging.getLogger(__name__)
 
@@ -225,6 +228,116 @@ class AIService:
             logger.error(f"Error in generate_code_explanation: {str(e)}")
             raise Exception(f"Failed to generate code explanation: {str(e)}")
 
+class AIRecommendationService:
+    @staticmethod
+    def get_user_problem_matrix():
+        """构建用户-题目矩阵"""
+        submissions=Submission.objects.filter(
+            result=0
+        )
+        user_problems=defaultdict(set)
+        for submission in submissions:
+            user_problems[submission.user_id].add(submission.problem_id)
+        return user_problems
+    @staticmethod
+    def calculate_similarity_matrix(user_problems,target_user_id):
+        """基于用户的解题记录 计算用户的相似度矩阵"""
+        if target_user_id not in user_problems:
+            raise Exception("Target user not found")
+        target_problems=user_problems[target_user_id]
+        similarities={}
+        for user_id,problems in user_problems.items():
+            if target_user_id==user_id:
+                continue
+            intersection = len(target_problems.intersection(problems))
+            union = len(target_problems.union(problems))
+            if union >0:
+                similarty=intersection/union
+                similarities[user_id]=similarty
 
+        return similarities
+    
+    @staticmethod
+    def collaborative_filtering_recommendations(user_id,count=10):
+        """基于协同过滤推荐算法"""
+        user_problems=AIRecommendationService.get_user_problem_matrix()
+        similarities=AIRecommendationService.calculate_similarity_matrix(user_problems=user_problems,target_user_id=user_id)
+        solved_problems=user_problems.get(user_id,set())
+        candidate_problems=defaultdict(float)
+        for similar_user_id ,similarty in similarities.items():
+            if similarty>0.1:
+                for problem_id in user_problems[similar_user_id]:
+                    if problem_id not in solved_problems:
+                        candidate_problems[problem_id]+=similarty
+        sorted_candidate_problems=sorted(candidate_problems.items(),key=lambda x: x[1],reverse=True)
+        return [(problem_id, score, "基于相似用户推荐") for problem_id, score in sorted_candidate_problems[:count]]
+    
+    @staticmethod
+    def content_based_recommendations(user_id,count=10):
+        """基于内容推荐算法"""
+        solved_submissions=Submission.objects.filter(
+            user_id=user_id,
+            result=0
+        ).select_related("problem")
+        solved_problems=[sub.problem for sub in solved_submissions]
+
+        if not solved_problems:
+            popular_problems=Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+            return [(problem.id, 0, "基于热门题目推荐") for problem in popular_problems]
+        solved_tags=set()
+        for problem in solved_problems:
+            for tag in problem.tags.all():
+                solved_tags.add(tag)
+
+        unsolved_problems = Problem.objects.filter(visible=True).exclude(
+            id__in=[p.id for p in solved_problems]
+        ).prefetch_related('tags')
+        candidate_problems=[]
+        for problem in unsolved_problems:
+            problem_tags = {tag.name for tag in problem.tags.all()}
+            if solved_tags and problem_tags:
+                intersection=len(solved_tags.intersection(problem_tags))
+                union=len(solved_tags.union(problem_tags))
+                if union>0:
+                    similarty=intersection/union
+                    candidate_problems.append((problem.id,similarty,"基于标签推荐"))
+
+        candidate_problems.sort(key=lambda x:x[1],reverse=True)
+        return candidate_problems[:count]
+    @staticmethod
+    def hybrid_recommendations(user_id,count=10):
+        cf_recommendations=AIRecommendationService.collaborative_filtering_recommendations(user_id=user_id,count=count*2)
+        cb_recommendations=AIRecommendationService.content_based_recommendations(user_id=user_id,count=count*2)
+        problem_socres=defaultdict(list)
+        for probelm_id,score,reason in cf_recommendations:
+            problem_socres[probelm_id].append((score,reason))
+        for probelm_id,score,reason in cb_recommendations:
+            problem_socres[probelm_id].append((score,reason))
+        final_recomendations=[]
+        for problem_id,scores_reasons in problem_socres.items():
+            avg_score = sum(score for score, _ in scores_reasons) / len(scores_reasons)
+            reasons=list(set(reason for _,reason in scores_reasons))
+            combined_reason=", ".join(reasons)
+            final_recomendations.append((problem_id,avg_score,combined_reason))
+
+        final_recomendations.sort(key=lambda x:x[1],reverse=True)
+        return final_recomendations[:count]
+    
+    @staticmethod
+    def recommend_problems(user_id,count=10):
+        """推荐题目的对外接口"""
+        try:
+            recommendations=AIRecommendationService.hybrid_recommendations(user_id=user_id,count=count)
+            return recommendations
+        except Exception as e:
+            popular_problems=Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+            return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
+
+
+
+
+    
+
+    
 
 

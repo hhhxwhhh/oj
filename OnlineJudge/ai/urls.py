@@ -16,6 +16,7 @@ urlpatterns = [
     url(r"^ai/code/review/?$", views.AICodeReviewAPI.as_view(), name="ai_code_review_api"),
     url(r"^ai/submission/diagnose/?$", views.AIDiagnoseSubmissionAPI.as_view(), name="ai_submission_diagnosis_api"),
     url(r"^ai/problems/recommend/?$", views.AIRecommendProblemsAPI.as_view(), name="ai_problem_recommendation_api"),
+    url(r"^ai/recommendation/feedback/?$", views.AIRecommendationFeedbackAPI.as_view(), name="ai_recommendation_feedback_api"),
     
     url(r"^ai/feedback/?$", views.AIFeedbackAPI.as_view(), name="ai_feedback_api"),
 ]

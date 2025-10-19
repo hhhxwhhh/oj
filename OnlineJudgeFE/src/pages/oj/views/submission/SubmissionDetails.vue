@@ -198,14 +198,11 @@ export default {
       let problemId = null;
       if (this.submission.problem_id) {
         problemId = this.submission.problem_id;
-        console.log("通过problem_id:", problemId);
       } else if (this.submission.problem) {
         if (typeof this.submission.problem === 'object') {
           problemId = this.submission.problem.id;
-          console.log("通过problem对象:", problemId);
         } else {
           problemId = this.submission.problem;
-          console.log("通过problem字符串:", problemId);
         }
       }
 

@@ -11,10 +11,12 @@ from .serializers import (
     AIConversationSerializer, CreateAIConversationSerializer,
     AIMessageSerializer, CreateAIMessageSerializer,
     AICodeReviewSerializer, CreateAICodeReviewSerializer,
-    AIFeedbackSerializer, CreateAIFeedbackSerializer
+    AIFeedbackSerializer, CreateAIFeedbackSerializer,
+    CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer
 )
-from .service import AIService
+from .service import AIService,AIRecommendationService
 from submission.models import Submission
+from problem.models import Problem
 import logging
 logger = logging.getLogger(__name__)
 class AIModelAdminAPI(APIView):
@@ -285,18 +287,54 @@ class AIDiagnoseSubmissionAPI(APIView):
 
 class AIRecommendProblemsAPI(APIView):
     @login_required
-    def get(self,request):
-        user=request.user
+    def get(self, request):
+        user = request.user
+        count = int(request.GET.get("count", 10))
+        
         try:
             # 检查是否有激活的AI模型
             active_model_exists = AIModel.objects.filter(is_active=True).exists()
-            if not active_model_exists:
-                return self.error("No active AI model found. Please configure an AI model first.")
-            recommendations=AIService.recommend_problems(user.id)
-            return self.success(recommendations)
+            # 获取推荐题目
+            recommendations = AIRecommendationService.recommend_problems(user.id, count)
+            # 格式化推荐结果
+            result = []
+            for problem_id, score, reason in recommendations:
+                try:
+                    problem = Problem.objects.get(id=problem_id)
+                    result.append({
+                        "problem_id": problem.id,
+                        "problem_display_id": problem._id,
+                        "title": problem.title,
+                        "difficulty": problem.difficulty,
+                        "score": score,
+                        "reason": reason,
+                        "acceptance_rate": problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                    })
+                except Problem.DoesNotExist:
+                    continue
+            
+            return self.success(result)
+        except Exception as e:
+            logger.error(f"Recommendation failed: {str(e)}", exc_info=True)
+            return self.error("推荐失败，请稍后重试")
+        
+class AIRecommendationFeedbackAPI(APIView):
+    @login_required
+    @validate_serializer(CreateAIRecommendationFeedbackSerializer)
+    def post(self,request):
+        data=request.data
+        user=request.user
+        try:
+            feedback=AIFeedback.objects.create(
+                user=user,
+                recommendation_id=data["recommendation_id"],
+                accepted=data['accepted'],
+                solved=data.get("solved",False),
+                feedback=data.get("feedback",""),
+            )
+            return self.success(AIRecommendationFeedbackSerializer(feedback).data)
         except Exception as e:
             return self.error(str(e))
-        
 
 class AICodeReviewAPI(APIView):
     @login_required
