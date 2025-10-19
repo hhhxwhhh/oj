@@ -482,6 +482,14 @@ export default {
           }
           this.submitted = true
           this.checkSubmissionStatus()
+          //
+          this.$router.push({
+            name: 'next-problem-recommendation',
+            params: { problemID: this.problem._id },
+            query: {
+              result: res.data.data.result
+            }
+          });
         }, res => {
           this.getCaptchaSrc()
           if (res.data.data.startsWith('Captcha is required')) {

@@ -305,5 +305,14 @@ export const m = {
   Recommended_For_You: "Recommended For You",
   List_Solved_Problems: "Solved Problems",
   Recommended_Problems: "Recommend",
-  Show_All_Problems: "Original"
+  Show_All_Problems: "Original",
+  Next_Problem_Recommendation: "Next Problem Recommendation",
+  Based_on_your_submission: "Based on your submission",
+  Try_This_Problem: "Try This Problem",
+  Get_Another_Recommendation: "Get Another Recommendation",
+  Why_Recommended: "Why Recommended",
+  Finding_best_problem_for_you: "Finding the best problem for you",
+  Unable_to_generate_recommendation: "Unable to generate recommendation",
+  Try_Again: "Try Again",
+  Failed_to_get_recommendation: "Failed to get recommendation"
 };

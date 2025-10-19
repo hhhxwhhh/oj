@@ -144,5 +144,14 @@ export const m = {
   List_Solved_Problems: "已解决问题列表",
   List_All_Problems: "所有问题列表",
   Recommended_Problems: "推荐题目",
-  Show_All_Problems: "显示所有题目"
+  Show_All_Problems: "显示所有题目",
+  Next_Problem_Recommendation: "下一题推荐",
+  Based_on_your_submission: "基于您的提交结果",
+  Try_This_Problem: "尝试这道题",
+  Get_Another_Recommendation: "获取其他推荐",
+  Why_Recommended: "推荐理由",
+  Finding_best_problem_for_you: "正在为您寻找最合适的题目",
+  Unable_to_generate_recommendation: "暂时无法生成推荐",
+  Try_Again: "重试",
+  Failed_to_get_recommendation: "获取推荐失败"
 };
