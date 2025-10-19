@@ -34,6 +34,13 @@
               {{ $t('m.Reset') }}
             </Button>
           </li>
+          <li>
+            <Button :type="showRecommended ? 'primary' : 'default'" @click="toggleRecommended"
+              :loading="loadings.recommendation">
+              <Icon :type="showRecommended ? 'md-star' : 'md-star-outline'"></Icon>
+              {{ showRecommended ? $t('m.Show_All_Problems') : $t('m.Recommended_Problems') }}
+            </Button>
+          </li>
         </ul>
       </div>
       <Table style="width: 100%; font-size: 16px;" :columns="problemTableColumns" :data="problemList"
@@ -55,27 +62,6 @@
         <Icon type="shuffle"></Icon>
         {{ $t('m.Pick_One') }}
       </Button>
-    </Panel>
-
-    <!-- 添加推荐题目模块 -->
-    <Panel :padding="10" v-if="recommendedProblems.length > 0" class="recommendation-panel">
-      <div slot="title" class="recommendation-title">
-        <Icon type="md-compass" /> {{ $t('m.Recommended_For_You') }}
-      </div>
-      <div class="recommendation-content">
-        <div v-for="problem in recommendedProblems" :key="problem.problem_id" class="recommendation-item"
-          @click="goToProblem(problem.problem_display_id)">
-          <div class="problem-main">
-            <span class="problem-id">{{ problem.problem_display_id }}</span>
-            <span class="problem-title">{{ problem.title }}</span>
-          </div>
-          <div class="problem-meta">
-            <Tag :color="getDifficultyColor(problem.difficulty)" size="small">
-              {{ $t('m.' + problem.difficulty) }}
-            </Tag>
-          </div>
-        </div>
-      </div>
     </Panel>
 
     <Spin v-if="loadings.tag" fix size="large"></Spin>
@@ -170,12 +156,12 @@ export default {
         }
       ],
       problemList: [],
-      recommendedProblems: [], // 添加推荐题目数据
       limit: 20,
       total: 0,
       loadings: {
         table: true,
-        tag: true
+        tag: true,
+        recommendation: false
       },
       routeName: '',
       query: {
@@ -184,12 +170,13 @@ export default {
         tag: '',
         page: 1,
         limit: 10
-      }
+      },
+      showRecommended: false,
+      recommendedProblemList: [] // 存储推荐题目列表
     }
   },
   mounted() {
     this.init()
-    this.loadRecommendedProblems() // 加载推荐题目
   },
   methods: {
     init(simulate = false) {
@@ -217,16 +204,34 @@ export default {
     getProblemList() {
       let offset = (this.query.page - 1) * this.query.limit
       this.loadings.table = true
-      api.getProblemList(offset, this.limit, this.query).then(res => {
-        this.loadings.table = false
-        this.total = res.data.data.total
-        this.problemList = res.data.data.results
-        if (this.isAuthenticated) {
-          this.addStatusColumn(this.problemTableColumns, res.data.data.results)
-        }
-      }, res => {
-        this.loadings.table = false
-      })
+
+      if (this.showRecommended) {
+        // 获取推荐题目
+        this.loadings.recommendation = true
+        api.getRecommendedProblems(this.query.limit).then(res => {
+          this.loadings.table = false
+          this.loadings.recommendation = false
+          this.recommendedProblemList = res.data.data || []
+          this.problemList = this.recommendedProblemList
+          this.total = this.recommendedProblemList.length
+        }).catch(err => {
+          this.loadings.table = false
+          this.loadings.recommendation = false
+          console.error('Failed to load recommended problems:', err)
+        })
+      } else {
+        // 获取默认题目列表
+        api.getProblemList(offset, this.limit, this.query).then(res => {
+          this.loadings.table = false
+          this.total = res.data.data.total
+          this.problemList = res.data.data.results
+          if (this.isAuthenticated) {
+            this.addStatusColumn(this.problemTableColumns, res.data.data.results)
+          }
+        }, res => {
+          this.loadings.table = false
+        })
+      }
     },
     getTagList() {
       api.getProblemTagList().then(res => {
@@ -273,7 +278,12 @@ export default {
       }
     },
     onReset() {
-      this.$router.push({ name: 'problem-list' })
+      this.query.keyword = ''
+      this.query.difficulty = ''
+      this.query.tag = ''
+      this.query.page = 1
+      this.showRecommended = false
+      this.pushRouter()
     },
     pickone() {
       api.pickone().then(res => {
@@ -281,24 +291,14 @@ export default {
         this.$router.push({ name: 'problem-details', params: { problemID: res.data.data } })
       })
     },
-    // 添加推荐相关方法
-    loadRecommendedProblems() {
-      api.getRecommendedProblems(5).then(res => {
-        this.recommendedProblems = res.data.data || []
-      }).catch(err => {
-        console.error('Failed to load recommended problems:', err)
-      })
+    toggleRecommended() {
+      this.showRecommended = !this.showRecommended
+      this.query.page = 1 // 重置到第一页
+      this.getProblemList()
     },
-    getDifficultyColor(difficulty) {
-      const colorMap = {
-        'Low': 'success',
-        'Mid': 'warning',
-        'High': 'error'
-      }
-      return colorMap[difficulty] || 'default'
-    },
-    goToProblem(problemID) {
-      this.$router.push({ name: 'problem-details', params: { problemID } })
+    getACRate(acceptedCount, submissionCount) {
+      if (submissionCount === 0) return '0%'
+      return Math.round(acceptedCount / submissionCount * 100) + '%'
     }
   },
   computed: {
@@ -334,56 +334,10 @@ export default {
   margin-top: 10px;
 }
 
-// 添加推荐样式
-.recommendation-panel {
-  margin-top: 20px;
-
-  .recommendation-title {
-    font-weight: 500;
-  }
-
-  .recommendation-content {
-    .recommendation-item {
-      padding: 8px 0;
-      border-bottom: 1px solid #e8eaec;
-      cursor: pointer;
-      transition: background-color 0.2s;
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      &:hover {
-        background-color: #f8f8f9;
-      }
-
-      .problem-main {
-        display: flex;
-        align-items: center;
-        margin-bottom: 4px;
-
-        .problem-id {
-          font-weight: 600;
-          color: #2d8cf0;
-          margin-right: 8px;
-          font-family: monospace;
-          font-size: 12px;
-        }
-
-        .problem-title {
-          flex: 1;
-          font-size: 13px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-      }
-
-      .problem-meta {
-        display: flex;
-        align-items: center;
-      }
-    }
+.filter {
+  li {
+    display: inline-block;
+    margin-right: 10px;
   }
 }
 </style>

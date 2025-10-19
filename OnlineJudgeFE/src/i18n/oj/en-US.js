@@ -303,5 +303,7 @@ export const m = {
   Based_on_your_solved_problems: "Based on your solved problems",
   Acceptance: "Acceptance",
   Recommended_For_You: "Recommended For You",
-  List_Solved_Problems: "Solved Problems"
+  List_Solved_Problems: "Solved Problems",
+  Recommended_Problems: "Recommend",
+  Show_All_Problems: "Original"
 };

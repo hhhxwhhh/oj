@@ -141,5 +141,8 @@ export const m = {
   Based_on_your_solved_problems: "基于你的解题记录推荐",
   Acceptance: "通过率",
   Recommended_For_You: "为你推荐",
-  List_Solved_Problems: "已解决问题列表"
+  List_Solved_Problems: "已解决问题列表",
+  List_All_Problems: "所有问题列表",
+  Recommended_Problems: "推荐题目",
+  Show_All_Problems: "显示所有题目"
 };
