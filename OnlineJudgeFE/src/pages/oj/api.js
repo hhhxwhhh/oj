@@ -320,6 +320,11 @@ export default {
   getRecommendedProblems() {
     return ajax("ai/problems/recommend", "get");
   },
+  submitRecommendationFeedback(data) {
+    return ajax("ai/recommendation/feedback", "post", {
+      data
+    });
+  },
   sendFeedback(data) {
     return ajax("ai/feedback", "post", {
       data

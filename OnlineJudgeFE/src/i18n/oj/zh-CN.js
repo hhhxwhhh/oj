@@ -133,5 +133,11 @@ export const m = {
   Code_Review: "代码审查",
   Generating_Review: "正在生成代码审查结果...",
   Failed_to_get_Code_Review: "获取代码审查结果失败",
-  No_Review_Available: "暂无代码审查结果"
+  No_Review_Available: "暂无代码审查结果",
+  Recommended_For_You: "为你推荐",
+  Refresh: "刷新",
+  No_Recommendations: "暂无推荐题目",
+  Failed_to_load_recommendations: "加载推荐失败",
+  Based_on_your_solved_problems: "基于你的解题记录推荐",
+  Acceptance: "通过率"
 };

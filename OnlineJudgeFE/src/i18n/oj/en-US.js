@@ -295,5 +295,11 @@ export const m = {
   Code_Review: "Code Review",
   Generating_Review: "Generating review...",
   Failed_to_get_Code_Review: "Failed to get code review",
-  No_Review_Available: "No review available"
+  No_Review_Available: "No review available",
+  Recommended_For_You: "Recommended For You",
+  Refresh: "Refresh",
+  No_Recommendations: "No recommendations available",
+  Failed_to_load_recommendations: "Failed to load recommendations",
+  Based_on_your_solved_problems: "Based on your solved problems",
+  Acceptance: "Acceptance"
 };
