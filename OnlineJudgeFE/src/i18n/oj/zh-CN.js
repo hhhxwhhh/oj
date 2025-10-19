@@ -139,5 +139,7 @@ export const m = {
   No_Recommendations: "暂无推荐题目",
   Failed_to_load_recommendations: "加载推荐失败",
   Based_on_your_solved_problems: "基于你的解题记录推荐",
-  Acceptance: "通过率"
+  Acceptance: "通过率",
+  Recommended_For_You: "为你推荐",
+  List_Solved_Problems: "已解决问题列表"
 };

@@ -301,5 +301,7 @@ export const m = {
   No_Recommendations: "No recommendations available",
   Failed_to_load_recommendations: "Failed to load recommendations",
   Based_on_your_solved_problems: "Based on your solved problems",
-  Acceptance: "Acceptance"
+  Acceptance: "Acceptance",
+  Recommended_For_You: "Recommended For You",
+  List_Solved_Problems: "Solved Problems"
 };
