@@ -363,3 +363,50 @@ class AICodeReviewAPI(APIView):
             })
         except Exception as e:
             return self.error(str(e))
+
+
+class AINextProblemRecommendationAPI(APIView):
+    @login_required
+    def post(self, request):
+        problem_id = request.data.get("problem_id")
+        submission_result = request.data.get("submission_result", "")
+        user = request.user
+        
+        try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
+            
+            # 获取推荐题目
+            recommendations = AIRecommendationService.recommend_next_problem(
+                user.id, problem_id, submission_result
+            )
+            
+            # 格式化推荐结果
+            result = []
+            for problem_id, score, reason in recommendations:
+                try:
+                    problem = Problem.objects.prefetch_related('tags').get(id=problem_id)
+                    # 获取题目的标签
+                    tags = list(problem.tags.values_list('name', flat=True))
+                    
+                    result.append({
+                        "id": problem.id,
+                        "_id": problem._id,
+                        "title": problem.title,
+                        "difficulty": problem.difficulty,
+                        "score": score,
+                        "reason": reason,
+                        "description": problem.description,
+                        "submission_number": problem.submission_number,
+                        "accepted_number": problem.accepted_number,
+                        "tags": tags
+                    })
+                except Problem.DoesNotExist:
+                    continue
+            
+            return self.success(result)
+        except Exception as e:
+            logger.error(f"Next problem recommendation failed: {str(e)}", exc_info=True)
+            return self.error("推荐失败，请稍后重试")

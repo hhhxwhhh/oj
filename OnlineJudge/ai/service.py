@@ -332,6 +332,19 @@ class AIRecommendationService:
         except Exception as e:
             popular_problems=Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
             return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
+        
+    @staticmethod
+    def recommend_next_problem(user_id,problem_id,submission_result):
+        """推荐下一题"""
+        try:
+            recommendations=AIRecommendationService.hybrid_recommendations(user_id=user_id,count=1)
+            if recommendations:
+                next_problem_id,recommend_score,reason=recommendations[0]
+                return next_problem_id,recommend_score,reason
+            else:
+                return None,None,None
+        except Exception as e:
+            return None,None,None
 
 
 

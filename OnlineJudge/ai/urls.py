@@ -17,6 +17,6 @@ urlpatterns = [
     url(r"^ai/submission/diagnose/?$", views.AIDiagnoseSubmissionAPI.as_view(), name="ai_submission_diagnosis_api"),
     url(r"^ai/problems/recommend/?$", views.AIRecommendProblemsAPI.as_view(), name="ai_problem_recommendation_api"),
     url(r"^ai/recommendation/feedback/?$", views.AIRecommendationFeedbackAPI.as_view(), name="ai_recommendation_feedback_api"),
-    
+    url(r"^ai/next_problem/?$", views.AINextProblemRecommendationAPI.as_view(), name="ai_next_problem_recommendation_api"),
     url(r"^ai/feedback/?$", views.AIFeedbackAPI.as_view(), name="ai_feedback_api"),
 ]

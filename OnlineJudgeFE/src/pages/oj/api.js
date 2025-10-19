@@ -329,6 +329,11 @@ export default {
     return ajax("ai/feedback", "post", {
       data
     });
+  },
+  getNextProblemRecommendation() {
+    return ajax("ai/next_problem", "post", {
+      data
+    });
   }
 };
 
