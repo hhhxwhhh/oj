@@ -172,7 +172,8 @@ export default {
         limit: 10
       },
       showRecommended: false,
-      recommendedProblemList: [] // 存储推荐题目列表
+      recommendedProblemList: [], // 存储推荐题目列表
+      tagsVisible: false // 跟踪tags显示状态
     }
   },
   mounted() {
@@ -211,13 +212,37 @@ export default {
         api.getRecommendedProblems(this.query.limit).then(res => {
           this.loadings.table = false
           this.loadings.recommendation = false
-          this.recommendedProblemList = res.data.data || []
+
+          // 确保推荐题目的数据结构与普通题目一致
+          let recommendedData = res.data.data || []
+          this.recommendedProblemList = recommendedData.map(problem => {
+            // 确保推荐题目具有表格所需的所有字段
+            return {
+              _id: problem.problem_display_id || problem._id || '',
+              title: problem.title || '',
+              difficulty: problem.difficulty || 'Mid',
+              submission_number: problem.submission_count || problem.submission_number || 0,
+              accepted_number: problem.accepted_count || problem.accepted_number || 0,
+              // 添加tags字段，如果不存在则设为空数组
+              tags: problem.tags || [],
+              ...problem // 保留其他字段
+            }
+          })
+
           this.problemList = this.recommendedProblemList
           this.total = this.recommendedProblemList.length
+
+          // 如果tags开关是打开的，需要重新添加tags列
+          if (this.tagsVisible) {
+            this.$nextTick(() => {
+              this.addTagsColumn()
+            })
+          }
         }).catch(err => {
           this.loadings.table = false
           this.loadings.recommendation = false
           console.error('Failed to load recommended problems:', err)
+          this.$error('获取推荐题目失败')
         })
       } else {
         // 获取默认题目列表
@@ -227,6 +252,13 @@ export default {
           this.problemList = res.data.data.results
           if (this.isAuthenticated) {
             this.addStatusColumn(this.problemTableColumns, res.data.data.results)
+          }
+
+          // 如果tags开关是打开的，需要重新添加tags列
+          if (this.tagsVisible) {
+            this.$nextTick(() => {
+              this.addTagsColumn()
+            })
           }
         }, res => {
           this.loadings.table = false
@@ -256,26 +288,56 @@ export default {
       this.pushRouter()
     },
     handleTagsVisible(value) {
+      this.tagsVisible = value
       if (value) {
-        this.problemTableColumns.push(
-          {
-            title: this.$i18n.t('m.Tags'),
-            align: 'center',
-            render: (h, params) => {
-              let tags = []
-              params.row.tags.forEach(tag => {
-                tags.push(h('Tag', {}, tag))
-              })
-              return h('div', {
-                style: {
-                  margin: '8px 0'
-                }
-              }, tags)
-            }
-          })
+        this.$nextTick(() => {
+          this.addTagsColumn()
+        })
       } else {
-        this.problemTableColumns.splice(this.problemTableColumns.length - 1, 1)
+        // 移除tags列
+        const tagsColumnIndex = this.problemTableColumns.findIndex(col => col.title === this.$i18n.t('m.Tags'))
+        if (tagsColumnIndex !== -1) {
+          this.problemTableColumns.splice(tagsColumnIndex, 1)
+        }
       }
+    },
+    addTagsColumn() {
+      // 先检查是否已存在tags列
+      const tagsColumnIndex = this.problemTableColumns.findIndex(col => col.title === this.$i18n.t('m.Tags'))
+      if (tagsColumnIndex !== -1) {
+        // 如果已存在，先移除
+        this.problemTableColumns.splice(tagsColumnIndex, 1)
+      }
+
+      // 添加tags列
+      this.problemTableColumns.push({
+        title: this.$i18n.t('m.Tags'),
+        align: 'center',
+        render: (h, params) => {
+          let tags = []
+          if (params.row.tags && Array.isArray(params.row.tags)) {
+            params.row.tags.forEach(tag => {
+              // 处理不同格式的tags数据
+              let tagName = typeof tag === 'string' ? tag : (tag.name || tag.title || JSON.stringify(tag))
+              tags.push(h('Tag', {
+                props: {
+                  color: 'blue'
+                },
+                style: {
+                  margin: '2px'
+                }
+              }, tagName))
+            })
+          }
+          return h('div', {
+            style: {
+              margin: '8px 0',
+              display: 'flex',
+              flexWrap: 'wrap'
+            }
+          }, tags)
+        }
+      })
     },
     onReset() {
       this.query.keyword = ''
@@ -283,6 +345,12 @@ export default {
       this.query.tag = ''
       this.query.page = 1
       this.showRecommended = false
+      this.tagsVisible = false // 重置tags显示状态
+      // 移除tags列
+      const tagsColumnIndex = this.problemTableColumns.findIndex(col => col.title === this.$i18n.t('m.Tags'))
+      if (tagsColumnIndex !== -1) {
+        this.problemTableColumns.splice(tagsColumnIndex, 1)
+      }
       this.pushRouter()
     },
     pickone() {

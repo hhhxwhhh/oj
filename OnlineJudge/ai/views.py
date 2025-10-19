@@ -292,15 +292,13 @@ class AIRecommendProblemsAPI(APIView):
         count = int(request.GET.get("count", 10))
         
         try:
-            # 检查是否有激活的AI模型
             active_model_exists = AIModel.objects.filter(is_active=True).exists()
-            # 获取推荐题目
             recommendations = AIRecommendationService.recommend_problems(user.id, count)
-            # 格式化推荐结果
             result = []
             for problem_id, score, reason in recommendations:
                 try:
-                    problem = Problem.objects.get(id=problem_id)
+                    problem = Problem.objects.prefetch_related('tags').get(id=problem_id)
+                    tags = list(problem.tags.values_list('name', flat=True))
                     result.append({
                         "problem_id": problem.id,
                         "problem_display_id": problem._id,
@@ -308,7 +306,8 @@ class AIRecommendProblemsAPI(APIView):
                         "difficulty": problem.difficulty,
                         "score": score,
                         "reason": reason,
-                        "acceptance_rate": problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                        "acceptance_rate": problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0,
+                        "tags": tags
                     })
                 except Problem.DoesNotExist:
                     continue
