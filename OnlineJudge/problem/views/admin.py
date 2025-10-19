@@ -729,7 +729,7 @@ class ProblemBulkOperation(APIView):
             return self.success("所有题目已设置为不可见")
         else:
             return self.error("无效的操作")
-        
+
 class GenerateProblemTagsAPI(APIView):
     def get(self, request):
         total_problems = Problem.objects.count()
@@ -749,23 +749,25 @@ class GenerateProblemTagsAPI(APIView):
             # 获取参数
             force = request.data.get('force', True) 
             
-            # 重定向stdout来捕获命令输出
-            old_stdout = sys.stdout
-            sys.stdout = captured_output = StringIO()
+            # 异步执行管理命令
+            from django.core.management import execute_from_command_line
+            from threading import Thread
+            import subprocess
+            import os
+            import sys
             
-            # 调用管理命令
-            call_command('generate_problem_tags', force=force, batch_size=5)
+            def run_management_command():
+                # 使用子进程异步执行管理命令
+                manage_py = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'manage.py')
+                subprocess.Popen([sys.executable, manage_py, 'generate_problem_tags', '--force' if force else '', '--batch-size=5'])
             
-            # 恢复stdout
-            sys.stdout = old_stdout
-            
-            # 获取捕获的输出
-            output = captured_output.getvalue()
+            # 启动异步任务
+            thread = Thread(target=run_management_command)
+            thread.start()
             
             return self.success({
-                "message": "标签生成任务已完成",
-                "output": output
+                "message": "标签生成任务已启动，请稍后查看结果",
+                "output": "任务已在后台运行，请稍后查看题目标签更新情况"
             })
         except Exception as e:
-            sys.stdout = old_stdout  # 确保恢复stdout
-            return self.error(f"处理失败: {str(e)}")
+            return self.error(f"任务启动失败: {str(e)}")

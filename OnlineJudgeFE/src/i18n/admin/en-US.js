@@ -161,5 +161,6 @@ export const m = {
   Generate_Tags_For_All: "Generate Tags for All Problems",
   Tags_Generation_Completed: "Tags Generation Completed",
   Tags_Generation_Failed: "Tags Generation Failed",
-  Task_Output: "Task Output"
+  Task_Output: "Task Output",
+  Tags_Generation_Started: "Tags Generation Started"
 };

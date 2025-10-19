@@ -160,5 +160,6 @@ export const m = {
   Generate_Tags_For_All: "为所有题目生成标签",
   Tags_Generation_Completed: "标签生成完成",
   Tags_Generation_Failed: "标签生成失败",
-  Task_Output: "任务输出"
+  Task_Output: "任务输出",
+  Tags_Generation_Started: "标签生成任务已启动"
 };

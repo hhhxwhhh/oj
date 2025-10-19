@@ -45,6 +45,9 @@
                 </div>
 
                 <div v-if="taskOutput" class="output-section">
+                    <el-alert v-if="taskStarted" title="任务已启动" type="success" description="标签生成任务已在后台运行，请稍后查看题目标签更新情况。"
+                        show-icon :closable="false">
+                    </el-alert>
                     <el-divider content-position="left">{{ $t('m.Task_Output') }}</el-divider>
                     <pre class="output">{{ taskOutput }}</pre>
                 </div>
@@ -67,7 +70,8 @@ export default {
                 activeAIModels: 0
             },
             taskOutput: '',
-            hasActiveAIModel: false
+            hasActiveAIModel: false,
+            taskStarted: false
         }
     },
 
@@ -98,13 +102,15 @@ export default {
 
             this.loading = true
             this.taskOutput = ''
+            this.taskStarted = false
 
             try {
                 const res = await api.generateProblemTags({
                     force: this.forceRegenerate
                 })
 
-                this.$success(this.$t('m.Tags_Generation_Completed'))
+                this.taskStarted = true
+                this.$success(this.$t('m.Tags_Generation_Started'))
                 this.taskOutput = res.data.data.output
                 this.loadStats() // 重新加载统计信息
             } catch (error) {
@@ -120,7 +126,6 @@ export default {
     }
 }
 </script>
-
 <style scoped lang="less">
 .view {
     .content {
