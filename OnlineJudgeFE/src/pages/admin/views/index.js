@@ -12,7 +12,7 @@ import Login from "./general/Login.vue";
 import Home from "./Home.vue";
 import ProblemImportOrExport from "./problem/ImportAndExport.vue";
 import AIModel from "./general/AIModel.vue";
-
+const GenerateTags = () => import("./problem/GenerateTags.vue");
 export {
   Announcement,
   User,
@@ -27,5 +27,6 @@ export {
   PruneTestCase,
   Dashboard,
   ProblemImportOrExport,
-  AIModel
+  AIModel,
+  GenerateTags
 };

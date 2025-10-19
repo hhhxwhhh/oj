@@ -29,6 +29,15 @@ from ..serializers import (CreateContestProblemSerializer, CompileSPJSerializer,
                            ExportProblemRequestSerialzier, UploadProblemForm, ImportProblemSerializer,
                            FPSProblemSerializer)
 from ..utils import TEMPLATE_BASE, build_problem_template
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from ai.models import AIModel
+from django.core.management import call_command
+from io import StringIO
+import sys
+from django.db.models import Count
 
 
 class TestCaseZipProcessor(object):
@@ -720,3 +729,43 @@ class ProblemBulkOperation(APIView):
             return self.success("所有题目已设置为不可见")
         else:
             return self.error("无效的操作")
+        
+class GenerateProblemTagsAPI(APIView):
+    def get(self, request):
+        total_problems = Problem.objects.count()
+        active_ai_models = AIModel.objects.filter(is_active=True).count()
+        
+        return self.success({
+            "total_problems": total_problems,
+            "active_ai_models": active_ai_models
+        })
+    
+    def post(self, request):
+        # 检查是否有激活的AI模型
+        if not AIModel.objects.filter(is_active=True).exists():
+            return self.error("没有激活的AI模型，请先配置AI模型")
+        
+        try:
+            # 获取参数
+            force = request.data.get('force', True) 
+            
+            # 重定向stdout来捕获命令输出
+            old_stdout = sys.stdout
+            sys.stdout = captured_output = StringIO()
+            
+            # 调用管理命令
+            call_command('generate_problem_tags', force=force, batch_size=5)
+            
+            # 恢复stdout
+            sys.stdout = old_stdout
+            
+            # 获取捕获的输出
+            output = captured_output.getvalue()
+            
+            return self.success({
+                "message": "标签生成任务已完成",
+                "output": output
+            })
+        except Exception as e:
+            sys.stdout = old_stdout  # 确保恢复stdout
+            return self.error(f"处理失败: {str(e)}")

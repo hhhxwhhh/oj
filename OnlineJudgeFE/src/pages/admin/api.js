@@ -297,6 +297,15 @@ export default {
       data
     });
   },
+  getProblemTagsStats() {
+    return ajax("admin/generate_problem_tags", "get");
+  },
+
+  generateProblemTags(data) {
+    return ajax("admin/generate_problem_tags", "post", {
+      data
+    });
+  },
   bulkOperation(data) {
     return ajax("admin/problem_bulk_operation", "post", {
       data

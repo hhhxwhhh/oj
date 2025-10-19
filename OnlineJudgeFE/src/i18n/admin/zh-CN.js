@@ -148,5 +148,17 @@ export const m = {
   Welcome_to_Login: "欢迎登录",
   GO: "登录",
   username: "用户名",
-  password: "密码"
+  password: "密码",
+  Generate_Problem_Tags: "生成题目标签",
+  No_Active_AI_Model: "没有激活的AI模型",
+  Please_configure_active_AI_model: "请先在AI模型管理中配置并激活一个AI模型",
+  Process_All_Problems: "处理所有题目",
+  Process_All_Problems_Description:
+    "将为所有题目重新生成标签，原有标签将被替换",
+  Total_Problems: "总题目数",
+  Active_AI_Models: "激活的AI模型数",
+  Generate_Tags_For_All: "为所有题目生成标签",
+  Tags_Generation_Completed: "标签生成完成",
+  Tags_Generation_Failed: "标签生成失败",
+  Task_Output: "任务输出"
 };

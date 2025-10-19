@@ -148,5 +148,18 @@ export const m = {
   Welcome_to_Login: "Welcome to Login",
   GO: "GO",
   username: "username",
-  password: "password"
+  password: "password",
+  Generate_Problem_Tags: "Generate Problem Tags",
+  No_Active_AI_Model: "No Active AI Model",
+  Please_configure_active_AI_model:
+    "Please configure and activate an AI model in AI Model Management first",
+  Process_All_Problems: "Process All Problems",
+  Process_All_Problems_Description:
+    "Will regenerate tags for all problems, replacing existing tags",
+  Total_Problems: "Total Problems",
+  Active_AI_Models: "Active AI Models",
+  Generate_Tags_For_All: "Generate Tags for All Problems",
+  Tags_Generation_Completed: "Tags Generation Completed",
+  Tags_Generation_Failed: "Tags Generation Failed",
+  Task_Output: "Task Output"
 };
