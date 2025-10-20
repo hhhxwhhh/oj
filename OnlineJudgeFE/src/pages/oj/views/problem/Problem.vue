@@ -107,7 +107,6 @@
               icon="ios-navigate" @click="goToRecommendation" class="btn-recommend">
               {{ $t('m.View_Recommended_Problems') }}
             </Button>
-
           </div>
           </Col>
         </Row>
@@ -219,7 +218,13 @@
     </Modal>
 
     <!-- 添加代码解释模态框 -->
-    <Modal v-model="showExplanationModal" :title="$t('m.Code_Explanation')" width="800" :footer-hide="true">
+    <Modal v-model="showExplanationModal" :title="$t('m.Code_Explanation')" width="800">
+      <div class="modal-actions" style="text-align: right; margin-bottom: 10px;">
+        <Button v-if="codeExplanation && !explaining" @click="exportExplanationToPDF" type="primary" size="small"
+          icon="ios-download-outline">
+          {{ $t('m.Export_Explanation') }}
+        </Button>
+      </div>
       <div class="code-explanation" v-if="codeExplanation && !explaining">
         <div v-html="renderMarkdown(codeExplanation)"></div>
       </div>
@@ -229,11 +234,13 @@
       <div v-else>
         <p>{{ $t('m.No_Explanation_Available') }}</p>
       </div>
+      <div slot="footer">
+        <Button @click="showExplanationModal = false">{{ $t('m.Close') }}</Button>
+      </div>
     </Modal>
 
   </div>
 </template>
-
 
 <script>
 import { mapGetters, mapActions } from 'vuex'
@@ -318,7 +325,10 @@ export default {
       // 添加代码解释相关数据
       explaining: false,
       showExplanationModal: false,
-      codeExplanation: ''
+      codeExplanation: '',
+      showCodeSnippetModal: false,
+      selectedCodeSnippet: '',
+      snippetExplanation: ''
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -591,6 +601,90 @@ export default {
         this.explaining = false;
       }
     },
+
+    // 添加代码片段解释方法
+    async explainCodeSnippet(snippet) {
+      if (!snippet || snippet.trim() === '') {
+        this.$error(this.$i18n.t('m.No_Code_To_Explain'));
+        return;
+      }
+
+      try {
+        this.snippetExplanation = '';
+        // 调用后端API获取代码片段解释
+        const res = await api.getCodeExplanation({
+          code: snippet,
+          language: this.language
+        });
+
+        if (res.data && res.data.data && res.data.data.explanation) {
+          this.snippetExplanation = res.data.data.explanation;
+        } else {
+          this.snippetExplanation = this.$i18n.t('m.No_Explanation_Available');
+        }
+      } catch (err) {
+        console.error('Code snippet explanation error:', err);
+        this.$error(this.$i18n.t('m.Failed_to_get_Code_Explanation'));
+        let errorMessage = this.$i18n.t('m.Failed_to_get_Code_Explanation');
+        if (err.response && err.response.data && err.response.data.data) {
+          errorMessage += ': ' + err.response.data.data;
+        } else if (err.message) {
+          errorMessage += ': ' + err.message;
+        }
+        this.snippetExplanation = errorMessage;
+      }
+    },
+    // 添加选择代码片段的方法
+    onCodeSnippetSelected(snippet) {
+      this.selectedCodeSnippet = snippet;
+      this.showCodeSnippetModal = true;
+      this.explainCodeSnippet(snippet);
+    },
+    // 添加导出解释为PDF的方法
+    exportExplanationToPDF() {
+      if (!this.codeExplanation) {
+        this.$Message.warning(this.$t('m.No_Explanation_To_Export'));
+        return;
+      }
+
+      // 创建一个隐藏的iframe用于打印
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <title>代码解释 - ${this.problem.title}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; }
+              pre { background: #f5f5f5; padding: 10px; border-radius: 4px; }
+              code { font-family: 'Courier New', monospace; }
+            </style>
+          </head>
+          <body>
+            <h1>题目: ${this.problem.title}</h1>
+            <h2>代码解释</h2>
+            ${this.codeExplanation}
+            <hr>
+            <p>导出时间: ${new Date().toLocaleString()}</p>
+          </body>
+        </html>
+      `);
+      doc.close();
+
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+
+      // 打印完成后移除iframe
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    },
+
 
     // 添加渲染Markdown方法
     renderMarkdown(content) {

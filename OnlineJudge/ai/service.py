@@ -1,7 +1,7 @@
 import openai
 import requests
 from django.db import transaction
-from .models import AIModel, AIMessage
+from .models import AIModel, AIMessage,AICodeExplanationCache
 from problem.models import Problem
 from submission.models import Submission
 import logging
@@ -11,6 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+import hashlib
 
 logger=logging.getLogger(__name__)
 
@@ -23,7 +24,6 @@ class AIService:
         except AIModel.DoesNotExist:
             logger.error("No active AI model found")
             return None
-        
     @staticmethod
     def call_ai_model(messages, ai_model, timeout=30):
         try:
@@ -284,6 +284,23 @@ class AIService:
             raise Exception(f"Failed to generate code explanation: {str(e)}")
 class AIRecommendationService:
     @staticmethod
+    def get_code_hash(code, language):
+        """生成代码的哈希值"""
+        hash_string = f"{code}:{language}"
+        return hashlib.md5(hash_string.encode('utf-8')).hexdigest()
+    
+    @staticmethod
+    def get_cached_explanation(code, language):
+        """获取缓存的代码解释"""
+        try:
+            code_hash = AIRecommendationService.get_code_hash(code, language)
+            cached_explanation = AICodeExplanationCache.objects.get(code_hash=code_hash)
+            cached_explanation.usage_count += 1
+            cached_explanation.save(update_fields=['usage_count'])
+            return cached_explanation.explanation
+        except AICodeExplanationCache.DoesNotExist:
+            return None
+    @staticmethod
     def get_user_problem_matrix():
         """构建用户-题目矩阵"""
         submissions=Submission.objects.filter(
@@ -293,6 +310,18 @@ class AIRecommendationService:
         for submission in submissions:
             user_problems[submission.user_id].add(submission.problem_id)
         return user_problems
+    
+    def cache_explanation(code, language, explanation):
+        """缓存代码解释"""
+        try:
+            code_hash = AIRecommendationService.get_code_hash(code, language)
+            AICodeExplanationCache.objects.create(
+                code_hash=code_hash,
+                language=language,
+                explanation=explanation
+            )
+        except Exception as e:
+            logger.warning(f"Failed to cache code explanation: {str(e)}")
     @staticmethod
     def calculate_similarity_matrix(user_problems,target_user_id):
         """基于用户的解题记录 计算用户的相似度矩阵"""
@@ -413,6 +442,54 @@ class AIRecommendationService:
                 return (popular_problems[0].id, 1.0, "热门题目推荐")
             else:
                 return (None, None, None)
+    @staticmethod
+    def generate_code_explanation(code,language):
+        try:
+            cached_explanation = AIRecommendationService.get_cached_explanation(code, language)
+            if cached_explanation:
+                logger.info(f"Returning cached explanation for code hash")
+                return cached_explanation
+
+            # 为不同编程语言定制提示
+            language_prompts = {
+                "C++": "C++",
+                "C": "C",
+                "Python2": "Python",
+                "Python3": "Python",
+                "Java": "Java",
+                "Go": "Go"
+            }
+            
+            display_language = language_prompts.get(language, language)
+            
+            prompt = f"""
+                            请用中文详细解释以下{display_language}代码的功能和逻辑:
+
+                            要求:
+                            1. 逐行或逐段解释代码的作用
+                            2. 解释关键算法和数据结构
+                            3. 指出重要的变量和函数的作用
+                            4. 分析代码的时间和空间复杂度
+                            5. 如果有优化建议，请提供
+
+                            代码:
+                            {code}
+
+
+                            解释:
+                            """.strip()
+            messages = [{"role": "user", "content": prompt}]
+            
+            ai_model = AIService.get_active_ai_model()
+            if not ai_model:
+                raise Exception("No active AI model found")
+            explanation=AIService.call_ai_model(messages, ai_model)
+            AIRecommendationService.cache_explanation(code, language, explanation)
+            return explanation
+        except Exception as e:
+            logger.error(f"Error in generate_code_explanation: {str(e)}")
+            raise Exception(f"Failed to generate code explanation: {str(e)}")
+            
 
 
 

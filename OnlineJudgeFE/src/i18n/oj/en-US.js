@@ -322,5 +322,14 @@ export const m = {
   View_Recommended_Problems: "View Recommended Problems",
   Back_to_Problem: "Back to Problem",
   Try_This_Problem: "Try This Problem",
-  Get_Another_Recommendation: "Get Another Recommendation"
+  Get_Another_Recommendation: "Get Another Recommendation",
+  Explain_Code: "Explain Code",
+  Explain_Code_Snippet: "Explain Selected Code",
+  Code_Explanation: "Code Explanation",
+  Generating_Explanation: "Generating explanation...",
+  No_Code_To_Explain: "No code to explain",
+  Failed_to_get_Code_Explanation: "Failed to get code explanation",
+  No_Explanation_Available: "No explanation available",
+  No_Explanation_To_Export: "No explanation to export",
+  Export_Explanation: "Export Explanation"
 };

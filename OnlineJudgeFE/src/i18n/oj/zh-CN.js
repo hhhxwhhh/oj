@@ -161,5 +161,14 @@ export const m = {
   View_Recommended_Problems: "查看推荐题目",
   Back_to_Problem: "返回题目",
   Try_This_Problem: "尝试这道题",
-  Get_Another_Recommendation: "换一道题"
+  Get_Another_Recommendation: "换一道题",
+  Explain_Code: "解释代码",
+  Explain_Code_Snippet: "解释选中代码",
+  Code_Explanation: "代码解释",
+  Generating_Explanation: "正在生成解释...",
+  No_Code_To_Explain: "没有代码可解释",
+  Failed_to_get_Code_Explanation: "获取代码解释失败",
+  No_Explanation_Available: "暂无代码解释",
+  No_Explanation_To_Export: "没有可导出的解释",
+  Export_Explanation: "导出解释"
 };

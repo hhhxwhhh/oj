@@ -55,6 +55,20 @@ class AIFeedback(models.Model):
 
     class Meta:
         db_table='ai_feedback'
+    
+class AICodeExplanationCache(models.Model):
+    code_hash = models.TextField(unique=True)  
+    language = models.TextField()
+    explanation = models.TextField()
+    create_time = models.DateTimeField(auto_now_add=True)
+    usage_count = models.IntegerField(default=1) 
+
+    class Meta:
+        db_table = 'ai_code_explanation_cache'
+        indexes = [
+            models.Index(fields=['code_hash']),
+            models.Index(fields=['create_time']),
+        ]
 
 
 class AIRecommendation(models.Model):
