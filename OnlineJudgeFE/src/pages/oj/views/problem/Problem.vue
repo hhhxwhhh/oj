@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-          }}: {{
+              }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -67,6 +67,9 @@
             <template v-else-if="this.contestID && !OIContestRealTimePermission">
               <Alert type="success" show-icon>{{ $t('m.Submitted_successfully') }}</Alert>
             </template>
+          </div>
+          <div v-if="submitting">
+            <Alert type="info" show-icon>{{ $t('m.Submitting') }}...</Alert>
           </div>
           <div v-else-if="problem.my_status === 0">
             <Alert type="success" show-icon>{{ $t('m.You_have_solved_the_problem') }}</Alert>
@@ -444,10 +447,11 @@ export default {
           return
         }
 
-        let id = this.submissionId
-        api.getSubmission(id).then(res => {
+        // 使用新的API端点轮询提交状态
+        api.getSubmission(this.submissionId).then(res => {
           this.result = res.data.data
-          if (Object.keys(res.data.data.statistic_info).length !== 0) {
+          // 检查是否判题完成（result不是PENDING或JUDGING）
+          if (res.data.data.result !== 9 && res.data.data.result !== 7) {
             this.submitting = false
             this.submitted = false
             clearTimeout(this.refreshStatus)
@@ -460,7 +464,8 @@ export default {
             }
 
           } else {
-            this.refreshStatus = setTimeout(checkStatus, 2000)
+            // 如果仍在判题中，继续轮询
+            this.refreshStatus = setTimeout(checkStatus, 1000)
           }
         }, res => {
           this.submitting = false
@@ -469,7 +474,8 @@ export default {
         })
       }
 
-      this.refreshStatus = setTimeout(checkStatus, 2000)
+      // 增加轮询频率，提供更快的反馈
+      this.refreshStatus = setTimeout(checkStatus, 1000)
     },
     submitCode() {
       if (this.code.trim() === '') {
@@ -497,7 +503,10 @@ export default {
           this.submitting = false
           this.submissionExists = true
 
-          // 始终开始检查提交状态
+          // 立即显示提交成功消息
+          this.$success(this.$i18n.t('m.Submit_code_successfully'))
+
+          // 立即开始检查提交状态
           this.submitted = true
           this.checkSubmissionStatus(detailsVisible)
         }, res => {

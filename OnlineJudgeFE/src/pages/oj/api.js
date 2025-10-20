@@ -334,6 +334,13 @@ export default {
     return ajax("ai/next_problem", "post", {
       data
     });
+  },
+  getSubmissionStatus(submissionId) {
+    return ajax("submission_status", "get", {
+      params: {
+        id: submissionId
+      }
+    });
   }
 };
 

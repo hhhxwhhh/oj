@@ -201,3 +201,25 @@ class SubmissionExistsAPI(APIView):
         return self.success(request.user.is_authenticated and
                             Submission.objects.filter(problem_id=request.GET["problem_id"],
                                                       user_id=request.user.id).exists())
+    
+class SubmissionStatusAPI(APIView):
+    @login_required
+    def get(self, request):
+        submission_id = request.GET.get("id")
+        if not submission_id:
+            return self.error("Parameter id doesn't exist")
+        try:
+            submission = Submission.objects.get(id=submission_id)
+            if not submission.check_user_permission(request.user):
+                return self.error("No permission for this submission")
+            
+            # 返回提交状态和基本信息
+            return self.success({
+                "id": submission.id,
+                "result": submission.result,
+                "statistic_info": submission.statistic_info,
+                "info": submission.info,
+                "create_time": submission.create_time
+            })
+        except Submission.DoesNotExist:
+            return self.error("Submission doesn't exist")
