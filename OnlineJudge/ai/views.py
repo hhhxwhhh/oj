@@ -379,15 +379,16 @@ class AINextProblemRecommendationAPI(APIView):
                 return self.error("No active AI model found. Please configure an AI model first.")
             
             # 获取推荐题目
-            recommendations = AIRecommendationService.recommend_next_problem(
+            recommendation_result = AIRecommendationService.recommend_next_problem(
                 user.id, problem_id, submission_result
             )
             
             # 格式化推荐结果
             result = []
-            for problem_id, score, reason in recommendations:
+            if recommendation_result and recommendation_result[0] is not None:
+                next_problem_id, score, reason = recommendation_result
                 try:
-                    problem = Problem.objects.prefetch_related('tags').get(id=problem_id)
+                    problem = Problem.objects.prefetch_related('tags').get(id=next_problem_id)
                     # 获取题目的标签
                     tags = list(problem.tags.values_list('name', flat=True))
                     
@@ -404,7 +405,7 @@ class AINextProblemRecommendationAPI(APIView):
                         "tags": tags
                     })
                 except Problem.DoesNotExist:
-                    continue
+                    pass
             
             return self.success(result)
         except Exception as e:

@@ -330,7 +330,7 @@ export default {
       data
     });
   },
-  getNextProblemRecommendation() {
+  getNextProblemRecommendation(data) {
     return ajax("ai/next_problem", "post", {
       data
     });

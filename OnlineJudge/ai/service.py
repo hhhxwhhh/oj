@@ -334,17 +334,32 @@ class AIRecommendationService:
             return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
         
     @staticmethod
-    def recommend_next_problem(user_id,problem_id,submission_result):
+    def recommend_next_problem(user_id, problem_id, submission_result):
         """推荐下一题"""
         try:
-            recommendations=AIRecommendationService.hybrid_recommendations(user_id=user_id,count=1)
-            if recommendations:
-                next_problem_id,recommend_score,reason=recommendations[0]
-                return next_problem_id,recommend_score,reason
+            # 根据用户提交结果调整推荐策略
+            if submission_result == "Accepted":
+                recommendations = AIRecommendationService.hybrid_recommendations(user_id=user_id, count=5)
             else:
-                return None,None,None
+                recommendations = AIRecommendationService.content_based_recommendations(user_id=user_id, count=5)
+            
+            if recommendations:
+                # 返回第一个推荐结果
+                return recommendations[0]
+            else:
+                popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:1]
+                if popular_problems:
+                    return (popular_problems[0].id, 1.0, "热门题目推荐")
+                else:
+                    return (None, None, None)
         except Exception as e:
-            return None,None,None
+            logger.error(f"Recommend next problem failed: {str(e)}")
+            popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:1]
+            if popular_problems:
+                return (popular_problems[0].id, 1.0, "热门题目推荐")
+            else:
+                return (None, None, None)
+
 
 
 

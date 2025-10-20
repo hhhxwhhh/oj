@@ -71,18 +71,6 @@ import { mapGetters } from 'vuex'
 
 export default {
     name: 'NextProblemRecommendation',
-    props: {
-        // 用户刚刚提交的题目ID
-        problemId: {
-            type: [String, Number],
-            required: true
-        },
-        // 用户提交的结果（AC, WA等）
-        submissionResult: {
-            type: String,
-            default: ''
-        }
-    },
     data() {
         return {
             recommendedProblem: null,
@@ -97,13 +85,17 @@ export default {
         async getRecommendation() {
             this.loading = true
             try {
+                // 从路由参数中获取题目ID和提交结果
+                const problemId = this.$route.params.problemID
+                const submissionResult = this.$route.query.result || ''
+
                 // 向AI服务发送请求，基于用户刚刚的提交获取推荐题目
                 const res = await api.getNextProblemRecommendation({
-                    problem_id: this.problemId,
-                    submission_result: this.submissionResult
+                    problem_id: problemId,
+                    submission_result: submissionResult
                 })
 
-                if (res.data.data && res.data.data.length > 0) {
+                if (res.data && res.data.error === null && res.data.data && res.data.data.length > 0) {
                     this.recommendedProblem = res.data.data[0]
                     this.recommendationReason = this.recommendedProblem.reason || ''
                 } else {
@@ -112,7 +104,12 @@ export default {
                 }
             } catch (err) {
                 console.error('Failed to get recommendation:', err)
-                this.$error(this.$t('m.Failed_to_get_recommendation'))
+                // 检查错误响应
+                if (err.response && err.response.data) {
+                    this.$error(err.response.data.data || this.$t('m.Failed_to_get_recommendation'))
+                } else {
+                    this.$error(this.$t('m.Failed_to_get_recommendation'))
+                }
             } finally {
                 this.loading = false
             }

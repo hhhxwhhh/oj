@@ -153,5 +153,9 @@ export const m = {
   Finding_best_problem_for_you: "正在为您寻找最合适的题目",
   Unable_to_generate_recommendation: "暂时无法生成推荐",
   Try_Again: "重试",
-  Failed_to_get_recommendation: "获取推荐失败"
+  Failed_to_get_recommendation: "获取推荐失败",
+  View_Submission: "查看提交",
+  View_Recommendation: "查看推荐",
+  Submit_Success: "提交成功",
+  View_Submission_Or_Recommendation: "查看提交或推荐"
 };

@@ -314,5 +314,9 @@ export const m = {
   Finding_best_problem_for_you: "Finding the best problem for you",
   Unable_to_generate_recommendation: "Unable to generate recommendation",
   Try_Again: "Try Again",
-  Failed_to_get_recommendation: "Failed to get recommendation"
+  Failed_to_get_recommendation: "Failed to get recommendation",
+  View_Submission: "View Submission",
+  View_Recommendation: "View Recommendation",
+  Submit_Success: "Submit Success",
+  View_Submission_Or_Recommendation: "View Submission or Recommendation"
 };
