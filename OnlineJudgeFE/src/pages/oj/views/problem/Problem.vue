@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-              }}: {{
+          }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -483,28 +483,7 @@ export default {
           this.submitted = true
           this.checkSubmissionStatus()
           //
-          // 提交成功后给用户一个选择，可以查看提交状态或查看推荐题目
-          this.$Modal.confirm({
-            title: this.$i18n.t('m.Submit_Success'),
-            content: this.$i18n.t('m.View_Submission_Or_Recommendation'),
-            okText: this.$i18n.t('m.View_Submission'),
-            cancelText: this.$i18n.t('m.View_Recommendation'),
-            onOk: () => {
-              this.$router.push({
-                name: 'submission-details',
-                params: { id: this.submissionId }
-              });
-            },
-            onCancel: () => {
-              this.$router.push({
-                name: 'next-problem-recommendation',
-                params: { problemID: this.problem._id },
-                query: {
-                  result: res.data.data.result
-                }
-              });
-            }
-          });
+
         }, res => {
           this.getCaptchaSrc()
           if (res.data.data.startsWith('Captcha is required')) {
