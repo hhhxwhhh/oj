@@ -424,13 +424,19 @@ export default {
         }
       })
     },
-    checkSubmissionStatus() {
+    checkSubmissionStatus(detailsVisible) {
       // 使用setTimeout避免一些问题
       if (this.refreshStatus) {
-        // 如果之前的提交状态检查还没有停止,则停止,否则将会失去timeout的引用造成无限请求
         clearTimeout(this.refreshStatus)
       }
+
       const checkStatus = () => {
+        // 确保submissionId存在
+        if (!this.submissionId) {
+          this.submitting = false
+          return
+        }
+
         let id = this.submissionId
         api.getSubmission(id).then(res => {
           this.result = res.data.data
@@ -439,14 +445,40 @@ export default {
             this.submitted = false
             clearTimeout(this.refreshStatus)
             this.init()
+
+            // 判题完成后，如果需要跳转到推荐页面则跳转
+            if (!detailsVisible) {
+              // 对于OI比赛非实时权限的情况，不需要跳转
+              return
+            }
+
+            // 在ACM模式或OI实时权限模式下，判题完成后跳转到推荐页面
+            // 使用$nextTick确保DOM更新完成后再跳转
+            this.$nextTick(() => {
+              // 只有在判题完成且不是在比赛中时才跳转到推荐页面
+              if (this.result && this.result.result !== undefined && this.result.result !== 9 && !this.contestID) {
+                this.$router.push({
+                  name: 'next-problem-recommendation',
+                  params: {
+                    problemID: this.problemID
+                  },
+                  query: {
+                    result: this.result.result,
+                    submission_id: this.submissionId
+                  }
+                })
+              }
+            })
           } else {
             this.refreshStatus = setTimeout(checkStatus, 2000)
           }
         }, res => {
           this.submitting = false
           clearTimeout(this.refreshStatus)
+          console.error('Failed to get submission status:', res)
         })
       }
+
       this.refreshStatus = setTimeout(checkStatus, 2000)
     },
     submitCode() {
@@ -466,24 +498,18 @@ export default {
       if (this.captchaRequired) {
         data.captcha = this.captchaCode
       }
+
+      // 添加一个标志来跟踪是否需要跳转到推荐页面
       const submitFunc = (data, detailsVisible) => {
         this.statusVisible = true
         api.submitCode(data).then(res => {
           this.submissionId = res.data.data && res.data.data.submission_id
-          // 定时检查状态
           this.submitting = false
           this.submissionExists = true
-          if (!detailsVisible) {
-            this.$Modal.success({
-              title: this.$i18n.t('m.Success'),
-              content: this.$i18n.t('m.Submit_code_successfully')
-            })
-            return
-          }
-          this.submitted = true
-          this.checkSubmissionStatus()
-          //
 
+          // 始终开始检查提交状态
+          this.submitted = true
+          this.checkSubmissionStatus(detailsVisible)
         }, res => {
           this.getCaptchaSrc()
           if (res.data.data.startsWith('Captcha is required')) {
@@ -500,7 +526,6 @@ export default {
             title: '',
             content: '<h3>' + this.$i18n.t('m.You_have_submission_in_this_problem_sure_to_cover_it') + '<h3>',
             onOk: () => {
-              // 暂时解决对话框与后面提示对话框冲突的问题(否则一闪而过）
               setTimeout(() => {
                 submitFunc(data, false)
               }, 1000)
@@ -551,23 +576,22 @@ export default {
       } catch (err) {
         // 处理错误
         console.error('Code explanation error:', err);
-        this.$error(this.$i18n.t('m.Failed_to_get_Code_Explanation') + ': ' + (err.message || ''));
+        this.$error(this.$i18n.t('m.Failed_to_get_Code_Explanation'));
 
-        // 修复可选链操作符问题
-        let errorMessage = '';
+        // 更简洁地处理错误消息
+        let errorMessage = this.$i18n.t('m.Failed_to_get_Code_Explanation');
         if (err.response && err.response.data && err.response.data.data) {
-          errorMessage = err.response.data.data;
+          errorMessage += ': ' + err.response.data.data;
         } else if (err.message) {
-          errorMessage = err.message;
+          errorMessage += ': ' + err.message;
         }
 
-        this.codeExplanation = this.$i18n.t('m.Failed_to_get_Code_Explanation') + '. ' + errorMessage;
+        this.codeExplanation = errorMessage;
       } finally {
         // 重置加载状态
         this.explaining = false;
       }
     },
-
 
     // 添加渲染Markdown方法
     renderMarkdown(content) {
@@ -598,7 +622,10 @@ export default {
   },
   beforeRouteLeave(to, from, next) {
     // 防止切换组件后仍然不断请求
-    clearInterval(this.refreshStatus)
+    if (this.refreshStatus) {
+      clearTimeout(this.refreshStatus)
+      this.refreshStatus = null
+    }
 
     this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, { menu: true })
     storage.set(buildProblemCodeKey(this.problem._id, from.params.contestID), {

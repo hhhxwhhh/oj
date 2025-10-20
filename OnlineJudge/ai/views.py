@@ -374,9 +374,13 @@ class AINextProblemRecommendationAPI(APIView):
         
         try:
             # 检查是否有激活的AI模型
-            active_model_exists = AIModel.objects.filter(is_active=True).exists()
-            if not active_model_exists:
+            active_model = AIModel.objects.filter(is_active=True).first()
+            if not active_model:
                 return self.error("No active AI model found. Please configure an AI model first.")
+            
+            # 检查AI模型配置是否有效
+            if not active_model.api_key or not active_model.model:
+                return self.error("AI model configuration is incomplete.")
             
             # 获取推荐题目
             recommendation_result = AIRecommendationService.recommend_next_problem(

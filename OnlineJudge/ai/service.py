@@ -9,6 +9,8 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger=logging.getLogger(__name__)
 
@@ -16,14 +18,67 @@ class AIService:
     @staticmethod
     def get_active_ai_model():
         try:
-            # 获取所有激活的AI模型
-            active_models = AIModel.objects.filter(is_active=True)
-            if not active_models.exists():
-                raise Exception("No active AI model found")
-            # 返回第一个激活的模型
-            return active_models.first()
+            active_model=AIModel.objects.filter(is_active=True).first()
+            return active_model
+        except AIModel.DoesNotExist:
+            logger.error("No active AI model found")
+            return None
+        
+    @staticmethod
+    def call_ai_model(messages, ai_model, timeout=30):
+        try:
+            # 创建一个具有重试策略的会话
+            session = requests.Session()
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+            )
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            if ai_model.provider == "openai":
+                url = "https://api.openai.com/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {ai_model.api_key}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": ai_model.model,
+                    "messages": messages,
+                    **ai_model.config
+                }
+            elif ai_model.provider == "azure":
+                # Azure OpenAI需要不同的端点格式
+                url = ai_model.config.get("endpoint", "") + "/openai/deployments/" + ai_model.model + "/chat/completions?api-version=" + ai_model.config.get("api_version", "2023-05-15")
+                headers = {
+                    "api-key": ai_model.api_key,
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "messages": messages,
+                    **{k: v for k, v in ai_model.config.items() if k not in ["endpoint", "api_version"]}
+                }
+            else:
+                raise Exception(f"Unsupported AI provider: {ai_model.provider}")
+
+            # 发送请求，设置合理的超时时间
+            response = session.post(url, headers=headers, json=data, timeout=timeout)
+            response.raise_for_status()
+            
+            if ai_model.provider in ["openai", "azure"]:
+                result = response.json()
+                return result["choices"][0]["message"]["content"].strip()
+            
+        except requests.exceptions.Timeout:
+            logger.error("AI service request timed out")
+            raise Exception("AI service request timed out")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error calling AI model: {str(e)}")
+            raise Exception(f"Error calling AI model: {str(e)}")
         except Exception as e:
-            raise Exception(f"Error getting active AI model: {str(e)}")
+            logger.error(f"Unexpected error in call_ai_model: {str(e)}")
+            raise Exception(f"Unexpected error: {str(e)}")
     @staticmethod
     def call_ai_model(messages, ai_model=None):
         if ai_model is None:
@@ -227,7 +282,6 @@ class AIService:
         except Exception as e:
             logger.error(f"Error in generate_code_explanation: {str(e)}")
             raise Exception(f"Failed to generate code explanation: {str(e)}")
-
 class AIRecommendationService:
     @staticmethod
     def get_user_problem_matrix():
