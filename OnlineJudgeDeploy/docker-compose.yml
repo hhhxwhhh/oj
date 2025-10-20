@@ -105,6 +105,7 @@ services:
       - "8000:8000"
     networks:
       - oj-network
+    command: [ "/bin/sh", "-c", "python manage.py collectstatic --no-input && gunicorn --bind 0.0.0.0:8000 oj.wsgi & python manage.py rundramatiq & wait" ]
     deploy:
       resources:
         limits:
