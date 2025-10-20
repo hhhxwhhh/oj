@@ -18,7 +18,7 @@
                             </Tag>
                             <span class="ac-rate">
                                 {{ $t('m.AC_Rate') }}: {{ getACRate(recommendedProblem.accepted_number,
-                                recommendedProblem.submission_number) }}
+                                    recommendedProblem.submission_number) }}
                             </span>
                         </div>
                     </div>
@@ -47,6 +47,9 @@
                     </Button>
                     <Button @click="getNewRecommendation" :loading="loading" size="large" style="margin-left: 10px;">
                         {{ $t('m.Get_Another_Recommendation') }}
+                    </Button>
+                    <Button @click="goBackToProblem" size="large" style="margin-left: 10px;">
+                        {{ $t('m.Back_to_Problem') }}
                     </Button>
                 </div>
             </Card>
@@ -144,7 +147,25 @@ export default {
             // 简单的HTML清理，防止XSS
             if (!description) return ''
             return description.replace(/<script[^>]*>.*?<\/script>/gi, '')
-        }
+        },
+        goToProblem(problemId) {
+            this.$router.push({
+                name: 'problem-details',
+                params: { problemID: problemId }
+            })
+        },
+        goBackToProblem() {
+            // 如果是从题目页面跳转过来的，返回到原题目
+            if (this.$route.params.problemID) {
+                this.$router.push({
+                    name: 'problem-details',
+                    params: { problemID: this.$route.params.problemID }
+                })
+            } else {
+                // 否则返回到题目列表
+                this.$router.push({ name: 'problem-list' })
+            }
+        },
     }
 }
 </script>

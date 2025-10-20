@@ -318,5 +318,9 @@ export const m = {
   View_Submission: "View Submission",
   View_Recommendation: "View Recommendation",
   Submit_Success: "Submit Success",
-  View_Submission_Or_Recommendation: "View Submission or Recommendation"
+  View_Submission_Or_Recommendation: "View Submission or Recommendation",
+  View_Recommended_Problems: "View Recommended Problems",
+  Back_to_Problem: "Back to Problem",
+  Try_This_Problem: "Try This Problem",
+  Get_Another_Recommendation: "Get Another Recommendation"
 };

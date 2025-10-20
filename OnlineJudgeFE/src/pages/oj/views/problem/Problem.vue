@@ -100,6 +100,11 @@
               <span v-if="submitting">{{ $t('m.Submitting') }}</span>
               <span v-else>{{ $t('m.Submit') }}</span>
             </Button>
+            <Button v-if="result && result.result !== undefined && result.result !== 9 && !contestID" type="success"
+              icon="ios-navigate" @click="goToRecommendation" class="btn-recommend">
+              {{ $t('m.View_Recommended_Problems') }}
+            </Button>
+
           </div>
           </Col>
         </Row>
@@ -250,6 +255,7 @@ import storage from '@/utils/storage'
 import { buildProblemCodeKey, JUDGE_STATUS, CONTEST_STATUS } from '@/utils/constants'
 import VerticalMenu from '../../components/verticalMenu/verticalMenu.vue'
 import VerticalMenuItem from '../../components/verticalMenu/verticalMenu-item.vue'
+import NextProblemRecommendation from './NextProblemRecommendation.vue'
 
 // 只显示这些状态的图形占用
 const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
@@ -263,7 +269,8 @@ export default {
     CodeMirror,
     AIAssistant,
     VerticalMenu,
-    VerticalMenuItem
+    VerticalMenuItem,
+    NextProblemRecommendation
   },
 
   data() {
@@ -452,23 +459,6 @@ export default {
               return
             }
 
-            // 在ACM模式或OI实时权限模式下，判题完成后跳转到推荐页面
-            // 使用$nextTick确保DOM更新完成后再跳转
-            this.$nextTick(() => {
-              // 只有在判题完成且不是在比赛中时才跳转到推荐页面
-              if (this.result && this.result.result !== undefined && this.result.result !== 9 && !this.contestID) {
-                this.$router.push({
-                  name: 'next-problem-recommendation',
-                  params: {
-                    problemID: this.problemID
-                  },
-                  query: {
-                    result: this.result.result,
-                    submission_id: this.submissionId
-                  }
-                })
-              }
-            })
           } else {
             this.refreshStatus = setTimeout(checkStatus, 2000)
           }
@@ -596,7 +586,28 @@ export default {
     // 添加渲染Markdown方法
     renderMarkdown(content) {
       return utils.renderMarkdown(content);
-    }
+    },
+    goToRecommendation() {
+      if (!this.problemID || !this.result || this.result.result === undefined) {
+        console.error('缺少必要数据')
+        this.$error('无法跳转到推荐页面：缺少必要数据')
+        return
+      }
+
+      this.$router.push({
+        name: 'next-problem-recommendation',
+        params: {
+          problemID: this.problemID
+        },
+        query: {
+          result: this.result.result,
+          submission_id: this.submissionId
+        }
+      }).catch(err => {
+        console.error('路由跳转失败:', err)
+        this.$error('页面跳转失败: ' + err.message)
+      })
+    },
   },
   computed: {
     ...mapGetters(['problemSubmitDisabled', 'contestRuleType', 'OIContestRealTimePermission', 'contestStatus']),
@@ -830,6 +841,32 @@ export default {
 
   /deep/ .ivu-spin-text {
     margin-top: 10px;
+  }
+}
+
+.problem-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-explain,
+.btn-submit,
+.btn-recommend {
+  flex: 1;
+  min-width: 120px;
+}
+
+@media screen and (max-width: 768px) {
+  .problem-buttons {
+    flex-direction: column;
+  }
+
+  .btn-explain,
+  .btn-submit,
+  .btn-recommend {
+    width: 100%;
+    margin-bottom: 10px;
   }
 }
 </style>

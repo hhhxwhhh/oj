@@ -157,5 +157,9 @@ export const m = {
   View_Submission: "查看提交",
   View_Recommendation: "查看推荐",
   Submit_Success: "提交成功",
-  View_Submission_Or_Recommendation: "查看提交或推荐"
+  View_Submission_Or_Recommendation: "查看提交或推荐",
+  View_Recommended_Problems: "查看推荐题目",
+  Back_to_Problem: "返回题目",
+  Try_This_Problem: "尝试这道题",
+  Get_Another_Recommendation: "换一道题"
 };
