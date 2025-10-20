@@ -74,13 +74,3 @@ AI模型配置参数
 对话历史缓存
 异步任务处理（可选）
 
-
-import openai
-openai.api_base = "https://api.openkey.cloud/v1"
-openai.api_key = "sk-L3608ysE6cylbyeeBa22438632114cBdB325359e3657267b"
-
-response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": "Hello, world!"}]
-)
-print(response)
