@@ -78,7 +78,8 @@ export default {
         return {
             recommendedProblem: null,
             recommendationReason: '',
-            loading: false
+            loading: false,
+            isRequesting: false,
         }
     },
     mounted() {
@@ -119,14 +120,25 @@ export default {
         },
 
         async getNewRecommendation() {
-            await this.getRecommendation()
-        },
-
-        goToProblem(problemId) {
-            this.$router.push({
-                name: 'problem-details',
-                params: { problemID: problemId }
-            })
+            if (this.isRequesting) {
+                return
+            }
+            this.isRequesting = true
+            this.loading = true
+            // 清除当前推荐题目，让用户知道正在加载
+            this.recommendedProblem = null
+            this.recommendationReason = ''
+            try {
+                await this.getRecommendation()
+                if (!this.recommendedProblem) {
+                    this.$Message.warning('暂时没有其他推荐题目')
+                }
+            } catch (error) {
+                this.$Message.error('获取新推荐题目失败，请稍后重试')
+            } finally {
+                this.loading = false
+                this.isRequesting = false
+            }
         },
 
         getDifficultyColor(difficulty) {
