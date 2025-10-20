@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-              }}: {{
+          }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -647,45 +647,153 @@ export default {
         return;
       }
 
-      // 创建一个隐藏的iframe用于打印
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-
-      const doc = iframe.contentDocument || iframe.contentWindow.document;
-      doc.open();
-      doc.write(`
-        <html>
-          <head>
-            <title>代码解释 - ${this.problem.title}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              h1 { color: #333; }
-              pre { background: #f5f5f5; padding: 10px; border-radius: 4px; }
-              code { font-family: 'Courier New', monospace; }
-            </style>
-          </head>
-          <body>
-            <h1>题目: ${this.problem.title}</h1>
-            <h2>代码解释</h2>
-            ${this.codeExplanation}
-            <hr>
-            <p>导出时间: ${new Date().toLocaleString()}</p>
-          </body>
-        </html>
-      `);
-      doc.close();
-
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-
-      // 打印完成后移除iframe
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
+      try {
+        // 创建一个新窗口用于打印
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>代码解释 - ${this.problem.title}</title>
+              <style>
+                body { 
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; 
+                  margin: 20px auto; 
+                  line-height: 1.6;
+                  max-width: 800px;
+                  color: #333;
+                  background: #fff;
+                }
+                h1 { 
+                  color: #2c3e50; 
+                  border-bottom: 2px solid #3498db;
+                  padding-bottom: 10px;
+                  margin: 20px 0;
+                }
+                h2 { 
+                  color: #34495e; 
+                  margin: 25px 0 15px 0;
+                  padding-bottom: 8px;
+                  border-bottom: 1px solid #eee;
+                }
+                h3 { 
+                  color: #555; 
+                  margin: 20px 0 10px 0;
+                }
+                p {
+                  margin: 10px 0;
+                  text-align: justify;
+                }
+                pre { 
+                  background: #f8f9fa; 
+                  padding: 15px; 
+                  border-radius: 6px;
+                  overflow-x: auto;
+                  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                  font-size: 14px;
+                  border: 1px solid #e9ecef;
+                  margin: 15px 0;
+                }
+                code { 
+                  font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
+                  background: #f8f9fa;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 14px;
+                }
+                pre code {
+                  background: none;
+                  padding: 0;
+                }
+                blockquote {
+                  border-left: 4px solid #3498db;
+                  padding: 10px 20px;
+                  margin: 20px 0;
+                  background: #f8f9fa;
+                  border-radius: 0 4px 4px 0;
+                }
+                ul, ol {
+                  padding-left: 30px;
+                  margin: 15px 0;
+                }
+                li {
+                  margin: 8px 0;
+                }
+                hr {
+                  border: 0;
+                  border-top: 1px solid #eee;
+                  margin: 30px 0;
+                }
+                .header {
+                  text-align: center;
+                  margin-bottom: 30px;
+                  padding-bottom: 20px;
+                  border-bottom: 1px solid #eee;
+                }
+                .problem-info {
+                  background: #e3f2fd;
+                  padding: 15px;
+                  border-radius: 6px;
+                  margin: 20px 0;
+                }
+                .problem-info p {
+                  margin: 5px 0;
+                }
+                .footer {
+                  margin-top: 40px;
+                  padding-top: 20px;
+                  border-top: 1px solid #eee;
+                  font-size: 14px;
+                  color: #666;
+                  text-align: center;
+                }
+                @media print {
+                  body {
+                    margin: 10px auto;
+                  }
+                  pre {
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                  }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="header">
+                <h1>题目: ${this.problem.title}</h1>
+                <div class="problem-info">
+                  <p><strong>题目ID:</strong> ${this.problem._id}</p>
+                  <p><strong>时间限制:</strong> ${this.problem.time_limit}MS</p>
+                  <p><strong>内存限制:</strong> ${this.problem.memory_limit}MB</p>
+                </div>
+              </div>
+              
+              <h2>代码解释</h2>
+              <div class="explanation-content">
+                ${this.codeExplanation}
+              </div>
+              
+              <div class="footer">
+                <p><strong>导出时间:</strong> ${new Date().toLocaleString()}</p>
+                <p><strong>在线查看:</strong> ${window.location.href}</p>
+              </div>
+              
+              <script>
+                // 页面加载完成后自动打印
+                window.onload = function() {
+                  window.print();
+                };
+              <\/script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      } catch (error) {
+        console.error('导出PDF失败:', error);
+        this.$Message.error('导出失败，请重试');
+      }
     },
-
-
     // 添加渲染Markdown方法
     renderMarkdown(content) {
       return utils.renderMarkdown(content);
