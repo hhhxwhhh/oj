@@ -382,34 +382,40 @@ class AINextProblemRecommendationAPI(APIView):
             if not active_model.api_key or not active_model.model:
                 return self.error("AI model configuration is incomplete.")
             
-            # 获取推荐题目
-            recommendation_result = AIRecommendationService.recommend_next_problem(
+            # 获取推荐题目（现在返回三个）
+            recommendation_results = AIRecommendationService.recommend_next_problem(
                 user.id, problem_id, submission_result
             )
             
+            # 从推荐结果中随机选择一个，增加多样性
+            import random
+            if recommendation_results and len(recommendation_results) > 0:
+                selected_recommendation = random.choice(recommendation_results)
+                next_problem_id, score, reason = selected_recommendation
+            else:
+                return self.success([])
+            
             # 格式化推荐结果
             result = []
-            if recommendation_result and recommendation_result[0] is not None:
-                next_problem_id, score, reason = recommendation_result
-                try:
-                    problem = Problem.objects.prefetch_related('tags').get(id=next_problem_id)
-                    # 获取题目的标签
-                    tags = list(problem.tags.values_list('name', flat=True))
-                    
-                    result.append({
-                        "id": problem.id,
-                        "_id": problem._id,
-                        "title": problem.title,
-                        "difficulty": problem.difficulty,
-                        "score": score,
-                        "reason": reason,
-                        "description": problem.description,
-                        "submission_number": problem.submission_number,
-                        "accepted_number": problem.accepted_number,
-                        "tags": tags
-                    })
-                except Problem.DoesNotExist:
-                    pass
+            try:
+                problem = Problem.objects.prefetch_related('tags').get(id=next_problem_id)
+                # 获取题目的标签
+                tags = list(problem.tags.values_list('name', flat=True))
+                
+                result.append({
+                    "id": problem.id,
+                    "_id": problem._id,
+                    "title": problem.title,
+                    "difficulty": problem.difficulty,
+                    "score": score,
+                    "reason": reason,
+                    "description": problem.description,
+                    "submission_number": problem.submission_number,
+                    "accepted_number": problem.accepted_number,
+                    "tags": tags
+                })
+            except Problem.DoesNotExist:
+                pass
             
             return self.success(result)
         except Exception as e:

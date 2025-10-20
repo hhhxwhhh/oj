@@ -399,7 +399,7 @@ class AIRecommendationService:
             
             if recommendations:
                 # 返回第一个推荐结果
-                return recommendations[0]
+                return recommendations[:3]
             else:
                 popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:1]
                 if popular_problems:
