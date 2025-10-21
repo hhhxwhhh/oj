@@ -14,7 +14,7 @@ from .serializers import (
     AIFeedbackSerializer, CreateAIFeedbackSerializer,
     CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer
 )
-from .service import AIService,AIRecommendationService
+from .service import AIService,AIRecommendationService,AILearningPathService
 from submission.models import Submission
 from problem.models import Problem
 import logging
@@ -421,3 +421,90 @@ class AINextProblemRecommendationAPI(APIView):
         except Exception as e:
             logger.error(f"Next problem recommendation failed: {str(e)}", exc_info=True)
             return self.error("推荐失败，请稍后重试")
+
+class AILearningPathAPI(APIView):
+    @login_required
+    def post(self, request):
+        user = request.user
+        goal = request.data.get("goal", "general")
+        level = request.data.get("level", None)
+        
+        try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
+            
+            # 生成学习路径
+            path_data = AILearningPathService.generate_learning_path(
+                user_id=user.id,
+                goal=goal,
+                current_level=level
+            )
+            
+            # 保存学习路径到数据库
+            learning_path = AILearningPathService.save_learning_path(user.id, path_data)
+            
+            # 返回结果
+            from .serializers import AIUserLearningPathSerializer
+            return self.success(AIUserLearningPathSerializer(learning_path).data)
+        except Exception as e:
+            logger.error(f"Generate learning path failed: {str(e)}")
+            return self.error(f"Failed to generate learning path: {str(e)}")
+    
+    @login_required
+    def get(self, request):
+        user = request.user
+        try:
+            paths = AILearningPathService.get_user_learning_paths(user.id)
+            from .serializers import AIUserLearningPathSerializer
+            return self.success(AIUserLearningPathSerializer(paths, many=True).data)
+        except Exception as e:
+            logger.error(f"Get learning paths failed: {str(e)}")
+            return self.error("Failed to get learning paths")
+        
+
+class AILearningPathDetailAPI(APIView):
+    @login_required
+    def get(self, request, path_id):
+        user = request.user
+        try:
+            path, nodes = AILearningPathService.get_learning_path_detail(path_id, user.id)
+            from .serializers import AIUserLearningPathDetailSerializer
+            data = AIUserLearningPathDetailSerializer(path).data
+            data['nodes'] = [
+                {
+                    'id': node.id,
+                    'node_type': node.node_type,
+                    'title': node.title,
+                    'description': node.description,
+                    'content_id': node.content_id,
+                    'order': node.order,
+                    'estimated_time': node.estimated_time,
+                    'prerequisites': node.prerequisites,
+                    'status': node.status,
+                    'create_time': node.create_time
+                }
+                for node in nodes
+            ]
+            return self.success(data)
+        except Exception as e:
+            logger.error(f"Get learning path detail failed: {str(e)}")
+            return self.error("Failed to get learning path detail")
+class AILearningPathNodeAPI(APIView):
+    @login_required
+    def put(self, request, node_id):
+        user = request.user
+        status = request.data.get("status")
+        
+        if not status or status not in ["pending", "in_progress", "completed"]:
+            return self.error("Invalid status")
+        
+        try:
+            node = AILearningPathService.update_node_status(node_id, user.id, status)
+            from .serializers import AIUserLearningPathNodeSerializer
+            return self.success(AIUserLearningPathNodeSerializer(node).data)
+        except Exception as e:
+            logger.error(f"Update node status failed: {str(e)}")
+            return self.error("Failed to update node status")
+

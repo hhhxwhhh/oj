@@ -94,3 +94,46 @@ class AIRecommendationFeedback(models.Model):
 
     class Meta:
         db_table='ai_recommendation_feedback'
+
+
+class AIUserLearningPath(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.TextField()
+    description = models.TextField()
+    estimated_duration = models.IntegerField(help_text="预计完成时间(小时)")
+    path_data = JSONField(default=dict)  
+    is_active = models.BooleanField(default=True)
+    create_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ai_user_learning_path'
+
+class AIUserLearningPathNode(models.Model):
+    learning_path = models.ForeignKey(AIUserLearningPath, on_delete=models.CASCADE)
+    node_type = models.TextField(help_text="节点类型: concept, problem, project")  # 概念、题目、项目
+    title = models.TextField()
+    description = models.TextField()
+    content_id = models.IntegerField(help_text="关联的内容ID(如题目ID、概念ID等)")
+    order = models.IntegerField()
+    estimated_time = models.IntegerField(help_text="预计完成时间(分钟)")
+    prerequisites = JSONField(default=list, help_text="前置知识点")
+    status = models.TextField(default="pending", help_text="状态: pending, in_progress, completed")
+    create_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ai_user_learning_path_node'
+
+
+class AIUserKnowledgeState(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    knowledge_point = models.TextField(help_text="知识点名称")
+    proficiency_level = models.FloatField(default=0.0, help_text="掌握程度(0-1)")
+    last_updated = models.DateTimeField(auto_now=True)
+    correct_attempts = models.IntegerField(default=0)
+    total_attempts = models.IntegerField(default=0)
+    class Meta:
+        db_table = 'ai_user_knowledge_state'
+        unique_together = ('user', 'knowledge_point')
+
+

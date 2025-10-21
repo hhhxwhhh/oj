@@ -1,5 +1,7 @@
 from utils.api import serializers
-from .models import AIModel,AIMessage,AICodeReview,AIConversation,AIFeedback,AIRecommendation,AIRecommendationFeedback
+from .models import AIModel,AIMessage,AICodeReview,AIConversation,AIFeedback,AIRecommendation,AIRecommendationFeedback,AIUserLearningPathNode
+from .models import AIUserLearningPath,AIUserLearningPathNode,AIUserKnowledgeState
+
 
 class AIModelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -96,4 +98,22 @@ class CreateAIRecommendationFeedbackSerializer(serializers.Serializer):
 class AIRecommendationFeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIRecommendationFeedback
+        fields = "__all__"
+
+
+class AIUserLearningPathSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIUserLearningPath
+        fields = "__all__"
+
+
+class AIUserLearningPathNodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIUserLearningPathNode
+        fields = "__all__"
+
+
+class AIUserLearningPathDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIUserLearningPath
         fields = "__all__"
