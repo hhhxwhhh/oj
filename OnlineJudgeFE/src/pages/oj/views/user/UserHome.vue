@@ -29,13 +29,29 @@
           </div>
         </div>
 
+        <div id="learning-paths" v-if="learningPaths.length > 0">
+          <div class="section-title">{{ $t('m.My_Learning_Path') }}</div>
+          <div class="btns">
+            <div class="problem-btn" v-for="path of learningPaths" :key="path.id">
+              <Button type="primary" @click="goLearningPath(path.id)">{{ path.title }}</Button>
+              <div class="problem-info">
+                <span class="problem-title">{{ path.description }}</span>
+                <span class="problem-reason">{{ path.estimated_duration }} {{ $t('m.Hours') }}</span>
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right; margin-top: 10px;">
+            <Button type="ghost" size="small" @click="goToLearningPathAll">{{ $t('m.View_All') }}</Button>
+          </div>
+        </div>
+
         <!-- 添加推荐题目模块 -->
         <div id="recommended-problems" v-if="recommendedProblems.length > 0">
           <div class="section-title">{{ $t('m.Recommended_For_You') }}</div>
           <div class="btns">
             <div class="problem-btn" v-for="problem of recommendedProblems" :key="problem.problem_id">
-              <Button type="primary"
-                @click="goProblem(problem.problem_display_id)">{{ problem.problem_display_id }}</Button>
+              <Button type="primary" @click="goProblem(problem.problem_display_id)">{{ problem.problem_display_id
+                }}</Button>
               <div class="problem-info">
                 <span class="problem-title">{{ problem.title }}</span>
                 <span class="problem-reason">{{ problem.reason }}</span>
@@ -80,6 +96,7 @@
 import { mapActions } from 'vuex'
 import time from '@/utils/time'
 import api from '@oj/api'
+import LearningPath from '../ai/LearningPath.vue';
 
 export default {
   data() {
@@ -87,7 +104,8 @@ export default {
       username: '',
       profile: {},
       problems: [],
-      recommendedProblems: [] // 添加推荐题目数据
+      recommendedProblems: [],// 添加推荐题目数据
+      learningPaths: []
     }
   },
   mounted() {
@@ -102,6 +120,7 @@ export default {
         this.profile = res.data.data
         this.getSolvedProblems()
         this.getRecommendedProblems() // 获取推荐题目
+        this.getLearningPaths()
         let registerTime = time.utcToLocal(this.profile.user.create_time, 'YYYY-MM-D')
         console.log('The guy registered at ' + registerTime + '.')
       })
@@ -121,6 +140,13 @@ export default {
       ACProblems.sort()
       this.problems = ACProblems
     },
+    getLearningPaths() {
+      api.getLearningPaths().then(res => {
+        this.learningPaths = res.data.data.slice(0, 3);
+      }).catch(err => {
+        console.error('Failed to load learning paths:', err)
+      })
+    },
     // 添加获取推荐题目的方法
     getRecommendedProblems() {
       api.getRecommendedProblems(5).then(res => {
@@ -131,6 +157,12 @@ export default {
     },
     goProblem(problemID) {
       this.$router.push({ name: 'problem-details', params: { problemID: problemID } })
+    },
+    goLearningPath(pathId) {
+      this.$router.push({ name: 'learning-path', query: { pathId: pathId } })
+    },
+    goToLearningPathAll() {
+      this.$router.push({ name: 'learning-path' })
     },
     freshProblemDisplayID() {
       api.freshDisplayID().then(res => {

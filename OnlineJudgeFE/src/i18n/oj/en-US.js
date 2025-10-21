@@ -331,5 +331,20 @@ export const m = {
   Failed_to_get_Code_Explanation: "Failed to get code explanation",
   No_Explanation_Available: "No explanation available",
   No_Explanation_To_Export: "No explanation to export",
-  Export_Explanation: "Export Explanation"
+  Export_Explanation: "Export Explanation",
+  Nav_Problem: "Problem",
+  Nav_Status: "Status",
+  Nav_Rank: "Rank",
+  Nav_ACM_Rank: "ACM Rank",
+  Nav_OI_Rank: "OI Rank",
+  MyHome: "Home",
+  MySubmissions: "My Submissions",
+  Settings: "Settings",
+  Management: "Management",
+  Logout: "Logout",
+  Welcome_to: "Welcome to",
+  Learning_Path: "Learning Path",
+  My_Learning_Path: "My Learning Path",
+  View_All: "View All",
+  Hours: "Hours"
 };

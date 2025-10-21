@@ -640,6 +640,9 @@ class AILearningPathService:
     
     @staticmethod
     def save_learning_path(user_id, path_data):
+        """
+        保存学习路径到数据库
+        """
         try:
             with transaction.atomic():
                 # 创建学习路径
@@ -650,16 +653,28 @@ class AILearningPathService:
                     estimated_duration=path_data["estimated_duration"],
                     path_data=path_data
                 )
-                
+
                 # 创建学习路径节点
                 nodes_data = path_data.get("nodes", [])
                 for i, node_data in enumerate(nodes_data):
+                    # 处理content_id可能为空的情况
+                    content_id = node_data.get("content_id")
+                    if content_id is None:
+                        # 如果content_id为空，根据节点类型设置默认值
+                        node_type = node_data.get("node_type", "")
+                        if node_type == "problem":
+                            # 对于题目类型节点，设置默认题目ID（例如1）
+                            content_id = 1
+                        else:
+                            # 对于其他类型节点，设置为0
+                            content_id = 0
+                    
                     AIUserLearningPathNode.objects.create(
                         learning_path=learning_path,
                         node_type=node_data["node_type"],
                         title=node_data["title"],
                         description=node_data["description"],
-                        content_id=node_data["content_id"],
+                        content_id=content_id,
                         order=i,
                         estimated_time=node_data["estimated_time"],
                         prerequisites=node_data.get("prerequisites", [])
@@ -669,7 +684,6 @@ class AILearningPathService:
         except Exception as e:
             logger.error(f"Failed to save learning path: {str(e)}")
             raise Exception(f"Failed to save learning path: {str(e)}")
-    
     @staticmethod
     def get_user_learning_paths(user_id):
         return AIUserLearningPath.objects.filter(user_id=user_id, is_active=True).order_by('-create_time')

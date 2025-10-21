@@ -341,6 +341,25 @@ export default {
         id: submissionId
       }
     });
+  },
+  generateLearningPath(data) {
+    return ajax("ai/learning_path", "post", {
+      data
+    });
+  },
+
+  getLearningPaths() {
+    return ajax("ai/learning_path", "get");
+  },
+
+  getLearningPathDetail(pathId) {
+    return ajax(`ai/learning_path/${pathId}`, "get");
+  },
+
+  updateLearningPathNode(nodeId, data) {
+    return ajax(`ai/learning_path/node/${nodeId}`, "put", {
+      data
+    });
   }
 };
 

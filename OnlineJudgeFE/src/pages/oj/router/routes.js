@@ -1,4 +1,5 @@
 // all routes here.
+import LearningPath from "../views/ai/LearningPath.vue";
 import {
   About,
   ACMRank,
@@ -131,6 +132,12 @@ export default [
     path: "/user-home",
     component: UserHome,
     meta: { requiresAuth: true, title: "User Home" }
+  },
+  {
+    name: "learning-path",
+    path: "/learning-path",
+    meta: { requiresAuth: true, title: "Learning Path" },
+    component: LearningPath
   },
   {
     path: "/setting",

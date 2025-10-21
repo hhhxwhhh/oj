@@ -170,5 +170,20 @@ export const m = {
   Failed_to_get_Code_Explanation: "获取代码解释失败",
   No_Explanation_Available: "暂无代码解释",
   No_Explanation_To_Export: "没有可导出的解释",
-  Export_Explanation: "导出解释"
+  Export_Explanation: "导出解释",
+  Nav_Problem: "问题",
+  Nav_Status: "状态",
+  Nav_Rank: "排名",
+  Nav_ACM_Rank: "ACM 排名",
+  Nav_OI_Rank: "OI 排名",
+  MyHome: "我的主页",
+  MySubmissions: "我的提交",
+  Settings: "设置",
+  Management: "后台管理",
+  Logout: "退出登录",
+  Welcome_to: "欢迎来到",
+  Learning_Path: "学习路径",
+  My_Learning_Path: "我的学习路径",
+  View_All: "查看全部",
+  Hours: "小时"
 };
