@@ -380,5 +380,6 @@ export const m = {
   Unable_to_generate_diagnosis: "Unable to generate diagnosis",
   Failed_to_get_diagnosis: "Failed to get diagnosis information",
   Missing_Submission_Data: "Missing submission data",
-  View_Submission: "View Submission"
+  View_Submission: "View Submission",
+  Knowledge_Points: "Knowledge Points"
 };

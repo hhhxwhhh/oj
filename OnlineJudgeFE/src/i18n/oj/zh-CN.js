@@ -185,5 +185,7 @@ export const m = {
   Learning_Path: "学习路径",
   My_Learning_Path: "我的学习路径",
   View_All: "查看全部",
-  Hours: "小时"
+  Hours: "小时",
+  Minutes: "分钟",
+  Knowledge_Points: "知识点"
 };

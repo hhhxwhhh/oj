@@ -22,6 +22,10 @@
         <Icon type="ios-book"></Icon>
         {{ $t('m.Learning_Path') }}
       </Menu-item>
+      <Menu-item name="/knowledge-points">
+        <Icon type="ios-bookmarks" />
+        {{ $t('m.Knowledge_Points') }}
+      </Menu-item>
       <Submenu name="rank">
         <template slot="title">
           <Icon type="podium"></Icon>
@@ -64,6 +68,7 @@
             <Dropdown-item name="/user-home">{{ $t('m.MyHome') }}</Dropdown-item>
             <Dropdown-item name="/status?myself=1">{{ $t('m.MySubmissions') }}</Dropdown-item>
             <Dropdown-item name="/learning-path">{{ $t('m.Learning_Path') }}</Dropdown-item>
+            <Dropdown-item name="/knowledge-points">{{ $t('m.Knowledge_Points') }}</Dropdown-item>
             <Dropdown-item name="/setting/profile">{{ $t('m.Settings') }}</Dropdown-item>
             <Dropdown-item v-if="isAdminRole" name="/admin">{{ $t('m.Management') }}</Dropdown-item>
             <Dropdown-item divided name="/logout">{{ $t('m.Logout') }}</Dropdown-item>
