@@ -1,5 +1,7 @@
 import openai
 import requests
+import json
+import re
 from django.db import transaction
 from .models import AIModel, AIMessage,AICodeExplanationCache,AIUserKnowledgeState,AIUserLearningPath,AIUserLearningPathNode
 from problem.models import Problem
@@ -771,6 +773,8 @@ class AICodeDiagnosisService:
                     "example_code": "修改后的代码示例",
                     "learning_tips": "学习建议内容"
                 }}
+                
+                只返回JSON，不要包含其他内容。
                 """
             }
             
@@ -796,6 +800,16 @@ class AICodeDiagnosisService:
             diagnosis_data = json.loads(response)
             return diagnosis_data
             
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {str(e)}")
+            logger.error(f"AI response: {response}")
+            # 返回一个默认的诊断结果
+            return {
+                "error_analysis": "无法分析代码错误。",
+                "fix_suggestions": "请稍后重试或联系管理员。",
+                "example_code": "# 示例代码暂不可用",
+                "learning_tips": "尝试重新提交以获取诊断信息。"
+            }
         except Exception as e:
             logger.error(f"Failed to diagnose submission: {str(e)}")
             raise Exception(f"Failed to diagnose submission: {str(e)}")

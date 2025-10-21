@@ -362,7 +362,6 @@ export default {
       }
     });
   },
-
   updateLearningPathNode(nodeId, data) {
     return ajax(`ai/learning_path/node/${nodeId}`, "put", {
       data
@@ -393,10 +392,15 @@ function ajax(url, method, options) {
       res => {
         // API正常返回(status=20x), 是否错误通过有无error判断
         if (res.data.error !== null) {
-          Vue.prototype.$error(res.data.data);
+          // 修复：传递完整的错误对象，而不仅仅是data字段
+          Vue.prototype.$error(res.data.data || res.data.error);
           reject(res);
           // 若后端返回为登录，则为session失效，应退出当前登录用户
-          if (res.data.data.startsWith("Please login")) {
+          if (
+            res.data.data &&
+            res.data.data.startsWith &&
+            res.data.data.startsWith("Please login")
+          ) {
             store.dispatch("changeModalStatus", {
               mode: "login",
               visible: true
@@ -410,9 +414,18 @@ function ajax(url, method, options) {
         }
       },
       res => {
-        // API请求异常，一般为Server error 或 network error
         reject(res);
-        Vue.prototype.$error(res.data.data);
+        let errorMessage = "Network error or server unavailable";
+        if (res && res.response && res.response.data) {
+          if (res.response.data.data) {
+            errorMessage = res.response.data.data;
+          } else if (res.response.data.error) {
+            errorMessage = res.response.data.error;
+          }
+        } else if (res && res.message) {
+          errorMessage = res.message;
+        }
+        Vue.prototype.$error(errorMessage);
       }
     );
   });

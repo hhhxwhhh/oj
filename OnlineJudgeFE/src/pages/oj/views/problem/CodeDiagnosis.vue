@@ -104,7 +104,6 @@ export default {
     },
     methods: {
         ...mapActions(['changeDomTitle']),
-
         async generateDiagnosis() {
             if (!this.submissionId) return
 
@@ -113,10 +112,42 @@ export default {
 
             try {
                 const res = await api.getCodeDiagnosis(this.submissionId)
-                this.diagnosis = res.data.data
-                this.changeDomTitle({ title: this.$t('m.Code_Diagnosis') })
+                if (res && res.data && res.data.error === null && res.data.data) {
+                    this.diagnosis = res.data.data
+                    this.changeDomTitle({ title: this.$t('m.Code_Diagnosis') })
+                } else {
+                    let errorMessage = this.$t('m.Failed_to_diagnose_code')
+                    if (res && res.data) {
+                        if (res.data.data) {
+                            errorMessage = res.data.data
+                        } else if (res.data.error) {
+                            errorMessage = res.data.error
+                        }
+                    }
+                    this.$error(errorMessage)
+                    this.diagnosis = null
+                }
             } catch (err) {
-                this.$error(this.$t('m.Failed_to_diagnose_code'))
+                // 更详细地处理错误信息
+                let errorMessage = this.$t('m.Failed_to_diagnose_code')
+                if (err && err.response && err.response.data) {
+                    if (err.response.data.data) {
+                        errorMessage = err.response.data.data
+                    } else if (err.response.data.error) {
+                        errorMessage = err.response.data.error
+                    } else if (typeof err.response.data === 'string') {
+                        errorMessage = err.response.data
+                    } else {
+                        errorMessage = JSON.stringify(err.response.data)
+                    }
+                } else if (err && err.message) {
+                    errorMessage = err.message
+                } else if (typeof err === 'object') {
+                    errorMessage = JSON.stringify(err)
+                } else if (typeof err === 'string') {
+                    errorMessage = err
+                }
+                this.$error(errorMessage)
                 console.error('Failed to get code diagnosis:', err)
                 this.diagnosis = null
             } finally {
@@ -124,7 +155,6 @@ export default {
                 this.loadingText = ''
             }
         },
-
         goBackToProblem() {
             if (this.problemId) {
                 this.$router.push({

@@ -507,8 +507,6 @@ class AILearningPathNodeAPI(APIView):
         except Exception as e:
             logger.error(f"Update node status failed: {str(e)}")
             return self.error("Failed to update node status")
-
-
 class AICodeDiagnosisAPI(APIView):
     @login_required
     def post(self, request):
@@ -520,7 +518,7 @@ class AICodeDiagnosisAPI(APIView):
         
         try:
             # 获取提交信息
-            submission = Submission.objects.select_related('problem', 'user').get(id=submission_id)
+            submission = Submission.objects.select_related('problem').get(id=submission_id)
             
             # 检查是否是当前用户的提交
             if submission.user_id != user.id:
@@ -543,7 +541,6 @@ class AICodeDiagnosisAPI(APIView):
             return self.error("Submission not found")
         except Exception as e:
             logger.error(f"Code diagnosis failed: {str(e)}")
-            return self.error("Failed to diagnose code")
-
+            return self.error(msg="Failed to diagnose code", err=str(e))
 
 
