@@ -13,6 +13,7 @@ urlpatterns = [
     url(r"^ai/conversation/?$", views.AIConversationAPI.as_view(), name="ai_conversation_api"),
     url(r"^ai/message/?$", views.AIMessageAPI.as_view(), name="ai_message_api"),
     url(r"^ai/conversations/?$", views.AIConversationListAPI.as_view(), name="ai_conversation_list_api"),
+    url(r"^ai/code/diagnosis/?$", views.AICodeDiagnosisAPI.as_view(), name="ai_code_diagnosis_api"),
     
     url(r"^ai/code/explain/?$", views.AICodeExplanationAPI.as_view(), name="ai_code_explanation_api"),
     url(r"^ai/problem/solution/?$", views.AIProblemSolutionAPI.as_view(), name="ai_problem_solution_api"),

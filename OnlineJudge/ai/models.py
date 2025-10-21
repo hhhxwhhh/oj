@@ -137,3 +137,4 @@ class AIUserKnowledgeState(models.Model):
         unique_together = ('user', 'knowledge_point')
 
 
+

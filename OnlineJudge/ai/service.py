@@ -715,8 +715,90 @@ class AILearningPathService:
             logger.error(f"Failed to update node status: {str(e)}")
             raise Exception(f"Failed to update node status: {str(e)}")
 
-            
 
+class AICodeDiagnosisService:
+    @staticmethod
+    def diagnose_submission(submission):
+        try:
+            # 获取问题信息
+            problem = submission.problem
+            
+            # 构建系统提示
+            system_prompt = {
+                "role": "system",
+                "content": "你是一个专业的编程导师，擅长分析代码错误并提供修复建议。"
+            }
+            
+            # 根据提交结果构建用户提示
+            result_description = ""
+            if submission.result == 1:  # Wrong Answer
+                result_description = "输出结果与预期不符"
+            elif submission.result == 2:  # Time Limit Exceeded
+                result_description = "程序运行时间超过了限制"
+            elif submission.result == 3:  # Memory Limit Exceeded
+                result_description = "程序使用的内存超过了限制"
+            elif submission.result == 4:  # Runtime Error
+                result_description = "程序运行时出现错误"
+            elif submission.result == 5:  # Compile Error
+                result_description = "代码编译失败"
+            else:
+                result_description = "代码存在其他问题"
+            
+            user_prompt = {
+                "role": "user",
+                "content": f"""
+                请分析以下代码中的问题并提供修复建议：
+                
+                题目: {problem.title}
+                题目描述: {problem.description}
+                
+                提交结果: {result_description}
+                
+                编程语言: {submission.language}
+                代码:
+                {submission.code}
+                
+                请提供以下信息：
+                1. 错误分析：详细解释代码中可能存在的问题
+                2. 修复建议：具体的修改建议
+                3. 示例代码：修改后的代码示例
+                4. 学习建议：相关的知识点或技巧
+                
+                请以以下JSON格式返回结果：
+                {{
+                    "error_analysis": "错误分析内容",
+                    "fix_suggestions": "修复建议内容",
+                    "example_code": "修改后的代码示例",
+                    "learning_tips": "学习建议内容"
+                }}
+                """
+            }
+            
+            messages = [system_prompt, user_prompt]
+            
+            # 获取激活的AI模型
+            ai_model = AIService.get_active_ai_model()
+            if not ai_model:
+                raise Exception("No active AI model found")
+            
+            # 调用AI模型
+            response = AIService.call_ai_model(messages, ai_model)
+            
+            # 解析JSON响应
+            import json
+            import re
+            
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                response = json_match.group()
+            
+            diagnosis_data = json.loads(response)
+            return diagnosis_data
+            
+        except Exception as e:
+            logger.error(f"Failed to diagnose submission: {str(e)}")
+            raise Exception(f"Failed to diagnose submission: {str(e)}")
 
 
 

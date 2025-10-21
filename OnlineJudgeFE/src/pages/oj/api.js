@@ -355,6 +355,13 @@ export default {
   getLearningPathDetail(pathId) {
     return ajax(`ai/learning_path/${pathId}`, "get");
   },
+  getCodeDiagnosis(submissionId) {
+    return ajax("ai/code/diagnose", "post", {
+      data: {
+        submission_id: submissionId
+      }
+    });
+  },
 
   updateLearningPathNode(nodeId, data) {
     return ajax(`ai/learning_path/node/${nodeId}`, "put", {

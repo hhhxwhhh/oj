@@ -14,7 +14,7 @@ from .serializers import (
     AIFeedbackSerializer, CreateAIFeedbackSerializer,
     CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer
 )
-from .service import AIService,AIRecommendationService,AILearningPathService
+from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService
 from submission.models import Submission
 from problem.models import Problem
 import logging
@@ -507,4 +507,43 @@ class AILearningPathNodeAPI(APIView):
         except Exception as e:
             logger.error(f"Update node status failed: {str(e)}")
             return self.error("Failed to update node status")
+
+
+class AICodeDiagnosisAPI(APIView):
+    @login_required
+    def post(self, request):
+        """
+        为失败的提交提供代码诊断和修复建议
+        """
+        user = request.user
+        submission_id = request.data.get("submission_id")
+        
+        try:
+            # 获取提交信息
+            submission = Submission.objects.select_related('problem', 'user').get(id=submission_id)
+            
+            # 检查是否是当前用户的提交
+            if submission.user_id != user.id:
+                return self.error("Permission denied")
+            
+            # 检查提交结果
+            if submission.result == 0:  # 0表示Accepted
+                return self.error("Code is already accepted")
+            
+            # 获取激活的AI模型
+            active_model = AIModel.objects.filter(is_active=True).first()
+            if not active_model:
+                return self.error("No active AI model found")
+            
+            # 生成诊断信息
+            diagnosis_result = AICodeDiagnosisService.diagnose_submission(submission)
+            
+            return self.success(diagnosis_result)
+        except Submission.DoesNotExist:
+            return self.error("Submission not found")
+        except Exception as e:
+            logger.error(f"Code diagnosis failed: {str(e)}")
+            return self.error("Failed to diagnose code")
+
+
 
