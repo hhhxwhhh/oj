@@ -18,6 +18,7 @@ from utils.cache import cache
 from utils.constants import CacheKey
 
 logger = logging.getLogger(__name__)
+from ai.service import KnowledgePointService
 
 
 # 继续处理在队列中的问题
@@ -197,6 +198,16 @@ class JudgeDispatcher(DispatcherBase):
                 self.update_problem_status_rejudge()
             else:
                 self.update_problem_status()
+        try:
+            is_correct = (self.submission.result == JudgeStatus.ACCEPTED)
+            KnowledgePointService.update_user_knowledge_state(
+                self.submission.user_id,
+                self.problem.id,
+                is_correct
+            )
+        except Exception as e:
+            logger.error(f"Failed to update knowledge state for submission {self.submission.id}: {str(e)}")
+
 
         # 至此判题结束，尝试处理任务队列中剩余的任务
         process_pending_task()

@@ -4,6 +4,7 @@ import json
 import re
 from django.db import transaction
 from .models import AIModel, AIMessage,AICodeExplanationCache,AIUserKnowledgeState,AIUserLearningPath,AIUserLearningPathNode
+from .models import KnowledgePoint,AIUserKnowledgeState
 from problem.models import Problem
 from submission.models import Submission
 import logging
@@ -878,7 +879,119 @@ class AICodeDiagnosisService:
             raise Exception(f"Failed to diagnose submission: {str(e)}")
 
 
-
+class KnowledgePointService:
+    @staticmethod
+    def create_knowledge_points_from_tags():
+        """
+        从题目标签创建知识点
+        """
+        from problem.models import ProblemTag
+        tags = ProblemTag.objects.all()
+        
+        for tag in tags:
+            KnowledgePoint.objects.get_or_create(
+                name=tag.name,
+                defaults={
+                    'description': f'与{tag.name}相关的知识点',
+                    'category': '算法与数据结构',
+                    'difficulty': 3
+                }
+            )
+    
+    @staticmethod
+    def get_user_knowledge_state(user_id):
+        """
+        获取用户知识点掌握状态
+        """
+        states = AIUserKnowledgeState.objects.filter(user_id=user_id).select_related('knowledge_point')
+        return {state.knowledge_point.name: state for state in states}
+    
+    @staticmethod
+    def update_user_knowledge_state(user_id, problem_id, is_correct):
+        """
+        根据用户解答题目情况更新知识点掌握状态
+        """
+        try:
+            # 获取题目相关的知识点
+            problem = Problem.objects.get(id=problem_id)
+            tags = problem.tags.all()
+            
+            # 获取或创建对应的知识点
+            knowledge_points = []
+            for tag in tags:
+                kp, created = KnowledgePoint.objects.get_or_create(
+                    name=tag.name,
+                    defaults={
+                        'description': f'与{tag.name}相关的知识点',
+                        'category': '算法与数据结构',
+                        'difficulty': 3
+                    }
+                )
+                knowledge_points.append(kp)
+            
+            # 更新用户知识点掌握状态
+            for kp in knowledge_points:
+                user_state, created = AIUserKnowledgeState.objects.get_or_create(
+                    user_id=user_id,
+                    knowledge_point=kp,
+                    defaults={
+                        'proficiency_level': 0.0,
+                        'correct_attempts': 0,
+                        'total_attempts': 0
+                    }
+                )
+                user_state.update_proficiency(is_correct)
+                
+        except Exception as e:
+            logger.error(f"Failed to update user knowledge state: {str(e)}")
+    
+    @staticmethod
+    def get_knowledge_recommendations(user_id, count=5):
+        """
+        基于知识点掌握情况推荐需要加强的知识点
+        """
+        try:
+            # 获取用户知识点状态
+            user_states = AIUserKnowledgeState.objects.filter(
+                user_id=user_id, 
+                proficiency_level__lt=0.8
+            ).select_related('knowledge_point').order_by('proficiency_level')[:count]
+            
+            recommendations = []
+            for state in user_states:
+                recommendations.append({
+                    'knowledge_point': state.knowledge_point.name,
+                    'proficiency_level': state.proficiency_level,
+                    'recommended_problems': KnowledgePointService._get_problems_for_knowledge_point(
+                        state.knowledge_point, user_id
+                    )
+                })
+            
+            return recommendations
+        except Exception as e:
+            logger.error(f"Failed to get knowledge recommendations: {str(e)}")
+            return []
+    
+    @staticmethod
+    def _get_problems_for_knowledge_point(knowledge_point, user_id):
+        """
+        获取针对特定知识点的推荐题目
+        """
+        try:
+            # 获取与知识点相关的题目
+            problems = knowledge_point.related_problems.filter(visible=True)[:3]
+            if not problems:
+                # 如果没有直接关联的题目，则根据标签查找
+                from problem.models import Problem
+                problems = Problem.objects.filter(
+                    tags__name=knowledge_point.name,
+                    visible=True
+                )[:3]
+            
+            return [{'id': p.id, 'title': p.title} for p in problems]
+        except Exception as e:
+            logger.error(f"Failed to get problems for knowledge point: {str(e)}")
+            return []
 
     
 

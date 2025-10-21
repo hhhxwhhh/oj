@@ -132,9 +132,47 @@ class AIUserKnowledgeState(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     correct_attempts = models.IntegerField(default=0)
     total_attempts = models.IntegerField(default=0)
+    
     class Meta:
         db_table = 'ai_user_knowledge_state'
         unique_together = ('user', 'knowledge_point')
+
+    def update_proficiency(self, is_correct):
+        """
+        更新知识点掌握程度
+        """
+        self.total_attempts += 1
+        if is_correct:
+            self.correct_attempts += 1
+        
+        # 计算掌握程度：正确率 + 时间衰减因子
+        accuracy = self.correct_attempts / self.total_attempts if self.total_attempts > 0 else 0
+        
+        # 简单的掌握程度计算算法
+        self.proficiency_level = min(1.0, accuracy * 0.7 + self.proficiency_level * 0.3)
+        
+        self.save()
+
+
+class KnowledgePoint(models.Model):
+    """
+    知识点模型
+    """
+    name = models.TextField(unique=True, help_text="知识点名称")
+    description = models.TextField(help_text="知识点描述")
+    category = models.TextField(help_text="知识点分类")
+    difficulty = models.IntegerField(help_text="难度等级(1-5)")
+    parent_points = models.ManyToManyField('self', symmetrical=False, blank=True, help_text="前置知识点")
+    related_problems = models.ManyToManyField('problem.Problem', blank=True, help_text="相关题目")
+    create_time = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ai_knowledge_point'
+        verbose_name = '知识点'
+        verbose_name_plural = '知识点'
+
+    def __str__(self):
+        return self.name
 
 
 

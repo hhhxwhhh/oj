@@ -10,6 +10,10 @@ urlpatterns = [
     url(r"^ai/learning_path/(?P<path_id>\d+)/?$", views.AILearningPathDetailAPI.as_view(), name="ai_learning_path_detail_api"),
     url(r"^ai/learning_path/node/(?P<node_id>\d+)/?$", views.AILearningPathNodeAPI.as_view(), name="ai_learning_path_node_api"),
     
+    url(r"^api/ai/knowledge_point/?$", KnowledgePointAPI.as_view(), name="knowledge_point_api"),
+    url(r"^api/ai/knowledge_point/manage/?$", KnowledgePointManagementAPI.as_view(), name="knowledge_point_manage_api"),
+
+
     url(r"^ai/conversation/?$", views.AIConversationAPI.as_view(), name="ai_conversation_api"),
     url(r"^ai/message/?$", views.AIMessageAPI.as_view(), name="ai_message_api"),
     url(r"^ai/conversations/?$", views.AIConversationListAPI.as_view(), name="ai_conversation_list_api"),
@@ -23,4 +27,5 @@ urlpatterns = [
     url(r"^ai/recommendation/feedback/?$", views.AIRecommendationFeedbackAPI.as_view(), name="ai_recommendation_feedback_api"),
     url(r"^ai/next_problem/?$", views.AINextProblemRecommendationAPI.as_view(), name="ai_next_problem_recommendation_api"),
     url(r"^ai/feedback/?$", views.AIFeedbackAPI.as_view(), name="ai_feedback_api"),
+
 ]

@@ -5,7 +5,7 @@ from django.db import transaction
 # Create your views here.
 from utils.api import APIView,validate_serializer
 from account.decorators import login_required
-from .models import AIModel,AIConversation,AIMessage,AICodeReview,AIFeedback
+from .models import AIModel,AIConversation,AIMessage,AICodeReview,AIFeedback,KnowledgePoint
 from .serializers import (
     AIModelSerializer, CreateAIModelSerializer,
     AIConversationSerializer, CreateAIConversationSerializer,
@@ -14,7 +14,7 @@ from .serializers import (
     AIFeedbackSerializer, CreateAIFeedbackSerializer,
     CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer
 )
-from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService
+from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService,KnowledgePointService   
 from submission.models import Submission
 from problem.models import Problem
 import logging
@@ -542,5 +542,55 @@ class AICodeDiagnosisAPI(APIView):
         except Exception as e:
             logger.error(f"Code diagnosis failed: {str(e)}")
             return self.error(msg="Failed to diagnose code", err=str(e))
+class KnowledgePointAPI(APIView):
+    @login_required
+    def get(self, request):
+        """
+        获取用户知识点掌握情况
+        """
+        try:
+            user = request.user
+            knowledge_states = KnowledgePointService.get_user_knowledge_state(user.id)
+            
+            result = []
+            for name, state in knowledge_states.items():
+                result.append({
+                    'knowledge_point': name,
+                    'proficiency_level': state.proficiency_level,
+                    'correct_attempts': state.correct_attempts,
+                    'total_attempts': state.total_attempts,
+                    'last_updated': state.last_updated
+                })
+            
+            return self.success(result)
+        except Exception as e:
+            logger.error(f"Failed to get user knowledge state: {str(e)}")
+            return self.error("Failed to get knowledge state")
+    
+    @login_required
+    def post(self, request):
+        """
+        获取知识点学习建议
+        """
+        try:
+            user = request.user
+            count = request.data.get("count", 5)
+            recommendations = KnowledgePointService.get_knowledge_recommendations(user.id, count)
+            return self.success(recommendations)
+        except Exception as e:
+            logger.error(f"Failed to get knowledge recommendations: {str(e)}")
+            return self.error("Failed to get recommendations")
 
+
+class KnowledgePointManagementAPI(APIView):
+    def post(self, request):
+        """
+        从题目标签创建知识点
+        """
+        try:
+            KnowledgePointService.create_knowledge_points_from_tags()
+            return self.success("Knowledge points created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create knowledge points: {str(e)}")
+            return self.error("Failed to create knowledge points")
 
