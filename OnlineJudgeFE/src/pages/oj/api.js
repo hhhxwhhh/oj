@@ -282,6 +282,14 @@ export default {
       data
     });
   },
+  getKnowledgePoints() {
+    return ajax("ai/knowledge_point", "get");
+  },
+  getKnowledgeRecommendations(data) {
+    return ajax("ai/knowledge_point/recommend", "post", {
+      data: data || {}
+    });
+  },
   getAIConversations() {
     return ajax("ai/conversations", "get");
   },

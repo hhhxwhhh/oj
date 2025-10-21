@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from . import views
-
+from ai.views import KnowledgePointAPI, KnowledgePointManagementAPI
 urlpatterns = [
     url(r"^admin/ai_model/?$", views.AIModelAdminAPI.as_view(), name="ai_model_admin_api"),
     url(r"^admin/ai_model/list/?$", views.AIModelListAdminAPI.as_view(), name="ai_model_list_admin_api"),

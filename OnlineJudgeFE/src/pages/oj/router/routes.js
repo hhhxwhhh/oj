@@ -1,6 +1,7 @@
 // all routes here.
 import LearningPath from "../views/ai/LearningPath.vue";
 import CodeDiagnosis from "../views/problem/CodeDiagnosis.vue";
+import KnowledgePoints from "../views/ai/KnowledgePoints.vue";
 import {
   About,
   ACMRank,
@@ -77,6 +78,12 @@ export default [
     path: "/contest",
     meta: { title: "Contest List" },
     component: Contest.ContestList
+  },
+  {
+    path: "/knowledge-points",
+    name: "knowledge-points",
+    component: KnowledgePoints,
+    meta: { requiresAuth: true }
   },
   {
     name: "contest-details",
