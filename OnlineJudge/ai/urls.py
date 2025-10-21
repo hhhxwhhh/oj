@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from . import views
-from ai.views import KnowledgePointAPI, KnowledgePointManagementAPI
+
 urlpatterns = [
     url(r"^admin/ai_model/?$", views.AIModelAdminAPI.as_view(), name="ai_model_admin_api"),
     url(r"^admin/ai_model/list/?$", views.AIModelListAdminAPI.as_view(), name="ai_model_list_admin_api"),
@@ -10,8 +10,9 @@ urlpatterns = [
     url(r"^ai/learning_path/(?P<path_id>\d+)/?$", views.AILearningPathDetailAPI.as_view(), name="ai_learning_path_detail_api"),
     url(r"^ai/learning_path/node/(?P<node_id>\d+)/?$", views.AILearningPathNodeAPI.as_view(), name="ai_learning_path_node_api"),
     
-    url(r"^api/ai/knowledge_point/?$", KnowledgePointAPI.as_view(), name="knowledge_point_api"),
-    url(r"^api/ai/knowledge_point/manage/?$", KnowledgePointManagementAPI.as_view(), name="knowledge_point_manage_api"),
+    url(r"^ai/knowledge_point/?$", views.KnowledgePointAPI.as_view(), name="knowledge_point_api"),
+    url(r"^ai/knowledge_point/recommend/?$", views.KnowledgePointRecommendationAPI.as_view(), name="knowledge_point_recommendation_api"),
+    url(r"^ai/knowledge_point/manage/?$", views.KnowledgePointManagementAPI.as_view(), name="knowledge_point_manage_api"),
 
 
     url(r"^ai/conversation/?$", views.AIConversationAPI.as_view(), name="ai_conversation_api"),

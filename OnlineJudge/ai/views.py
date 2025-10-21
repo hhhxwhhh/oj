@@ -548,6 +548,7 @@ class KnowledgePointAPI(APIView):
         """
         获取用户知识点掌握情况
         """
+        logger.info("KnowledgePointAPI GET request received")
         try:
             user = request.user
             knowledge_states = KnowledgePointService.get_user_knowledge_state(user.id)
@@ -562,6 +563,7 @@ class KnowledgePointAPI(APIView):
                     'last_updated': state.last_updated
                 })
             
+            logger.info(f"Returning knowledge states for user {user.id}")
             return self.success(result)
         except Exception as e:
             logger.error(f"Failed to get user knowledge state: {str(e)}")
@@ -572,10 +574,12 @@ class KnowledgePointAPI(APIView):
         """
         获取知识点学习建议
         """
+        logger.info("KnowledgePointAPI POST request received")
         try:
             user = request.user
             count = request.data.get("count", 5)
             recommendations = KnowledgePointService.get_knowledge_recommendations(user.id, count)
+            logger.info(f"Returning recommendations for user {user.id}")
             return self.success(recommendations)
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
@@ -594,3 +598,19 @@ class KnowledgePointManagementAPI(APIView):
             logger.error(f"Failed to create knowledge points: {str(e)}")
             return self.error("Failed to create knowledge points")
 
+class KnowledgePointRecommendationAPI(APIView):
+    @login_required
+    def post(self, request):
+        """
+        获取知识点学习建议
+        """
+        logger.info("KnowledgePointRecommendationAPI POST request received")
+        try:
+            user = request.user
+            count = request.data.get("count", 5)
+            recommendations = KnowledgePointService.get_knowledge_recommendations(user.id, count)
+            logger.info(f"Returning recommendations for user {user.id}")
+            return self.success(recommendations)
+        except Exception as e:
+            logger.error(f"Failed to get knowledge recommendations: {str(e)}")
+            return self.error("Failed to get recommendations")
