@@ -548,13 +548,13 @@ class AIRecommendationService:
             ai_model = AIService.get_active_ai_model()
             if not ai_model:
                 raise Exception("No active AI model found")
-            explanation=AIService.call_ai_model(messages, ai_model)
+            explanation = AIService.call_ai_model(messages, ai_model)
             AIRecommendationService.cache_explanation(code, language, explanation)
             return explanation
         except Exception as e:
             logger.error(f"Error in generate_code_explanation: {str(e)}")
             raise Exception(f"Failed to generate code explanation: {str(e)}")
-        
+
 
 class AILearningPathService:
     @staticmethod
@@ -714,7 +714,7 @@ class AILearningPathService:
                     user_id=user_id,
                     title=path_data["title"],
                     description=path_data["description"],
-                    estimated_duration=path_data["estimated_duration"],
+                    estimated_duration=path_data.get("estimated_duration", 0),
                     path_data=path_data
                 )
 
@@ -735,12 +735,12 @@ class AILearningPathService:
                     
                     AIUserLearningPathNode.objects.create(
                         learning_path=learning_path,
-                        node_type=node_data["node_type"],
-                        title=node_data["title"],
-                        description=node_data["description"],
+                        node_type=node_data.get("node_type", "concept"),
+                        title=node_data.get("title", "未命名节点"),
+                        description=node_data.get("description", ""),
                         content_id=content_id,
                         order=i,
-                        estimated_time=node_data["estimated_time"],
+                        estimated_time=node_data.get("estimated_time", 30),
                         prerequisites=node_data.get("prerequisites", [])
                     )
                 
@@ -748,6 +748,7 @@ class AILearningPathService:
         except Exception as e:
             logger.error(f"Failed to save learning path: {str(e)}")
             raise Exception(f"Failed to save learning path: {str(e)}")
+    
     @staticmethod
     def get_user_learning_paths(user_id):
         return AIUserLearningPath.objects.filter(user_id=user_id, is_active=True).order_by('-create_time')
