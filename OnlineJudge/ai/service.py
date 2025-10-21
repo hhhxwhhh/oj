@@ -357,39 +357,101 @@ class AIRecommendationService:
                         candidate_problems[problem_id]+=similarty
         sorted_candidate_problems=sorted(candidate_problems.items(),key=lambda x: x[1],reverse=True)
         return [(problem_id, score, "基于相似用户推荐") for problem_id, score in sorted_candidate_problems[:count]]
-    
     @staticmethod
     def content_based_recommendations(user_id,count=10):
-        """基于内容推荐算法"""
-        solved_submissions=Submission.objects.filter(
-            user_id=user_id,
-            result=0
-        ).select_related("problem")
-        solved_problems=[sub.problem for sub in solved_submissions]
+        """基于内容的推荐：使用TF-IDF和余弦相似度分析题目描述相似性"""
+        try:
+            # 获取用户已解决的题目
+            solved_problems = Submission.objects.filter(
+                user_id=user_id,
+                result=0
+            ).select_related('problem')
+            
+            if not solved_problems:
+                # 如果用户没有解决问题，返回热门题目
+                from problem.models import Problem
+                problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+                return [(p.id, 0.5, "热门题目推荐") for p in problems]
+            
+            # 获取所有可见题目
+            from problem.models import Problem
+            all_problems = Problem.objects.filter(visible=True)
+            
+            # 提取已解决问题的描述
+            solved_descriptions = [sp.problem.description for sp in solved_problems if sp.problem.description]
+            # 如果没有描述，使用标题
+            if not solved_descriptions:
+                solved_descriptions = [sp.problem.title for sp in solved_problems]
+            
+            # 提取所有题目的描述
+            all_descriptions = [p.description if p.description else p.title for p in all_problems]
+            
+            # 合并已解决问题和所有题目的描述用于TF-IDF
+            all_texts = solved_descriptions + all_descriptions
+            
+            # 创建TF-IDF向量
+            vectorizer = TfidfVectorizer(max_features=1000, stop_words=None, ngram_range=(1, 2))
+            tfidf_matrix = vectorizer.fit_transform(all_texts)
+            
+            # 分离已解决问题向量和所有题目向量
+            solved_tfidf = tfidf_matrix[:len(solved_descriptions)]
+            all_problems_tfidf = tfidf_matrix[len(solved_descriptions):]
+            
+            # 计算余弦相似度
+            similarity_matrix = cosine_similarity(solved_tfidf, all_problems_tfidf)
+            
+            # 计算每个题目的平均相似度
+            avg_similarities = similarity_matrix.mean(axis=0)
+            
+            # 获取已解决的题目ID集合
+            solved_problem_ids = set(sp.problem.id for sp in solved_problems)
+            
+            # 创建(题目ID, 相似度, 推荐理由)元组列表
+            recommendations = []
+            for i, problem in enumerate(all_problems):
+                # 排除已解决的题目
+                if problem.id in solved_problem_ids:
+                    continue
+                
+                similarity_score = avg_similarities[i]
+                recommendations.append((problem.id, similarity_score, "基于题目内容相似性推荐"))
+            
+            # 按相似度排序并返回前count个
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+            return recommendations[:count]
+            
+        except Exception as e:
+            logger.error(f"Content-based recommendation failed: {str(e)}")
+            # 出错时返回基于标签的推荐
+            solved_submissions=Submission.objects.filter(
+                user_id=user_id,
+                result=0
+            ).select_related("problem")
+            solved_problems=[sub.problem for sub in solved_submissions]
 
-        if not solved_problems:
-            popular_problems=Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
-            return [(problem.id, 0, "基于热门题目推荐") for problem in popular_problems]
-        solved_tags=set()
-        for problem in solved_problems:
-            for tag in problem.tags.all():
-                solved_tags.add(tag)
+            if not solved_problems:
+                popular_problems=Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+                return [(problem.id, 0, "基于热门题目推荐") for problem in popular_problems]
+            solved_tags=set()
+            for problem in solved_problems:
+                for tag in problem.tags.all():
+                    solved_tags.add(tag)
 
-        unsolved_problems = Problem.objects.filter(visible=True).exclude(
-            id__in=[p.id for p in solved_problems]
-        ).prefetch_related('tags')
-        candidate_problems=[]
-        for problem in unsolved_problems:
-            problem_tags = {tag.name for tag in problem.tags.all()}
-            if solved_tags and problem_tags:
-                intersection=len(solved_tags.intersection(problem_tags))
-                union=len(solved_tags.union(problem_tags))
-                if union>0:
-                    similarty=intersection/union
-                    candidate_problems.append((problem.id,similarty,"基于标签推荐"))
+            unsolved_problems = Problem.objects.filter(visible=True).exclude(
+                id__in=[p.id for p in solved_problems]
+            ).prefetch_related('tags')
+            candidate_problems=[]
+            for problem in unsolved_problems:
+                problem_tags = {tag.name for tag in problem.tags.all()}
+                if solved_tags and problem_tags:
+                    intersection=len(solved_tags.intersection(problem_tags))
+                    union=len(solved_tags.union(problem_tags))
+                    if union>0:
+                        similarty=intersection/union
+                        candidate_problems.append((problem.id,similarty,"基于标签推荐"))
 
-        candidate_problems.sort(key=lambda x:x[1],reverse=True)
-        return candidate_problems[:count]
+            candidate_problems.sort(key=lambda x:x[1],reverse=True)
+            return candidate_problems[:count]
     @staticmethod
     def hybrid_recommendations(user_id,count=10):
         cf_recommendations=AIRecommendationService.collaborative_filtering_recommendations(user_id=user_id,count=count*2)
