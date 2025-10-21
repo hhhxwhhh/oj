@@ -560,7 +560,7 @@ class KnowledgePointAPI(APIView):
                     'proficiency_level': state.proficiency_level,
                     'correct_attempts': state.correct_attempts,
                     'total_attempts': state.total_attempts,
-                    'last_updated': state.last_updated
+                    'last_updated': state.last_updated.isoformat() if state.last_updated else None
                 })
             
             logger.info(f"Returning knowledge states for user {user.id}")

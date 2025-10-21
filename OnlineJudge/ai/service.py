@@ -903,8 +903,8 @@ class KnowledgePointService:
         """
         获取用户知识点掌握状态
         """
-        states = AIUserKnowledgeState.objects.filter(user_id=user_id).select_related('knowledge_point')
-        return {state.knowledge_point.name: state for state in states}
+        states = AIUserKnowledgeState.objects.filter(user_id=user_id)
+        return {state.knowledge_point: state for state in states}
     
     @staticmethod
     def update_user_knowledge_state(user_id, problem_id, is_correct):
@@ -933,7 +933,7 @@ class KnowledgePointService:
             for kp in knowledge_points:
                 user_state, created = AIUserKnowledgeState.objects.get_or_create(
                     user_id=user_id,
-                    knowledge_point=kp,
+                    knowledge_point=kp.name,
                     defaults={
                         'proficiency_level': 0.0,
                         'correct_attempts': 0,
@@ -955,7 +955,7 @@ class KnowledgePointService:
             user_states = AIUserKnowledgeState.objects.filter(
                 user_id=user_id, 
                 proficiency_level__lt=0.8
-            ).select_related('knowledge_point').order_by('proficiency_level')[:count]
+            ).order_by('proficiency_level')[:count]
             
             recommendations = []
             for state in user_states:
