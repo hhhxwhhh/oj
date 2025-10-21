@@ -1,5 +1,6 @@
 // all routes here.
 import LearningPath from "../views/ai/LearningPath.vue";
+import CodeDiagnosis from "../views/problem/CodeDiagnosis.vue";
 import {
   About,
   ACMRank,
@@ -191,5 +192,11 @@ export default [
     name: "next-problem-recommendation",
     component: () => import("@oj/views/problem/NextProblemRecommendation.vue"),
     meta: { requiresAuth: true }
+  },
+  {
+    name: "code-diagnosis",
+    path: "/code-diagnosis",
+    meta: { title: "Code Diagnosis" },
+    component: CodeDiagnosis
   }
 ];

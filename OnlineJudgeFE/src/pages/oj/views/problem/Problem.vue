@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-          }}: {{
+              }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -103,11 +103,13 @@
               <span v-if="submitting">{{ $t('m.Submitting') }}</span>
               <span v-else>{{ $t('m.Submit') }}</span>
             </Button>
-            <Button v-if="result && result.result !== undefined && result.result !== 9 && !contestID" type="success"
-              icon="ios-navigate" @click="goToRecommendation" class="btn-recommend">
-              {{ $t('m.View_Recommended_Problems') }}
+            <Button v-if="result && result.result !== undefined && result.result !== 9 && !contestID"
+              :type="result.result === 0 ? 'success' : 'primary'" icon="ios-navigate" @click="goToRecommendation"
+              class="btn-recommend">
+              {{ result.result === 0 ? $t('m.View_Recommended_Problems') : $t('m.Get_Code_Diagnosis') }}
             </Button>
           </div>
+
           </Col>
         </Row>
       </Card>
@@ -805,19 +807,34 @@ export default {
         return
       }
 
-      this.$router.push({
-        name: 'next-problem-recommendation',
-        params: {
-          problemID: this.problemID
-        },
-        query: {
-          result: this.result.result,
-          submission_id: this.submissionId
-        }
-      }).catch(err => {
-        console.error('路由跳转失败:', err)
-        this.$error('页面跳转失败: ' + err.message)
-      })
+      // 如果提交成功，跳转到推荐页面
+      if (this.result.result === 0) {
+        this.$router.push({
+          name: 'next-problem-recommendation',
+          params: {
+            problemID: this.problemID
+          },
+          query: {
+            result: this.result.result,
+            submission_id: this.submissionId
+          }
+        }).catch(err => {
+          console.error('路由跳转失败:', err)
+          this.$error('页面跳转失败: ' + err.message)
+        })
+      } else {
+        // 如果提交失败，跳转到诊断页面
+        this.$router.push({
+          name: 'code-diagnosis',
+          query: {
+            submissionId: this.submissionId,
+            problemId: this.problemID
+          }
+        }).catch(err => {
+          console.error('路由跳转失败:', err)
+          this.$error('页面跳转失败: ' + err.message)
+        })
+      }
     },
   },
   computed: {
