@@ -415,7 +415,8 @@ export default {
             try {
                 const res = await api.getLearningPathDetail(pathId);
                 this.currentPath = res.data.data;
-                this.pathNodes = res.data.data.nodes || [];
+
+                this.pathNodes = res.data.data.nodes || res.data.nodes || [];
                 this.currentNodeIndex = 0;
             } catch (err) {
                 this.$error('Failed to load learning path');
