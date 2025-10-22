@@ -80,7 +80,18 @@
           <div v-if="contestEnded">
             <Alert type="warning" show-icon>{{ $t('m.Contest_has_ended') }}</Alert>
           </div>
+          <div v-if="diagnosisIssues.length > 0" class="real-time-diagnosis">
+            <div class="diagnosis-header">
+              <h4>{{ $t('m.Real_Time_Diagnosis') }}</h4>
+              <Button size="small" @click="refreshDiagnosis">{{ $t('m.Refresh') }}</Button>
+            </div>
+            <div v-for="(issue, index) in diagnosisIssues" :key="index" class="diagnosis-issue">
+              <Icon type="alert" :style="{ color: getIssueColor(issue.type) }"></Icon>
+              {{ issue.message }}
+            </div>
+          </div>
           </Col>
+
 
           <Col :span="12">
           <template v-if="captchaRequired">
@@ -330,7 +341,11 @@ export default {
       codeExplanation: '',
       showCodeSnippetModal: false,
       selectedCodeSnippet: '',
-      snippetExplanation: ''
+      snippetExplanation: '',
+      // 添加实时诊断相关数据
+      diagnosisTimer: null,
+      diagnosisIssues: [],
+      diagnosisLoading: false
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -348,6 +363,8 @@ export default {
   mounted() {
     this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, { menu: false })
     this.init()
+    // 启动实时诊断定时器
+    this.startDiagnosisTimer()
   },
   methods: {
     ...mapActions(['changeDomTitle']),
@@ -383,6 +400,90 @@ export default {
         this.$Loading.error()
       })
     },
+    startDiagnosisTimer() {
+      // 每30秒进行一次实时诊断
+      this.diagnosisTimer = setInterval(() => {
+        if (this.code && this.code.trim() !== '') {
+          this.performRealTimeDiagnosis()
+        }
+      }, 30000)
+    },
+
+    async performRealTimeDiagnosis() {
+      if (this.diagnosisLoading) return
+
+      this.diagnosisLoading = true
+      try {
+        const res = await api.getRealTimeDiagnosis({
+          code: this.code,
+          language: this.language,
+          problem_id: this.problem.id
+        })
+
+        if (res.data && res.data.data) {
+          const data = res.data.data
+          this.diagnosisIssues = []
+
+          // 收集所有诊断问题
+          if (data.syntax_errors) {
+            data.syntax_errors.forEach(error => {
+              this.diagnosisIssues.push({
+                type: 'syntax',
+                message: error
+              })
+            })
+          }
+
+          if (data.logic_errors) {
+            data.logic_errors.forEach(error => {
+              this.diagnosisIssues.push({
+                type: 'logic',
+                message: error
+              })
+            })
+          }
+
+          if (data.performance_issues) {
+            data.performance_issues.forEach(issue => {
+              this.diagnosisIssues.push({
+                type: 'performance',
+                message: issue
+              })
+            })
+          }
+
+          if (data.best_practices) {
+            data.best_practices.forEach(practice => {
+              this.diagnosisIssues.push({
+                type: 'best_practice',
+                message: practice
+              })
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Real-time diagnosis failed:', err)
+      } finally {
+        this.diagnosisLoading = false
+      }
+    },
+
+    refreshDiagnosis() {
+      if (this.code && this.code.trim() !== '') {
+        this.performRealTimeDiagnosis()
+      }
+    },
+
+    getIssueColor(type) {
+      const colors = {
+        syntax: '#ed4014',        // 红色 - 语法错误
+        logic: '#ff9900',         // 橙色 - 逻辑错误
+        performance: '#2d8cf0',   // 蓝色 - 性能问题
+        best_practice: '#19be6b'  // 绿色 - 最佳实践
+      }
+      return colors[type] || '#2d8cf0'
+    },
+
     changePie(problemData) {
       // 只显示特定的一些状态
       for (let k in problemData.statistic_info) {
@@ -558,6 +659,8 @@ export default {
     onCopyError(e) {
       this.$error('Failed to copy code')
     },
+
+
     // 添加代码解释方法
     async explainCode() {
       // 检查是否有代码
@@ -859,6 +962,11 @@ export default {
       }
     }
   },
+  watch: {
+    '$route'() {
+      this.init()
+    }
+  },
   beforeRouteLeave(to, from, next) {
     // 防止切换组件后仍然不断请求
     if (this.refreshStatus) {
@@ -874,12 +982,12 @@ export default {
     })
     next()
   },
-  watch: {
-    '$route'() {
-      this.init()
+  beforeDestroy() {
+    // 清除定时器
+    if (this.diagnosisTimer) {
+      clearInterval(this.diagnosisTimer)
     }
   }
-
 }
 </script>
 
@@ -1095,6 +1203,39 @@ export default {
   .btn-recommend {
     width: 100%;
     margin-bottom: 10px;
+  }
+}
+
+.real-time-diagnosis {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #e8eaec;
+  border-radius: 4px;
+  background-color: #f8f8f9;
+
+  .diagnosis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+
+    h4 {
+      margin: 0;
+      color: #515a6e;
+    }
+  }
+
+  .diagnosis-issue {
+    padding: 5px 0;
+    border-bottom: 1px dashed #e8eaec;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    i {
+      margin-right: 5px;
+    }
   }
 }
 </style>

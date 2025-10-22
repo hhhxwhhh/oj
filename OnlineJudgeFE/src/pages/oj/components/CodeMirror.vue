@@ -3,13 +3,14 @@
     <Row type="flex" justify="space-between" class="header">
       <Col :span=12>
       <div>
-        <span>{{$t('m.Language')}}:</span>
+        <span>{{ $t('m.Language') }}:</span>
         <Select :value="language" @on-change="onLangChange" class="adjust">
-          <Option v-for="item in languages" :key="item" :value="item">{{item}}
+          <Option v-for="item in languages" :key="item" :value="item">{{ item }}
           </Option>
         </Select>
 
-        <Tooltip :content="this.$i18n.t('m.Reset_to_default_code_definition')" placement="top" style="margin-left: 10px">
+        <Tooltip :content="this.$i18n.t('m.Reset_to_default_code_definition')" placement="top"
+          style="margin-left: 10px">
           <Button icon="refresh" @click="onResetClick"></Button>
         </Tooltip>
 
@@ -23,168 +24,340 @@
       </Col>
       <Col :span=12>
       <div class="fl-right">
-        <span>{{$t('m.Theme')}}:</span>
+        <span>{{ $t('m.Theme') }}:</span>
         <Select :value="theme" @on-change="onThemeChange" class="adjust">
-          <Option v-for="item in themes" :key="item.label" :value="item.value">{{item.label}}
+          <Option v-for="item in themes" :key="item.label" :value="item.value">{{ item.label }}
           </Option>
         </Select>
       </div>
       </Col>
     </Row>
-    <codemirror :value="value" :options="options" @change="onEditorCodeChange" ref="myEditor">
-    </codemirror>
+    <div class="editor-container">
+      <codemirror :value="value" :options="options" @change="onEditorCodeChange" @cursorActivity="onCursorActivity"
+        ref="myEditor">
+      </codemirror>
+      <div v-if="suggestions.length > 0" class="suggestions-panel">
+        <div v-for="(suggestion, index) in suggestions" :key="index" class="suggestion-item"
+          @click="applySuggestion(suggestion)">
+          {{ suggestion }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script>
-  import utils from '@/utils/utils'
-  import { codemirror } from 'vue-codemirror-lite'
+import utils from '@/utils/utils'
+import api from '@oj/api'
+import { codemirror } from 'vue-codemirror-lite'
 
-  // theme
-  import 'codemirror/theme/monokai.css'
-  import 'codemirror/theme/solarized.css'
-  import 'codemirror/theme/material.css'
+// theme
+import 'codemirror/theme/monokai.css'
+import 'codemirror/theme/solarized.css'
+import 'codemirror/theme/material.css'
 
-  // mode
-  import 'codemirror/mode/clike/clike.js'
-  import 'codemirror/mode/python/python.js'
-  import 'codemirror/mode/go/go.js'
-  import 'codemirror/mode/javascript/javascript.js'
+// mode
+import 'codemirror/mode/clike/clike.js'
+import 'codemirror/mode/python/python.js'
+import 'codemirror/mode/go/go.js'
+import 'codemirror/mode/javascript/javascript.js'
 
-  // active-line.js
-  import 'codemirror/addon/selection/active-line.js'
+// active-line.js
+import 'codemirror/addon/selection/active-line.js'
 
-  // foldGutter
-  import 'codemirror/addon/fold/foldgutter.css'
-  import 'codemirror/addon/fold/foldgutter.js'
-  import 'codemirror/addon/fold/brace-fold.js'
-  import 'codemirror/addon/fold/indent-fold.js'
+// foldGutter
+import 'codemirror/addon/fold/foldgutter.css'
+import 'codemirror/addon/fold/foldgutter.js'
+import 'codemirror/addon/fold/brace-fold.js'
+import 'codemirror/addon/fold/indent-fold.js'
 
-  export default {
-    name: 'CodeMirror',
-    components: {
-      codemirror
+// autocomplete
+import 'codemirror/addon/hint/show-hint.css'
+import 'codemirror/addon/hint/show-hint.js'
+import 'codemirror/addon/hint/anyword-hint.js'
+
+export default {
+  name: 'CodeMirror',
+  components: {
+    codemirror
+  },
+  props: {
+    value: {
+      type: String,
+      default: ''
     },
-    props: {
-      value: {
-        type: String,
-        default: ''
-      },
-      languages: {
-        type: Array,
-        default: () => {
-          return ['C', 'C++', 'Java', 'Python2']
+    languages: {
+      type: Array,
+      default: () => {
+        return ['C', 'C++', 'Java', 'Python2']
+      }
+    },
+    language: {
+      type: String,
+      default: 'C++'
+    },
+    theme: {
+      type: String,
+      default: 'solarized'
+    },
+    problemId: {
+      type: [String, Number],
+      default: null
+    }
+  },
+  data() {
+    return {
+      options: {
+        // codemirror options
+        tabSize: 4,
+        mode: 'text/x-csrc',
+        theme: 'solarized',
+        lineNumbers: true,
+        line: true,
+        // 代码折叠
+        foldGutter: true,
+        gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+        // 选中文本自动高亮，及高亮方式
+        styleSelectedText: true,
+        lineWrapping: true,
+        highlightSelectionMatches: { showToken: /\w/, annotateScrollbar: true },
+        // 自动补全
+        hintOptions: {
+          completeSingle: false
         }
       },
-      language: {
-        type: String,
-        default: 'C++'
+      mode: {
+        'C++': 'text/x-csrc'
       },
-      theme: {
-        type: String,
-        default: 'solarized'
-      }
-    },
-    data () {
-      return {
-        options: {
-          // codemirror options
-          tabSize: 4,
-          mode: 'text/x-csrc',
-          theme: 'solarized',
-          lineNumbers: true,
-          line: true,
-          // 代码折叠
-          foldGutter: true,
-          gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
-          // 选中文本自动高亮，及高亮方式
-          styleSelectedText: true,
-          lineWrapping: true,
-          highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
-        },
-        mode: {
-          'C++': 'text/x-csrc'
-        },
-        themes: [
-          {label: this.$i18n.t('m.Monokai'), value: 'monokai'},
-          {label: this.$i18n.t('m.Solarized_Light'), value: 'solarized'},
-          {label: this.$i18n.t('m.Material'), value: 'material'}
-        ]
-      }
-    },
-    mounted () {
-      utils.getLanguages().then(languages => {
-        let mode = {}
-        languages.forEach(lang => {
-          mode[lang.name] = lang.content_type
-        })
-        this.mode = mode
-        this.editor.setOption('mode', this.mode[this.language])
+      themes: [
+        { label: this.$i18n.t('m.Monokai'), value: 'monokai' },
+        { label: this.$i18n.t('m.Solarized_Light'), value: 'solarized' },
+        { label: this.$i18n.t('m.Material'), value: 'material' }
+      ],
+      suggestions: [],
+      suggestionTimer: null,
+      lastCursorPosition: null
+    }
+  },
+  mounted() {
+    utils.getLanguages().then(languages => {
+      let mode = {}
+      languages.forEach(lang => {
+        mode[lang.name] = lang.content_type
       })
-      this.editor.focus()
+      this.mode = mode
+      this.editor.setOption('mode', this.mode[this.language])
+    })
+    this.editor.focus()
+
+    // 添加键盘事件监听器
+    this.editor.on('keydown', (cm, event) => {
+      // Ctrl+Space触发自动补全
+      if (event.ctrlKey && event.key === ' ') {
+        event.preventDefault()
+        this.triggerAutoCompletion()
+      }
+    })
+  },
+  methods: {
+    onEditorCodeChange(newCode) {
+      this.$emit('update:value', newCode)
+      // 当代码改变时，清除之前的建议
+      this.suggestions = []
     },
-    methods: {
-      onEditorCodeChange (newCode) {
-        this.$emit('update:value', newCode)
-      },
-      onLangChange (newVal) {
-        this.editor.setOption('mode', this.mode[newVal])
-        this.$emit('changeLang', newVal)
-      },
-      onThemeChange (newTheme) {
-        this.editor.setOption('theme', newTheme)
-        this.$emit('changeTheme', newTheme)
-      },
-      onResetClick () {
-        this.$emit('resetCode')
-      },
-      onUploadFile () {
-        document.getElementById('file-uploader').click()
-      },
-      onUploadFileDone () {
-        let f = document.getElementById('file-uploader').files[0]
-        let fileReader = new window.FileReader()
-        let self = this
-        fileReader.onload = function (e) {
-          var text = e.target.result
-          self.editor.setValue(text)
-          document.getElementById('file-uploader').value = ''
+    onLangChange(newVal) {
+      this.editor.setOption('mode', this.mode[newVal])
+      this.$emit('changeLang', newVal)
+    },
+    onThemeChange(newTheme) {
+      this.editor.setOption('theme', newTheme)
+      this.$emit('changeTheme', newTheme)
+    },
+    onResetClick() {
+      this.$emit('resetCode')
+    },
+    onUploadFile() {
+      document.getElementById('file-uploader').click()
+    },
+    onUploadFileDone() {
+      let f = document.getElementById('file-uploader').files[0]
+      let fileReader = new window.FileReader()
+      let self = this
+      fileReader.onload = function (e) {
+        var text = e.target.result
+        self.editor.setValue(text)
+        document.getElementById('file-uploader').value = ''
+      }
+      fileReader.readAsText(f, 'UTF-8')
+    },
+    onCursorActivity(cm) {
+      const cursor = cm.getCursor()
+      // 只有当光标位置发生变化时才触发
+      if (!this.lastCursorPosition ||
+        this.lastCursorPosition.line !== cursor.line ||
+        this.lastCursorPosition.ch !== cursor.ch) {
+        this.lastCursorPosition = { ...cursor }
+        this.scheduleSuggestions(cm)
+      }
+    },
+    scheduleSuggestions(cm) {
+      // 清除之前的定时器
+      if (this.suggestionTimer) {
+        clearTimeout(this.suggestionTimer)
+      }
+
+      // 设置新的定时器，延迟500ms触发建议
+      this.suggestionTimer = setTimeout(() => {
+        this.fetchRealTimeSuggestions(cm)
+      }, 500)
+    },
+    async fetchRealTimeSuggestions(cm) {
+      const code = this.editor.getValue()
+      const cursor = cm.getCursor()
+      const cursorPosition = {
+        line: cursor.line,
+        ch: cursor.ch
+      }
+
+      try {
+        const res = await api.getRealTimeSuggestion({
+          code: code,
+          language: this.language,
+          cursor_position: cursorPosition,
+          problem_id: this.problemId
+        })
+
+        if (res.data && res.data.data) {
+          const data = res.data.data
+          // 合并所有建议
+          this.suggestions = [
+            ...(data.suggestions || []),
+            ...(data.issues || []),
+            ...(data.knowledge_points || [])
+          ]
         }
-        fileReader.readAsText(f, 'UTF-8')
+      } catch (err) {
+        console.error('Failed to fetch real-time suggestions:', err)
       }
     },
-    computed: {
-      editor () {
-        // get current editor object
-        return this.$refs.myEditor.editor
+    applySuggestion(suggestion) {
+      // 应用建议（这里可以进一步定制）
+      this.suggestions = []
+      // 可以添加更多逻辑来实际应用建议
+    },
+    triggerAutoCompletion() {
+      // 触发自动补全
+      const code = this.editor.getValue()
+      const cursor = this.editor.getCursor()
+      const line = this.editor.getLine(cursor.line)
+      let start = cursor.ch
+      let end = start
+      while (end < line.length && /[\w$]/.test(line.charAt(end))) ++end
+      while (start && /[\w$]/.test(line.charAt(start - 1))) --start
+      const prefix = line.slice(start, end)
+
+      if (prefix.length > 0) {
+        this.fetchAutoCompletion(code, prefix)
       }
     },
-    watch: {
-      'theme' (newVal, oldVal) {
-        this.editor.setOption('theme', newVal)
+    async fetchAutoCompletion(code, prefix) {
+      try {
+        const res = await api.getCodeAutoCompletion({
+          code: code,
+          language: this.language,
+          prefix: prefix,
+          problem_id: this.problemId
+        })
+
+        if (res.data && res.data.data && res.data.data.completions) {
+          const completions = res.data.data.completions
+          // 使用CodeMirror的hint功能显示补全建议
+          const hints = completions.map(item => item.text)
+          this.showCompletions(hints)
+        }
+      } catch (err) {
+        console.error('Failed to fetch auto completion:', err)
+      }
+    },
+    showCompletions(completions) {
+      if (completions.length > 0) {
+        // 简单实现：将补全建议显示在建议面板中
+        this.suggestions = completions
       }
     }
+  },
+  computed: {
+    editor() {
+      // get current editor object
+      return this.$refs.myEditor.editor
+    }
+  },
+  watch: {
+    'theme'(newVal, oldVal) {
+      this.editor.setOption('theme', newVal)
+    }
   }
+}
 </script>
 
 <style lang="less" scoped>
-  .header {
-    margin: 5px 5px 15px 5px;
-    .adjust {
-      width: 150px;
-      margin-left: 10px;
-    }
-    .fl-right {
-      float: right;
-    }
+.header {
+  margin: 5px 5px 15px 5px;
+
+  .adjust {
+    width: 150px;
+    margin-left: 10px;
   }
+
+  .fl-right {
+    float: right;
+  }
+}
+
+.editor-container {
+  position: relative;
+}
+
+.suggestions-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background-color: #f5f5f5;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
 </style>
 
 <style>
-  .CodeMirror {
-    height: auto !important;
-  }
-  .CodeMirror-scroll {
-    min-height: 300px;
-    max-height: 1000px;
-  }
+.CodeMirror {
+  height: auto !important;
+}
+
+.CodeMirror-scroll {
+  min-height: 300px;
+  max-height: 1000px;
+}
+
+.CodeMirror-hints {
+  z-index: 9999 !important;
+}
 </style>

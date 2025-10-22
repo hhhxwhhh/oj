@@ -389,5 +389,6 @@ export const m = {
   Model_Description:
     "The specific model name (e.g., gpt-3.5-turbo, gpt-4, deepseek-chat)",
   Config_Description: "Additional configuration in JSON format (optional)",
-  Active_Description: "Whether this model is active and can be used"
+  Active_Description: "Whether this model is active and can be used",
+  Real_Time_Diagnosis: "Real-Time Diagnosis"
 };

@@ -370,6 +370,22 @@ export default {
       }
     });
   },
+  getRealTimeSuggestion(data) {
+    return ajax("ai/code/suggestion", "post", {
+      data
+    });
+  },
+  getCodeAutoCompletion(data) {
+    return ajax("ai/code/autocomplete", "post", {
+      data
+    });
+  },
+  getRealTimeDiagnosis(data) {
+    return ajax("ai/code/realtime_diagnosis", "post", {
+      data
+    });
+  },
+
   updateLearningPathNode(nodeId, data) {
     return ajax(`ai/learning_path/node/${nodeId}`, "put", {
       data
