@@ -326,6 +326,143 @@ class AIService:
         except Exception as e:
             logger.error(f"Error in generate_code_explanation: {str(e)}")
             raise Exception(f"Failed to generate code explanation: {str(e)}")
+
+    @staticmethod
+    def generate_real_time_suggestion(code, language, cursor_position, problem_id=None):
+        """
+        根据当前代码和光标位置生成实时建议
+        """
+        try:
+            # 构建提示语
+            problem_context = ""
+            if problem_id:
+                try:
+                    problem = Problem.objects.get(id=problem_id)
+                    problem_context = f"题目: {problem.title}\n题目描述: {problem.description}\n\n"
+                except Problem.DoesNotExist:
+                    pass
+
+            prompt = f"""
+{problem_context}请根据以下{language}代码和光标位置提供实时编程建议：
+
+代码:
+{code}
+
+光标位置: {cursor_position}
+
+请提供以下信息：
+1. 在光标位置可能的代码补全建议
+2. 当前代码行的潜在问题或改进建议
+3. 相关的编程知识点提醒
+
+请以以下JSON格式返回结果：
+{{
+    "suggestions": ["建议1", "建议2", "建议3"],
+    "completions": ["补全选项1", "补全选项2"],
+    "issues": ["潜在问题1", "潜在问题2"],
+    "knowledge_points": ["相关知识点1", "相关知识点2"]
+}}
+""".strip()
+
+            messages = [
+                {"role": "system", "content": "你是一个专业的编程助手，擅长提供实时编程建议和代码补全。"},
+                {"role": "user", "content": prompt}
+            ]
+            
+            ai_model = AIService.get_active_ai_model()
+            if not ai_model:
+                raise Exception("No active AI model found")
+            
+            response = AIService.call_ai_model(messages, ai_model)
+            
+            # 解析JSON响应
+            import json
+            import re
+            
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                response = json_match.group()
+            
+            suggestion_data = json.loads(response)
+            return suggestion_data
+            
+        except Exception as e:
+            logger.error(f"Failed to generate real-time suggestion: {str(e)}")
+            # 返回默认建议
+            return {
+                "suggestions": ["继续编写代码", "检查语法错误"],
+                "completions": [],
+                "issues": [],
+                "knowledge_points": []
+            }
+        
+    @staticmethod
+    def auto_complete_code(code, language, prefix, problem_id=None):
+        """
+        根据当前代码和前缀提供代码自动补全建议
+        """
+        try:
+            # 构建提示语
+            problem_context = ""
+            if problem_id:
+                try:
+                    problem = Problem.objects.get(id=problem_id)
+                    problem_context = f"题目: {problem.title}\n题目描述: {problem.description}\n\n"
+                except Problem.DoesNotExist:
+                    pass
+
+            prompt = f"""
+{problem_context}请根据以下{language}代码和输入前缀提供代码自动补全建议：
+
+代码:
+{code}
+
+输入前缀: {prefix}
+
+请提供以下信息：
+1. 可能的补全选项列表（最多5个）
+2. 每个选项的简要说明
+
+请以以下JSON格式返回结果：
+{{
+    "completions": [
+        {{"text": "补全文本1", "description": "说明1"}},
+        {{"text": "补全文本2", "description": "说明2"}}
+    ]
+}}
+""".strip()
+
+            messages = [
+                {"role": "system", "content": "你是一个专业的编程助手，擅长提供代码自动补全建议。"},
+                {"role": "user", "content": prompt}
+            ]
+            
+            ai_model = AIService.get_active_ai_model()
+            if not ai_model:
+                raise Exception("No active AI model found")
+            
+            response = AIService.call_ai_model(messages, ai_model)
+            
+            # 解析JSON响应
+            import json
+            import re
+            
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                response = json_match.group()
+            
+            completion_data = json.loads(response)
+            return completion_data
+            
+        except Exception as e:
+            logger.error(f"Failed to generate auto completion: {str(e)}")
+            # 返回默认补全
+            return {
+                "completions": []
+            }
+
 class AIRecommendationService:
     @staticmethod
     def get_code_hash(code, language):
@@ -946,6 +1083,75 @@ class AICodeDiagnosisService:
         except Exception as e:
             logger.error(f"Failed to diagnose submission: {str(e)}")
             raise Exception(f"Failed to diagnose submission: {str(e)}")
+        
+    @staticmethod
+    def diagnose_code_in_real_time(code, language, problem_id=None):
+        """
+        实时诊断代码中的潜在问题
+        """
+        try:
+            # 构建提示语
+            problem_context = ""
+            if problem_id:
+                try:
+                    problem = Problem.objects.get(id=problem_id)
+                    problem_context = f"题目: {problem.title}\n题目描述: {problem.description}\n\n"
+                except Problem.DoesNotExist:
+                    pass
+
+            prompt = f"""
+{problem_context}请分析以下{language}代码中的潜在问题：
+
+代码:
+{code}
+
+请提供以下信息：
+1. 语法错误
+2. 逻辑错误
+3. 性能问题
+4. 最佳实践建议
+
+请以以下JSON格式返回结果：
+{{
+    "syntax_errors": ["语法错误1", "语法错误2"],
+    "logic_errors": ["逻辑错误1", "逻辑错误2"],
+    "performance_issues": ["性能问题1", "性能问题2"],
+    "best_practices": ["最佳实践建议1", "最佳实践建议2"]
+}}
+""".strip()
+
+            messages = [
+                {"role": "system", "content": "你是一个专业的编程导师，擅长分析代码中的潜在问题。"},
+                {"role": "user", "content": prompt}
+            ]
+            
+            ai_model = AIService.get_active_ai_model()
+            if not ai_model:
+                raise Exception("No active AI model found")
+            
+            response = AIService.call_ai_model(messages, ai_model)
+            
+            # 解析JSON响应
+            import json
+            import re
+            
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                response = json_match.group()
+            
+            diagnosis_data = json.loads(response)
+            return diagnosis_data
+            
+        except Exception as e:
+            logger.error(f"Failed to diagnose code in real-time: {str(e)}")
+            # 返回默认诊断
+            return {
+                "syntax_errors": [],
+                "logic_errors": [],
+                "performance_issues": [],
+                "best_practices": []
+            }
 
 class KnowledgePointService:
     @staticmethod
