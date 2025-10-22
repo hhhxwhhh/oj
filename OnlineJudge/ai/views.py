@@ -615,4 +615,89 @@ class KnowledgePointRecommendationAPI(APIView):
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return self.error("Failed to get recommendations")
+        
+class AIRealTimeSuggestionAPI(APIView):
+    @login_required
+    def post(self, request):
+        """
+        生成实时编程建议
+        """
+        user = request.user
+        code = request.data.get("code", "")
+        language = request.data.get("language", "")
+        cursor_position = request.data.get("cursor_position", 0)
+        problem_id = request.data.get("problem_id")
+        
+        try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
+            
+            # 生成实时建议
+            suggestion_result = AIService.generate_real_time_suggestion(
+                code, language, cursor_position, problem_id
+            )
+            
+            return self.success(suggestion_result)
+        except Exception as e:
+            logger.error(f"Real-time suggestion failed: {str(e)}")
+            return self.error("Failed to generate real-time suggestion")
+        
+
+class AICodeAutoCompleteAPI(APIView):
+    @login_required
+    def post(self, request):
+        """
+        生成代码自动补全建议
+        """
+        user = request.user
+        code = request.data.get("code", "")
+        language = request.data.get("language", "")
+        prefix = request.data.get("prefix", "")
+        problem_id = request.data.get("problem_id")
+        
+        try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
+            
+            # 生成自动补全建议
+            completion_result = AIService.auto_complete_code(
+                code, language, prefix, problem_id
+            )
+            
+            return self.success(completion_result)
+        except Exception as e:
+            logger.error(f"Code auto completion failed: {str(e)}")
+            return self.error("Failed to generate code auto completion")
+        
+
+class AIRealTimeDiagnosisAPI(APIView):
+    @login_required
+    def post(self, request):
+        """
+        实时诊断代码中的潜在问题
+        """
+        user = request.user
+        code = request.data.get("code", "")
+        language = request.data.get("language", "")
+        problem_id = request.data.get("problem_id")
+        
+        try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("No active AI model found. Please configure an AI model first.")
+            
+            # 实时诊断代码
+            diagnosis_result = AICodeDiagnosisService.diagnose_code_in_real_time(
+                code, language, problem_id
+            )
+            
+            return self.success(diagnosis_result)
+        except Exception as e:
+            logger.error(f"Real-time diagnosis failed: {str(e)}")
+            return self.error("Failed to diagnose code in real-time")
 
