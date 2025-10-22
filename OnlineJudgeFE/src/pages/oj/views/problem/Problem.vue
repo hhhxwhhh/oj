@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-              }}: {{
+          }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -85,9 +85,19 @@
               <h4>{{ $t('m.Real_Time_Diagnosis') }}</h4>
               <Button size="small" @click="refreshDiagnosis">{{ $t('m.Refresh') }}</Button>
             </div>
-            <div v-for="(issue, index) in diagnosisIssues" :key="index" class="diagnosis-issue">
-              <Icon type="alert" :style="{ color: getIssueColor(issue.type) }"></Icon>
-              {{ issue.message }}
+            <div class="diagnosis-content">
+              <div v-for="(group, type) in groupedDiagnosisIssues" :key="type" class="diagnosis-group">
+                <div class="group-header">
+                  <Icon :type="getIssueIcon(type)" :style="{ color: getIssueColor(type) }"></Icon>
+                  <span class="group-title">{{ getIssueTypeName(type) }}</span>
+                  <Tag :color="getIssueColor(type)">{{ group.length }}</Tag>
+                </div>
+                <ul class="issue-list">
+                  <li v-for="(issue, index) in group" :key="index" class="issue-item">
+                    {{ issue.message }}
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
           </Col>
@@ -473,7 +483,24 @@ export default {
         this.performRealTimeDiagnosis()
       }
     },
-
+    getIssueTypeName(type) {
+      const typeNames = {
+        syntax: this.$t('m.Syntax_Errors'),
+        logic: this.$t('m.Logic_Errors'),
+        performance: this.$t('m.Performance_Issues'),
+        best_practice: this.$t('m.Best_Practices')
+      }
+      return typeNames[type] || type
+    },
+    getIssueIcon(type) {
+      const icons = {
+        syntax: 'ios-close-circle',
+        logic: 'ios-bug',
+        performance: 'ios-speedometer',
+        best_practice: 'ios-thumbs-up'
+      }
+      return icons[type] || 'ios-information-circle'
+    },
     getIssueColor(type) {
       const colors = {
         syntax: '#ed4014',        // 红色 - 语法错误
@@ -960,8 +987,20 @@ export default {
       } else {
         return { name: 'submission-list', query: { problemID: this.problemID } }
       }
+    },
+    groupedDiagnosisIssues() {
+      const groups = {}
+      this.diagnosisIssues.forEach(issue => {
+        if (!groups[issue.type]) {
+          groups[issue.type] = []
+        }
+        groups[issue.type].push(issue)
+      })
+      return groups
     }
+
   },
+
   watch: {
     '$route'() {
       this.init()
@@ -1208,8 +1247,7 @@ export default {
 
 .real-time-diagnosis {
   margin-top: 15px;
-  padding: 10px;
-  border: 1px solid #e8eaec;
+  border: 1px solid #dddee1;
   border-radius: 4px;
   background-color: #f8f8f9;
 
@@ -1217,24 +1255,98 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    padding: 10px 15px;
+    border-bottom: 1px solid #dddee1;
+    background-color: #fff;
+    border-radius: 4px 4px 0 0;
 
     h4 {
       margin: 0;
-      color: #515a6e;
+      color: #495060;
+      font-weight: normal;
+
+      i {
+        margin-right: 8px;
+        color: #2d8cf0;
+      }
+    }
+
+    .ivu-btn {
+      min-width: auto;
     }
   }
 
-  .diagnosis-issue {
-    padding: 5px 0;
-    border-bottom: 1px dashed #e8eaec;
+  .diagnosis-content {
+    padding: 10px 15px;
+  }
+
+  .diagnosis-group {
+    margin-bottom: 15px;
 
     &:last-child {
-      border-bottom: none;
+      margin-bottom: 0;
     }
 
-    i {
-      margin-right: 5px;
+    .group-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 5px 10px;
+      background-color: #fff;
+      border-radius: 3px;
+      border-left: 3px solid #ccc;
+
+      i {
+        margin-right: 8px;
+        font-size: 16px;
+      }
+
+      .group-title {
+        flex: 1;
+        font-weight: 500;
+        color: #495060;
+      }
+
+      .ivu-tag {
+        margin: 0;
+      }
+    }
+
+    &.syntax {
+      .group-header {
+        border-left-color: #ed4014;
+      }
+    }
+
+    &.logic {
+      .group-header {
+        border-left-color: #ff9900;
+      }
+    }
+
+    &.performance {
+      .group-header {
+        border-left-color: #2d8cf0;
+      }
+    }
+
+    &.best_practice {
+      .group-header {
+        border-left-color: #19be6b;
+      }
+    }
+
+    .issue-list {
+      margin: 0;
+      padding-left: 25px;
+
+      .issue-item {
+        margin: 5px 0;
+        padding: 3px 0;
+        color: #657180;
+        font-size: 13px;
+        line-height: 1.4;
+      }
     }
   }
 }

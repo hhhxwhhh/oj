@@ -195,5 +195,11 @@ export const m = {
   Model_Description:
     "特定的模型名称（例如gpt-3.5-turbo、gpt-4、deepseek-chat）",
   Config_Description: "JSON格式的附加配置（可选）",
-  Active_Description: "此模型是否处于活动状态并可以使用"
+  Active_Description: "此模型是否处于活动状态并可以使用",
+  Real_Time_Diagnosis: "实时诊断",
+  Refresh: "刷新",
+  Syntax_Errors: "语法错误",
+  Logic_Errors: "逻辑错误",
+  Performance_Issues: "性能问题",
+  Best_Practices: "最佳实践"
 };
