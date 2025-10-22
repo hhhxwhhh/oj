@@ -115,20 +115,6 @@ class AIUserLearningPath(models.Model):
     class Meta:
         db_table = 'ai_user_learning_path'
 
-class AIUserLearningPathNode(models.Model):
-    learning_path = models.ForeignKey(AIUserLearningPath, on_delete=models.CASCADE)
-    node_type = models.TextField(help_text="节点类型: concept, problem, project")  # 概念、题目、项目
-    title = models.TextField()
-    description = models.TextField()
-    content_id = models.IntegerField(help_text="关联的内容ID(如题目ID、概念ID等)")
-    order = models.IntegerField()
-    estimated_time = models.IntegerField(help_text="预计完成时间(分钟)")
-    prerequisites = JSONField(default=list, help_text="前置知识点")
-    status = models.TextField(default="pending", help_text="状态: pending, in_progress, completed")
-    create_time = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'ai_user_learning_path_node'
 
 
 
@@ -151,7 +137,6 @@ class KnowledgePoint(models.Model):
 
     def __str__(self):
         return self.name
-
 
 
 class AIUserKnowledgeState(models.Model):
@@ -184,4 +169,19 @@ class AIUserKnowledgeState(models.Model):
         
         self.save()
 
+class AIUserLearningPathNode(models.Model):
+    learning_path = models.ForeignKey(AIUserLearningPath, on_delete=models.CASCADE)
+    node_type = models.TextField(help_text="节点类型: concept, problem, project")  # 概念、题目、项目
+    title = models.TextField()
+    description = models.TextField()
+    content_id = models.IntegerField(help_text="关联的内容ID(如题目ID、概念ID等)")
+    order = models.IntegerField()
+    estimated_time = models.IntegerField(help_text="预计完成时间(分钟)")
+    prerequisites = JSONField(default=list, help_text="前置知识点")
+    status = models.TextField(default="pending", help_text="状态: pending, in_progress, completed")
+    create_time = models.DateTimeField(auto_now_add=True)
+    knowledge_point = models.ForeignKey(KnowledgePoint, on_delete=models.SET_NULL, null=True, blank=True, help_text="关联的知识点")
+
+    class Meta:
+        db_table = 'ai_user_learning_path_node'
 

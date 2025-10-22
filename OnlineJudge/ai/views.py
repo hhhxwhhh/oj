@@ -471,7 +471,8 @@ class AILearningPathDetailAPI(APIView):
         try:
             path, nodes = AILearningPathService.get_learning_path_detail(path_id, user.id)
             from .serializers import AIUserLearningPathDetailSerializer
-            data = AIUserLearningPathDetailSerializer(path).data
+            serializer = AIUserLearningPathDetailSerializer(path)
+            data = serializer.data
             data['nodes'] = [
                 {
                     'id': node.id,
@@ -483,7 +484,9 @@ class AILearningPathDetailAPI(APIView):
                     'estimated_time': node.estimated_time,
                     'prerequisites': node.prerequisites,
                     'status': node.status,
-                    'create_time': node.create_time
+                    'create_time': node.create_time,
+                    'knowledge_point': node.knowledge_point.name if node.knowledge_point else None,
+                    'knowledge_point_id': node.knowledge_point.id if node.knowledge_point else None
                 }
                 for node in nodes
             ]

@@ -612,6 +612,9 @@ class AILearningPathService:
         if not current_level:
             current_level = AILearningPathService._assess_user_level(submissions)
         
+        # 获取用户知识点掌握情况
+        knowledge_states = KnowledgePointService.get_user_knowledge_state(user_id)
+        
         # 根据目标确定学习路径内容
         path_content = AILearningPathService._generate_path_content(goal, current_level)
         
@@ -633,6 +636,9 @@ class AILearningPathService:
             - 学习目标: {goal}
             - 历史提交题目数: {len(submissions)}
             
+            学习者知识点掌握情况:
+            {', '.join([f"{name}(掌握程度:{state.proficiency_level})" for name, state in knowledge_states.items()][:10])}
+            
             请生成一个包含以下内容的学习路径:
             1. 路径标题和简要描述
             2. 预计完成时间
@@ -643,6 +649,7 @@ class AILearningPathService:
                - 关联内容ID（题目ID等）
                - 预计完成时间（分钟）
                - 前置知识点（数组）
+               - 关联的知识点名称（如果有）
                
             学习路径内容参考:
             {path_content}
@@ -659,7 +666,8 @@ class AILearningPathService:
                         "description": "节点描述",
                         "content_id": 123,
                         "estimated_time": 30,
-                        "prerequisites": ["数组", "循环"]
+                        "prerequisites": ["数组", "循环"],
+                        "knowledge_point": "循环结构"  // 新增字段
                     }}
                 ]
             }}
@@ -668,6 +676,8 @@ class AILearningPathService:
             1. 只返回JSON，不要有任何其他内容
             2. content_id如果是题目，使用已存在的题目ID
             3. 确保JSON格式正确，可以直接解析
+            4. 根据用户知识点掌握情况，针对性地推荐需要加强的知识点
+            5. 优先推荐掌握程度低于0.7的知识点相关学习内容
             """
         }
         
@@ -694,7 +704,6 @@ class AILearningPathService:
             logger.error(f"Failed to generate learning path: {str(e)}")
             logger.error(f"AI response: {response}")
             raise Exception(f"Failed to generate learning path: {str(e)}")
-    
     @staticmethod
     def _assess_user_level(submissions):
         """
@@ -742,7 +751,6 @@ class AILearningPathService:
         }
         
         return content_map.get(goal, content_map["general"]).get(level, "编程基础")
-    
     @staticmethod
     def save_learning_path(user_id, path_data):
         """
@@ -774,6 +782,21 @@ class AILearningPathService:
                             # 对于其他类型节点，设置为0
                             content_id = 0
                     
+                    # 处理知识点关联
+                    knowledge_point = None
+                    knowledge_point_name = node_data.get("knowledge_point")
+                    if knowledge_point_name:
+                        try:
+                            knowledge_point = KnowledgePoint.objects.get(name=knowledge_point_name)
+                        except KnowledgePoint.DoesNotExist:
+                            # 如果知识点不存在，创建一个新的
+                            knowledge_point = KnowledgePoint.objects.create(
+                                name=knowledge_point_name,
+                                description=f"与{knowledge_point_name}相关的知识点",
+                                category="算法与数据结构",
+                                difficulty=3
+                            )
+                    
                     AIUserLearningPathNode.objects.create(
                         learning_path=learning_path,
                         node_type=node_data.get("node_type", "concept"),
@@ -782,14 +805,14 @@ class AILearningPathService:
                         content_id=content_id,
                         order=i,
                         estimated_time=node_data.get("estimated_time", 30),
-                        prerequisites=node_data.get("prerequisites", [])
+                        prerequisites=node_data.get("prerequisites", []),
+                        knowledge_point=knowledge_point  # 新增字段
                     )
                 
                 return learning_path
         except Exception as e:
             logger.error(f"Failed to save learning path: {str(e)}")
             raise Exception(f"Failed to save learning path: {str(e)}")
-    
     @staticmethod
     def get_user_learning_paths(user_id):
         return AIUserLearningPath.objects.filter(user_id=user_id, is_active=True).order_by('-create_time')
@@ -918,7 +941,6 @@ class AICodeDiagnosisService:
             logger.error(f"Failed to diagnose submission: {str(e)}")
             raise Exception(f"Failed to diagnose submission: {str(e)}")
 
-
 class KnowledgePointService:
     @staticmethod
     def create_knowledge_points_from_tags():
@@ -991,10 +1013,9 @@ class KnowledgePointService:
         基于知识点掌握情况推荐需要加强的知识点
         """
         try:
-            # 获取用户知识点状态
+            # 获取用户知识点状态，按掌握程度排序（掌握程度低的排在前面）
             user_states = AIUserKnowledgeState.objects.filter(
-                user_id=user_id, 
-                proficiency_level__lt=0.8
+                user_id=user_id
             ).order_by('proficiency_level')[:count]
             
             recommendations = []
@@ -1032,8 +1053,6 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"Failed to get problems for knowledge point: {str(e)}")
             return []
-
-    
 
     
 
