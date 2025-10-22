@@ -106,34 +106,49 @@ export default {
                     sortable: true
                 },
                 {
+
                     title: '掌握程度',
                     key: 'proficiency_level',
                     sortable: true,
                     render: (h, params) => {
-                        const level = params.row.proficiency_level
-                        const percentage = (level * 100).toFixed(1)
-                        let color = 'red'
-                        if (level >= 0.8) color = 'green'
-                        else if (level >= 0.5) color = 'orange'
+                        const level = params.row.proficiency_level || 0;
+                        const percentage = (level * 100).toFixed(1);
+                        let color = 'red';
+                        if (level >= 0.8) color = 'green';
+                        else if (level >= 0.5) color = 'orange';
 
-                        return h('div', [
-                            h('Progress', {
-                                props: {
-                                    percent: level * 100,
-                                    status: level >= 0.8 ? 'success' : 'normal',
-                                    strokeColor: color
-                                },
+                        return h('div', {
+                            style: {
+                                display: 'flex',
+                                alignItems: 'center',
+                                width: '100%'
+                            }
+                        }, [
+                            h('div', {
                                 style: {
-                                    width: '80%'
+                                    width: '70%'
                                 }
-                            }),
+                            }, [
+                                h('Progress', {
+                                    props: {
+                                        percent: level * 100,
+                                        status: level >= 0.8 ? 'success' : 'normal',
+                                        strokeColor: color,
+                                        showInfo: false
+                                    }
+                                })
+                            ]),
                             h('span', {
                                 style: {
-                                    marginLeft: '10px'
+                                    marginLeft: '10px',
+                                    minWidth: '50px',
+                                    fontWeight: 'bold'
                                 }
                             }, `${percentage}%`)
                         ])
                     }
+
+
                 },
                 {
                     title: '正确/总计',
@@ -146,8 +161,26 @@ export default {
                     title: '最后更新',
                     key: 'last_updated',
                     render: (h, params) => {
-                        return h('span', this.$moment(params.row.last_updated).format('YYYY-MM-DD HH:mm'))
+                        const lastUpdated = params.row.last_updated;
+                        if (!lastUpdated) {
+                            return h('span', '暂无记录');
+                        }
+
+                        try {
+                            // 确保moment.js已经引入
+                            if (this.$moment && typeof this.$moment === 'function') {
+                                return h('span', this.$moment(lastUpdated).format('YYYY-MM-DD HH:mm'));
+                            } else {
+                                // 如果moment不可用，使用原生日期处理
+                                const date = new Date(lastUpdated);
+                                return h('span', date.toLocaleString('zh-CN'));
+                            }
+                        } catch (e) {
+                            console.error('日期格式化错误:', e);
+                            return h('span', '时间解析失败');
+                        }
                     }
+
                 }
             ]
         }
@@ -172,9 +205,18 @@ export default {
             this.loading = true
             try {
                 const res = await api.getKnowledgePoints()
-                this.knowledgePoints = res.data.data || res.data
+                const rawData = res.data.data || res.data || []
+
+                this.knowledgePoints = rawData.map(item => ({
+                    ...item,
+                    proficiency_level: typeof item.proficiency_level === 'number'
+                        ? parseFloat(item.proficiency_level.toFixed(4))
+                        : 0
+                }))
             } catch (err) {
+                console.error('获取知识点掌握情况失败:', err)
                 this.$error('获取知识点掌握情况失败')
+                this.knowledgePoints = []
             } finally {
                 this.loading = false
             }
