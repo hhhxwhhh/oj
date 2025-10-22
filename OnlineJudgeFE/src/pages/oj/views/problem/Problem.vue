@@ -52,8 +52,8 @@
       </Panel>
       <!--problem main end-->
       <Card :padding="20" id="submit-code" dis-hover>
-        <CodeMirror :value.sync="code" :languages="problem.languages" :language="language" :theme="theme"
-          @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"
+        <CodeMirror ref="codeMirror" :value.sync="code" :languages="problem.languages" :language="language"
+          :theme="theme" @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"
           @suggestions="onSuggestionsReceived"></CodeMirror>
 
         <Row type="flex" justify="space-between">
@@ -458,47 +458,73 @@ export default {
         }
       }, 30000)
     },
-    onSuggestionsReceived(suggestions) {
-      if (suggestions && Array.isArray(suggestions)) {
-        // 合并所有建议类型
-        this.suggestions = [
-          ...(suggestions.suggestions || []),
-          ...(suggestions.completions || []),
-          ...(suggestions.issues || []),
-          ...(suggestions.knowledge_points || [])
-        ];
+    onSuggestionsReceived(suggestionsData) {
+      console.log('收到CodeMirror组件的建议:', suggestionsData);
+      if (suggestionsData) {
+        // 根据响应结构正确处理建议
+        if (Array.isArray(suggestionsData)) {
+          // 如果直接返回数组
+          this.suggestions = suggestionsData;
+        } else if (typeof suggestionsData === 'object') {
+          // 如果返回对象，合并所有建议类型
+          this.suggestions = [
+            ...(suggestionsData.suggestions || []),
+            ...(suggestionsData.completions || []),
+            ...(suggestionsData.issues || []),
+            ...(suggestionsData.knowledge_points || [])
+          ];
+        }
+      } else {
+        this.suggestions = [];
       }
     },
     handleAIPanelTabChange(name) {
       this.activeAIPanelTab = name;
     },
     async fetchRealTimeSuggestions() {
-      if (!this.code || this.code.trim() === '') return;
+
+      if (!this.code || this.code.trim() === '') {
+        console.log('代码为空，不获取建议')
+        this.suggestions = []
+        return
+      }
 
       try {
         const res = await api.getRealTimeSuggestion({
           code: this.code,
           language: this.language,
           problem_id: this.problem.id
-        });
+        })
 
+        console.log('API响应:', res)
         if (res.data && res.data.data) {
-          const data = res.data.data;
+          const data = res.data.data
           // 合并所有建议
           this.suggestions = [
             ...(data.suggestions || []),
             ...(data.completions || []),
             ...(data.issues || []),
             ...(data.knowledge_points || [])
-          ];
+          ]
+          console.log('处理后的建议:', this.suggestions)
+        } else {
+          this.suggestions = []
         }
       } catch (err) {
-        console.error('获取实时建议失败:', err);
+        console.error('获取实时建议失败:', err)
+        this.suggestions = []
       }
     },
     refreshSuggestions() {
-      this.fetchRealTimeSuggestions();
+      console.log('手动刷新建议')
+      // 直接调用CodeMirror组件的方法
+      if (this.$refs.codemirror && typeof this.$refs.codemirror.fetchRealTimeSuggestions === 'function') {
+        this.$refs.codemirror.fetchRealTimeSuggestions()
+      } else {
+        console.log('无法找到CodeMirror组件或fetchRealTimeSuggestions方法')
+      }
     },
+
     getIssueTypeName(type) {
       const typeNames = {
         syntax: this.$t('m.Syntax_Errors'),
@@ -591,15 +617,6 @@ export default {
         best_practice: this.$t('m.Best_Practices')
       }
       return typeNames[type] || type
-    },
-    getIssueIcon(type) {
-      const icons = {
-        syntax: 'ios-close-circle',
-        logic: 'ios-bug',
-        performance: 'ios-speedometer',
-        best_practice: 'ios-thumbs-up'
-      }
-      return icons[type] || 'ios-information-circle'
     },
     getIssueColor(type) {
       const colors = {
@@ -1078,16 +1095,7 @@ export default {
     showAIPanel() {
       return this.diagnosisIssues.length > 0 || this.suggestions.length > 0;
     },
-    groupedDiagnosisIssues() {
-      const groups = {}
-      this.diagnosisIssues.forEach(issue => {
-        if (!groups[issue.type]) {
-          groups[issue.type] = []
-        }
-        groups[issue.type].push(issue)
-      })
-      return groups
-    },
+
     submissionStatus() {
       return {
         text: JUDGE_STATUS[this.result.result]['name'],

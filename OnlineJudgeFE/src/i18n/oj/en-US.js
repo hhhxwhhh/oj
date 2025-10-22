@@ -398,5 +398,6 @@ export const m = {
   Best_Practices: "Best Practices",
   No_issues_found: "No issues found",
   No_suggestions_available: "No suggestions available",
-  Real_Time_Suggestions: "Real-Time Suggestions"
+  Real_Time_Suggestions: "Real-Time Suggestions",
+  Refresh_Suggestions: "Refresh Suggestions"
 };

@@ -224,6 +224,12 @@ export default {
     async fetchRealTimeSuggestions() {
       const code = this.editor.getValue()
 
+      // 只有当代码不为空时才获取建议
+      if (!code || code.trim() === '') {
+        this.$emit('suggestions', [])
+        return
+      }
+
       try {
         const res = await api.getRealTimeSuggestion({
           code: code,
@@ -231,12 +237,20 @@ export default {
           problem_id: this.problemId
         })
 
-        // 这里可以通过事件将建议传递给父组件
-        this.$emit('suggestions', res.data.data || [])
+        console.log('实时建议API响应:', res)
+        // 正确处理API响应并传递给父组件
+        if (res.data && res.data.data) {
+          this.$emit('suggestions', res.data.data)
+        } else {
+          this.$emit('suggestions', [])
+        }
       } catch (err) {
         console.error('获取实时建议失败:', err)
+        // 出错时也通知父组件
+        this.$emit('suggestions', [])
       }
     },
+
     triggerAutoCompletion() {
       // 触发自动补全
       const code = this.editor.getValue()

@@ -203,5 +203,6 @@ export const m = {
   Performance_Issues: "性能问题",
   Best_Practices: "最佳实践",
   No_issues_found: "未发现问题",
-  No_suggestions_available: "暂无建议"
+  No_suggestions_available: "暂无建议",
+  Refresh_Suggestions: "刷新建议"
 };
