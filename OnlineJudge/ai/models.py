@@ -131,9 +131,32 @@ class AIUserLearningPathNode(models.Model):
         db_table = 'ai_user_learning_path_node'
 
 
+
+class KnowledgePoint(models.Model):
+    """
+    知识点模型
+    """
+    name = models.TextField(unique=True, help_text="知识点名称")
+    description = models.TextField(help_text="知识点描述")
+    category = models.TextField(help_text="知识点分类")
+    difficulty = models.IntegerField(help_text="难度等级(1-5)")
+    parent_points = models.ManyToManyField('self', symmetrical=False, blank=True, help_text="前置知识点")
+    related_problems = models.ManyToManyField('problem.Problem', blank=True, help_text="相关题目")
+    create_time = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ai_knowledge_point'
+        verbose_name = '知识点'
+        verbose_name_plural = '知识点'
+
+    def __str__(self):
+        return self.name
+
+
+
 class AIUserKnowledgeState(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    knowledge_point = models.TextField(help_text="知识点名称")
+    knowledge_point = models.ForeignKey(KnowledgePoint, on_delete=models.CASCADE, help_text="知识点")
     proficiency_level = models.FloatField(default=0.0, help_text="掌握程度(0-1)")
     last_updated = models.DateTimeField(auto_now=True)
     correct_attempts = models.IntegerField(default=0)
@@ -158,27 +181,5 @@ class AIUserKnowledgeState(models.Model):
         self.proficiency_level = min(1.0, accuracy * 0.7 + self.proficiency_level * 0.3)
         
         self.save()
-
-
-class KnowledgePoint(models.Model):
-    """
-    知识点模型
-    """
-    name = models.TextField(unique=True, help_text="知识点名称")
-    description = models.TextField(help_text="知识点描述")
-    category = models.TextField(help_text="知识点分类")
-    difficulty = models.IntegerField(help_text="难度等级(1-5)")
-    parent_points = models.ManyToManyField('self', symmetrical=False, blank=True, help_text="前置知识点")
-    related_problems = models.ManyToManyField('problem.Problem', blank=True, help_text="相关题目")
-    create_time = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'ai_knowledge_point'
-        verbose_name = '知识点'
-        verbose_name_plural = '知识点'
-
-    def __str__(self):
-        return self.name
-
 
 

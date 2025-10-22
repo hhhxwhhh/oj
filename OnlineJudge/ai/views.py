@@ -580,11 +580,10 @@ class KnowledgePointAPI(APIView):
             count = request.data.get("count", 5)
             recommendations = KnowledgePointService.get_knowledge_recommendations(user.id, count)
             logger.info(f"Returning recommendations for user {user.id}")
-            return self.success(recommendations)
+            return self.success({"data": recommendations})
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return self.error("Failed to get recommendations")
-
 
 class KnowledgePointManagementAPI(APIView):
     def post(self, request):
@@ -610,7 +609,8 @@ class KnowledgePointRecommendationAPI(APIView):
             count = request.data.get("count", 5)
             recommendations = KnowledgePointService.get_knowledge_recommendations(user.id, count)
             logger.info(f"Returning recommendations for user {user.id}")
-            return self.success(recommendations)
+            return self.success({"data": recommendations})
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return self.error("Failed to get recommendations")
+

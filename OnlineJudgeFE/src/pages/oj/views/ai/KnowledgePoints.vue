@@ -172,7 +172,7 @@ export default {
             this.loading = true
             try {
                 const res = await api.getKnowledgePoints()
-                this.knowledgePoints = res.data.data
+                this.knowledgePoints = res.data.data || res.data
             } catch (err) {
                 this.$error('获取知识点掌握情况失败')
             } finally {
@@ -183,7 +183,7 @@ export default {
         async loadRecommendations() {
             try {
                 const res = await api.getKnowledgeRecommendations()
-                this.recommendations = res.data.data
+                this.recommendations = res.data.data || res.data
             } catch (err) {
                 this.$error('获取学习建议失败')
             }

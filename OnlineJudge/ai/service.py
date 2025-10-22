@@ -944,7 +944,7 @@ class KnowledgePointService:
         获取用户知识点掌握状态
         """
         states = AIUserKnowledgeState.objects.filter(user_id=user_id)
-        return {state.knowledge_point: state for state in states}
+        return {state.knowledge_point.name: state for state in states}
     
     @staticmethod
     def update_user_knowledge_state(user_id, problem_id, is_correct):
@@ -973,7 +973,7 @@ class KnowledgePointService:
             for kp in knowledge_points:
                 user_state, created = AIUserKnowledgeState.objects.get_or_create(
                     user_id=user_id,
-                    knowledge_point=kp.name,
+                    knowledge_point=kp,
                     defaults={
                         'proficiency_level': 0.0,
                         'correct_attempts': 0,
@@ -1011,7 +1011,7 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return []
-    
+
     @staticmethod
     def _get_problems_for_knowledge_point(knowledge_point, user_id):
         """
