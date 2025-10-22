@@ -92,8 +92,12 @@ class AIService:
         
         if ai_model.provider == "openai":
             return AIService._call_openai(messages, ai_model)
+        elif ai_model.provider == "azure":
+            return AIService._call_azure(messages, ai_model)
         elif ai_model.provider == "openkey":
             return AIService._call_openkey(messages, ai_model)
+        elif ai_model.provider == "deepseek":
+            return AIService._call_deepseek(messages, ai_model)
         else:
             raise Exception(f"Unsupported AI provider: {ai_model.provider}")
 
@@ -121,7 +125,67 @@ class AIService:
         except Exception as e:
             logger.error(f"OpenKey API error: {str(e)}")
             raise Exception(f"AI服务调用失败: {str(e)}")
-
+        
+    @staticmethod
+    def _call_deepseek(messages, ai_model):
+        import openai
+        # DeepSeek API相应的base_url
+        openai.base_url = "https://api.deepseek.com/v1"
+        openai.api_key = ai_model.api_key
+        
+        try:
+            response = openai.chat.completions.create(
+                model=ai_model.model,
+                messages=messages,
+                **ai_model.config
+            )
+            return response.choices[0].message.content
+        except openai.APIConnectionError as e:
+            logger.error(f"DeepSeek API connection error: {str(e)}")
+            raise Exception(f"无法连接到AI服务: {str(e)}")
+        except openai.AuthenticationError as e:
+            logger.error(f"DeepSeek API authentication error: {str(e)}")
+            raise Exception(f"AI服务认证失败: {str(e)}")
+        except openai.RateLimitError as e:
+            logger.error(f"DeepSeek API rate limit error: {str(e)}")
+            raise Exception(f"AI服务请求超限: {str(e)}")
+        except openai.APIError as e:
+            logger.error(f"DeepSeek API error: {str(e)}")
+            raise Exception(f"AI服务调用失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error in _call_deepseek: {str(e)}")
+            raise Exception(f"Unexpected error: {str(e)}")
+    @staticmethod
+    def _call_azure(messages, ai_model):
+        import openai
+        # Azure OpenAI需要不同的端点格式
+        openai.base_url = ai_model.config.get("endpoint", "") + "/openai/deployments/" + ai_model.model + "/chat/completions?api-version=" + ai_model.config.get("api_version", "2023-05-15")
+        openai.api_key = ai_model.api_key
+        
+        try:
+            # Azure需要移除一些配置项
+            filtered_config = {k: v for k, v in ai_model.config.items() if k not in ["endpoint", "api_version"]}
+            response = openai.chat.completions.create(
+                model=ai_model.model,
+                messages=messages,
+                **filtered_config
+            )
+            return response.choices[0].message.content
+        except openai.APIConnectionError as e:
+            logger.error(f"Azure API connection error: {str(e)}")
+            raise Exception(f"无法连接到AI服务: {str(e)}")
+        except openai.AuthenticationError as e:
+            logger.error(f"Azure API authentication error: {str(e)}")
+            raise Exception(f"AI服务认证失败: {str(e)}")
+        except openai.RateLimitError as e:
+            logger.error(f"Azure API rate limit error: {str(e)}")
+            raise Exception(f"AI服务请求超限: {str(e)}")
+        except openai.APIError as e:
+            logger.error(f"Azure API error: {str(e)}")
+            raise Exception(f"AI服务调用失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error in _call_azure: {str(e)}")
+            raise Exception(f"Unexpected error: {str(e)}")
     
     @staticmethod
     def _call_openai(messages,ai_model):
