@@ -122,5 +122,7 @@ class AIUserLearningPathDetailSerializer(serializers.ModelSerializer):
         fields = "__all__"
     
     def get_nodes(self, obj):
+        from .models import AIUserLearningPathNode
         nodes = AIUserLearningPathNode.objects.filter(learning_path=obj).order_by('order')
+        from .serializers import AIUserLearningPathNodeSerializer
         return AIUserLearningPathNodeSerializer(nodes, many=True).data

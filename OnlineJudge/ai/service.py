@@ -822,8 +822,14 @@ class AILearningPathService:
         try:
             path = AIUserLearningPath.objects.get(id=path_id, user_id=user_id)
             nodes = AIUserLearningPathNode.objects.filter(learning_path=path).order_by('order')
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Retrieved learning path {path_id} with {nodes.count()} nodes")
             return path, nodes
         except AIUserLearningPath.DoesNotExist:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Learning path {path_id} not found for user {user_id}")
             raise Exception("Learning path not found")
     
     @staticmethod

@@ -425,18 +425,17 @@ export default {
                 const res = await api.getLearningPathDetail(pathId);
                 this.currentPath = res.data.data;
 
-                // 修复节点数据处理逻辑
+                // 正确处理节点数据
                 if (res.data.data && res.data.data.nodes) {
                     this.pathNodes = res.data.data.nodes;
-                } else if (res.data.nodes) {
-                    this.pathNodes = res.data.nodes;
                 } else {
                     this.pathNodes = [];
                 }
 
                 this.currentNodeIndex = 0;
             } catch (err) {
-                this.$error('Failed to load learning path');
+                console.error('Failed to load learning path:', err);
+                this.$error('Failed to load learning path: ' + (err.message || 'Unknown error'));
             }
         },
 

@@ -5,7 +5,7 @@ from django.db import transaction
 # Create your views here.
 from utils.api import APIView,validate_serializer
 from account.decorators import login_required
-from .models import AIModel,AIConversation,AIMessage,AICodeReview,AIFeedback,KnowledgePoint
+from .models import AIModel,AIConversation,AIMessage,AICodeReview,AIFeedback,KnowledgePoint,AIUserLearningPath
 from .serializers import (
     AIModelSerializer, CreateAIModelSerializer,
     AIConversationSerializer, CreateAIConversationSerializer,
@@ -463,7 +463,6 @@ class AILearningPathAPI(APIView):
             logger.error(f"Get learning paths failed: {str(e)}")
             return self.error("Failed to get learning paths")
         
-
 class AILearningPathDetailAPI(APIView):
     @login_required
     def get(self, request, path_id):
@@ -473,27 +472,21 @@ class AILearningPathDetailAPI(APIView):
             from .serializers import AIUserLearningPathDetailSerializer
             serializer = AIUserLearningPathDetailSerializer(path)
             data = serializer.data
-            data['nodes'] = [
-                {
-                    'id': node.id,
-                    'node_type': node.node_type,
-                    'title': node.title,
-                    'description': node.description,
-                    'content_id': node.content_id,
-                    'order': node.order,
-                    'estimated_time': node.estimated_time,
-                    'prerequisites': node.prerequisites,
-                    'status': node.status,
-                    'create_time': node.create_time,
-                    'knowledge_point': node.knowledge_point.name if node.knowledge_point else None,
-                    'knowledge_point_id': node.knowledge_point.id if node.knowledge_point else None
-                }
-                for node in nodes
-            ]
+            
+            # 确保节点数据被正确序列化
+            from .serializers import AIUserLearningPathNodeSerializer
+            node_serializer = AIUserLearningPathNodeSerializer(nodes, many=True)
+            data['nodes'] = node_serializer.data
+            
             return self.success(data)
+        except AIUserLearningPath.DoesNotExist:
+            return self.error("Learning path not found")
         except Exception as e:
-            logger.error(f"Get learning path detail failed: {str(e)}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Get learning path detail failed: {str(e)}", exc_info=True)
             return self.error("Failed to get learning path detail")
+
 class AILearningPathNodeAPI(APIView):
     @login_required
     def put(self, request, node_id):
