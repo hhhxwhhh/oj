@@ -186,6 +186,10 @@
 
                                     <div class="node-description">
                                         <p>{{ node.description }}</p>
+                                        <div v-if="node.knowledge_point" class="knowledge-point-info">
+                                            <Icon type="md-compass" /> 关联知识点:
+                                            <Tag color="primary">{{ node.knowledge_point }}</Tag>
+                                        </div>
                                     </div>
 
                                     <div v-if="node.prerequisites && node.prerequisites.length"
@@ -207,6 +211,11 @@
                                     </div>
 
                                     <div class="node-actions">
+                                        <Button v-if="node.knowledge_point_id" size="small"
+                                            @click="goToKnowledgePoint(node.knowledge_point_id)"
+                                            style="margin-left: 10px;">
+                                            <Icon type="md-compass" /> 查看知识点详情
+                                        </Button>
                                         <Button v-if="node.node_type === 'problem'" size="small"
                                             @click="goToProblem(node.content_id)"
                                             :disabled="node.status === 'completed' && currentNodeIndex !== index">
@@ -416,7 +425,15 @@ export default {
                 const res = await api.getLearningPathDetail(pathId);
                 this.currentPath = res.data.data;
 
-                this.pathNodes = res.data.data.nodes || res.data.nodes || [];
+                // 修复节点数据处理逻辑
+                if (res.data.data && res.data.data.nodes) {
+                    this.pathNodes = res.data.data.nodes;
+                } else if (res.data.nodes) {
+                    this.pathNodes = res.data.nodes;
+                } else {
+                    this.pathNodes = [];
+                }
+
                 this.currentNodeIndex = 0;
             } catch (err) {
                 this.$error('Failed to load learning path');
@@ -485,7 +502,14 @@ export default {
                 case 'project': return 'Project';
                 default: return 'Item';
             }
-        }
+        },
+        goToKnowledgePoint(knowledgePointId) {
+            if (knowledgePointId) {
+                this.$router.push({ name: 'knowledge-points', query: { id: knowledgePointId } });
+            } else {
+                this.$Message.warning('知识点信息不可用');
+            }
+        },
     }
 }
 </script>
@@ -663,6 +687,15 @@ export default {
             font-size: 14px;
             color: #657180;
         }
+
+        .knowledge-point-info {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background-color: #f0faff;
+            border-radius: 4px;
+            border-left: 3px solid #2d8cf0;
+        }
+
 
         .node-prerequisites {
             margin: 10px 0;
