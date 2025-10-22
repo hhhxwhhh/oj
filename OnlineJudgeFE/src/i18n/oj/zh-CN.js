@@ -187,5 +187,13 @@ export const m = {
   View_All: "查看全部",
   Hours: "小时",
   Minutes: "分钟",
-  Knowledge_Points: "知识点"
+  Knowledge_Points: "知识点",
+  Name_Description: "用于标识此AI模型的唯一名称",
+  Provider_Description:
+    "AI服务提供商（例如OpenAI、Azure OpenAI、OpenKey、DeepSeek）",
+  API_Key_Description: "访问AI服务的身份验证密钥",
+  Model_Description:
+    "特定的模型名称（例如gpt-3.5-turbo、gpt-4、deepseek-chat）",
+  Config_Description: "JSON格式的附加配置（可选）",
+  Active_Description: "此模型是否处于活动状态并可以使用"
 };

@@ -29,61 +29,6 @@ class AIService:
             logger.error("No active AI model found")
             return None
     @staticmethod
-    def call_ai_model(messages, ai_model, timeout=30):
-        try:
-            # 创建一个具有重试策略的会话
-            session = requests.Session()
-            retry_strategy = Retry(
-                total=3,
-                backoff_factor=1,
-                status_forcelist=[429, 500, 502, 503, 504],
-            )
-            adapter = HTTPAdapter(max_retries=retry_strategy)
-            session.mount("http://", adapter)
-            session.mount("https://", adapter)
-            if ai_model.provider == "openai":
-                url = "https://api.openai.com/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {ai_model.api_key}",
-                    "Content-Type": "application/json"
-                }
-                data = {
-                    "model": ai_model.model,
-                    "messages": messages,
-                    **ai_model.config
-                }
-            elif ai_model.provider == "azure":
-                # Azure OpenAI需要不同的端点格式
-                url = ai_model.config.get("endpoint", "") + "/openai/deployments/" + ai_model.model + "/chat/completions?api-version=" + ai_model.config.get("api_version", "2023-05-15")
-                headers = {
-                    "api-key": ai_model.api_key,
-                    "Content-Type": "application/json"
-                }
-                data = {
-                    "messages": messages,
-                    **{k: v for k, v in ai_model.config.items() if k not in ["endpoint", "api_version"]}
-                }
-            else:
-                raise Exception(f"Unsupported AI provider: {ai_model.provider}")
-
-            # 发送请求，设置合理的超时时间
-            response = session.post(url, headers=headers, json=data, timeout=timeout)
-            response.raise_for_status()
-            
-            if ai_model.provider in ["openai", "azure"]:
-                result = response.json()
-                return result["choices"][0]["message"]["content"].strip()
-            
-        except requests.exceptions.Timeout:
-            logger.error("AI service request timed out")
-            raise Exception("AI service request timed out")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error calling AI model: {str(e)}")
-            raise Exception(f"Error calling AI model: {str(e)}")
-        except Exception as e:
-            logger.error(f"Unexpected error in call_ai_model: {str(e)}")
-            raise Exception(f"Unexpected error: {str(e)}")
-    @staticmethod
     def call_ai_model(messages, ai_model=None):
         if ai_model is None:
             ai_model = AIService.get_active_ai_model()
@@ -101,7 +46,6 @@ class AIService:
         else:
             raise Exception(f"Unsupported AI provider: {ai_model.provider}")
 
-
     @staticmethod
     def _call_openkey(messages, ai_model):
         import openai
@@ -114,82 +58,90 @@ class AIService:
                 messages=messages
             )
             return response.choices[0].message.content
-        except openai.error.APIConnectionError as e:
-            logger.error(f"OpenKey API connection error: {str(e)}")
-            raise Exception(f"无法连接到AI服务: {str(e)}")
-        except openai.error.AuthenticationError as e:
-            logger.error(f"OpenKey API authentication error: {str(e)}")
-            raise Exception(f"AI服务认证失败: {str(e)}")
-        except openai.error.RateLimitError as e:
-            logger.error(f"OpenKey API rate limit error: {str(e)}")
-            raise Exception(f"AI服务请求超限: {str(e)}")
         except Exception as e:
-            logger.error(f"OpenKey API error: {str(e)}")
-            raise Exception(f"AI服务调用失败: {str(e)}")
+            # 兼容openai 0.28.1版本的异常处理
+            if hasattr(openai, 'error') and hasattr(openai.error, 'APIConnectionError') and isinstance(e, openai.error.APIConnectionError):
+                logger.error(f"OpenKey API connection error: {str(e)}")
+                raise Exception(f"无法连接到AI服务: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'AuthenticationError') and isinstance(e, openai.error.AuthenticationError):
+                logger.error(f"OpenKey API authentication error: {str(e)}")
+                raise Exception(f"AI服务认证失败: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'RateLimitError') and isinstance(e, openai.error.RateLimitError):
+                logger.error(f"OpenKey API rate limit error: {str(e)}")
+                raise Exception(f"AI服务请求超限: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'APIError') and isinstance(e, openai.error.APIError):
+                logger.error(f"OpenKey API error: {str(e)}")
+                raise Exception(f"AI服务调用失败: {str(e)}")
+            else:
+                logger.error(f"OpenKey API error: {str(e)}")
+                raise Exception(f"AI服务调用失败: {str(e)}")
         
     @staticmethod
     def _call_deepseek(messages, ai_model):
         import openai
-        # DeepSeek API相应的base_url
-        openai.base_url = "https://api.deepseek.com/v1"
+        # DeepSeek API相应的api_base
+        openai.api_base = "https://api.deepseek.com/v1"
         openai.api_key = ai_model.api_key
         
         try:
-            response = openai.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model=ai_model.model,
-                messages=messages,
-                **ai_model.config
+                messages=messages
             )
             return response.choices[0].message.content
-        except openai.APIConnectionError as e:
-            logger.error(f"DeepSeek API connection error: {str(e)}")
-            raise Exception(f"无法连接到AI服务: {str(e)}")
-        except openai.AuthenticationError as e:
-            logger.error(f"DeepSeek API authentication error: {str(e)}")
-            raise Exception(f"AI服务认证失败: {str(e)}")
-        except openai.RateLimitError as e:
-            logger.error(f"DeepSeek API rate limit error: {str(e)}")
-            raise Exception(f"AI服务请求超限: {str(e)}")
-        except openai.APIError as e:
-            logger.error(f"DeepSeek API error: {str(e)}")
-            raise Exception(f"AI服务调用失败: {str(e)}")
         except Exception as e:
-            logger.error(f"Unexpected error in _call_deepseek: {str(e)}")
-            raise Exception(f"Unexpected error: {str(e)}")
+            # 兼容openai 0.28.1版本的异常处理
+            if hasattr(openai, 'error') and hasattr(openai.error, 'APIConnectionError') and isinstance(e, openai.error.APIConnectionError):
+                logger.error(f"DeepSeek API connection error: {str(e)}")
+                raise Exception(f"无法连接到AI服务: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'AuthenticationError') and isinstance(e, openai.error.AuthenticationError):
+                logger.error(f"DeepSeek API authentication error: {str(e)}")
+                raise Exception(f"AI服务认证失败: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'RateLimitError') and isinstance(e, openai.error.RateLimitError):
+                logger.error(f"DeepSeek API rate limit error: {str(e)}")
+                raise Exception(f"AI服务请求超限: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'APIError') and isinstance(e, openai.error.APIError):
+                logger.error(f"DeepSeek API error: {str(e)}")
+                raise Exception(f"AI服务调用失败: {str(e)}")
+            else:
+                logger.error(f"Unexpected error in _call_deepseek: {str(e)}")
+                raise Exception(f"Unexpected error: {str(e)}")
     @staticmethod
     def _call_azure(messages, ai_model):
         import openai
-        # Azure OpenAI需要不同的端点格式
-        openai.base_url = ai_model.config.get("endpoint", "") + "/openai/deployments/" + ai_model.model + "/chat/completions?api-version=" + ai_model.config.get("api_version", "2023-05-15")
+        # Azure OpenAI需要不同的api_base格式
+        openai.api_base = ai_model.config.get("endpoint", "") + "/openai/deployments/" + ai_model.model + "/chat/completions?api-version=" + ai_model.config.get("api_version", "2023-05-15")
         openai.api_key = ai_model.api_key
         
         try:
             # Azure需要移除一些配置项
             filtered_config = {k: v for k, v in ai_model.config.items() if k not in ["endpoint", "api_version"]}
-            response = openai.chat.completions.create(
-                model=ai_model.model,
+            response = openai.ChatCompletion.create(
+                engine=ai_model.model,
                 messages=messages,
                 **filtered_config
             )
             return response.choices[0].message.content
-        except openai.APIConnectionError as e:
-            logger.error(f"Azure API connection error: {str(e)}")
-            raise Exception(f"无法连接到AI服务: {str(e)}")
-        except openai.AuthenticationError as e:
-            logger.error(f"Azure API authentication error: {str(e)}")
-            raise Exception(f"AI服务认证失败: {str(e)}")
-        except openai.RateLimitError as e:
-            logger.error(f"Azure API rate limit error: {str(e)}")
-            raise Exception(f"AI服务请求超限: {str(e)}")
-        except openai.APIError as e:
-            logger.error(f"Azure API error: {str(e)}")
-            raise Exception(f"AI服务调用失败: {str(e)}")
         except Exception as e:
-            logger.error(f"Unexpected error in _call_azure: {str(e)}")
-            raise Exception(f"Unexpected error: {str(e)}")
+            # 兼容openai 0.28.1版本的异常处理
+            if hasattr(openai, 'error') and hasattr(openai.error, 'APIConnectionError') and isinstance(e, openai.error.APIConnectionError):
+                logger.error(f"Azure API connection error: {str(e)}")
+                raise Exception(f"无法连接到AI服务: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'AuthenticationError') and isinstance(e, openai.error.AuthenticationError):
+                logger.error(f"Azure API authentication error: {str(e)}")
+                raise Exception(f"AI服务认证失败: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'RateLimitError') and isinstance(e, openai.error.RateLimitError):
+                logger.error(f"Azure API rate limit error: {str(e)}")
+                raise Exception(f"AI服务请求超限: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'APIError') and isinstance(e, openai.error.APIError):
+                logger.error(f"Azure API error: {str(e)}")
+                raise Exception(f"AI服务调用失败: {str(e)}")
+            else:
+                logger.error(f"Unexpected error in _call_azure: {str(e)}")
+                raise Exception(f"Unexpected error: {str(e)}")
     
     @staticmethod
-    def _call_openai(messages,ai_model):
+    def _call_openai(messages, ai_model):
         import openai
         # 检查是否使用OpenKey服务
         if "openkey.cloud" in ai_model.api_key:
@@ -197,13 +149,32 @@ class AIService:
             openai.api_key = ai_model.api_key
         else:
             # 标准OpenAI配置
+            openai.api_base = "https://api.openai.com/v1"
             openai.api_key = ai_model.api_key
         
-        response = openai.ChatCompletion.create(
-            model=ai_model.model,
-            messages=messages
-        )
-        return response.choices[0].message.content
+        try:
+            response = openai.ChatCompletion.create(
+                model=ai_model.model,
+                messages=messages
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            # 兼容openai 0.28.1版本的异常处理
+            if hasattr(openai, 'error') and hasattr(openai.error, 'APIConnectionError') and isinstance(e, openai.error.APIConnectionError):
+                logger.error(f"OpenAI API connection error: {str(e)}")
+                raise Exception(f"无法连接到AI服务: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'AuthenticationError') and isinstance(e, openai.error.AuthenticationError):
+                logger.error(f"OpenAI API authentication error: {str(e)}")
+                raise Exception(f"AI服务认证失败: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'RateLimitError') and isinstance(e, openai.error.RateLimitError):
+                logger.error(f"OpenAI API rate limit error: {str(e)}")
+                raise Exception(f"AI服务请求超限: {str(e)}")
+            elif hasattr(openai, 'error') and hasattr(openai.error, 'APIError') and isinstance(e, openai.error.APIError):
+                logger.error(f"OpenAI API error: {str(e)}")
+                raise Exception(f"AI服务调用失败: {str(e)}")
+            else:
+                logger.error(f"OpenAI API error: {str(e)}")
+                raise Exception(f"AI服务调用失败: {str(e)}")
     
     @staticmethod
     def get_chat_history(conversation_id):

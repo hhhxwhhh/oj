@@ -381,5 +381,13 @@ export const m = {
   Failed_to_get_diagnosis: "Failed to get diagnosis information",
   Missing_Submission_Data: "Missing submission data",
   View_Submission: "View Submission",
-  Knowledge_Points: "Knowledge Points"
+  Knowledge_Points: "Knowledge Points",
+  Name_Description: "A unique name to identify this AI model",
+  Provider_Description:
+    "The AI service provider (e.g., OpenAI, Azure OpenAI, OpenKey, DeepSeek)",
+  API_Key_Description: "The authentication key for accessing the AI service",
+  Model_Description:
+    "The specific model name (e.g., gpt-3.5-turbo, gpt-4, deepseek-chat)",
+  Config_Description: "Additional configuration in JSON format (optional)",
+  Active_Description: "Whether this model is active and can be used"
 };

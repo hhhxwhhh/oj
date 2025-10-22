@@ -81,6 +81,7 @@
                         <el-option value="openai" label="OpenAI"></el-option>
                         <el-option value="azure" label="Azure OpenAI"></el-option>
                         <el-option value="deepseek" label="DeepSeek"></el-option>
+                        <el-option value="openkey" label="OpenKey"></el-option>
                     </el-select>
                     <div class="form-item-description">The AI service provider</div>
                 </el-form-item>
