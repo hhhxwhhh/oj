@@ -4,13 +4,14 @@ from .models import AIUserLearningPath,AIUserLearningPathNode,AIUserKnowledgeSta
 
 
 class AIModelSerializer(serializers.ModelSerializer):
+    provider_display=serializers.CharField(source="get_provider_display",read_only=True)
     class Meta:
         model=AIModel
         fields="__all__"
 
 class CreateAIModelSerializer(serializers.ModelSerializer):
     name=serializers.CharField(max_length=128)
-    provider=serializers.CharField(max_length=128)
+    provider=serializers.ChoiceField(choices=AIModel.PROVIDER_CHOICES)
     api_key=serializers.CharField(max_length=128)
     model=serializers.CharField(max_length=128)
     is_active=serializers.BooleanField()

@@ -4,8 +4,14 @@ from account.models import User
 from problem.models import Problem
 
 class AIModel(models.Model):
+    PROVIDER_CHOICES = [
+        ('openai', 'OpenAI'),
+        ('azure', 'Azure OpenAI'),
+        ('openkey', 'OpenKey'),
+        ('deepseek', 'DeepSeek'),
+    ]
     name=models.TextField()
-    provider=models.TextField()
+    provider=models.TextField(choices=PROVIDER_CHOICES)
     api_key=models.TextField()
     model=models.TextField()
     is_active=models.BooleanField(default=True)
