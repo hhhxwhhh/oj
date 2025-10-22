@@ -65,7 +65,7 @@
                                     <Tag color="red">需加强</Tag>
                                 </div>
                                 <div class="recommendation-content">
-                                    <p>掌握程度: {{ (rec.proficiency_level * 100).toFixed(1) }}%</p>
+                                    <p>掌握程度: {{ parseFloat(((rec.proficiency_level || 0) * 100).toFixed(2)) }}%</p>
                                     <div class="recommended-problems">
                                         <p>推荐练习题目:</p>
                                         <ul>
@@ -106,13 +106,24 @@ export default {
                     sortable: true
                 },
                 {
-
                     title: '掌握程度',
                     key: 'proficiency_level',
                     sortable: true,
                     render: (h, params) => {
-                        const level = params.row.proficiency_level || 0;
-                        const percentage = (level * 100).toFixed(1);
+                        // 强制处理掌握程度值
+                        let level = params.row.proficiency_level || 0;
+
+                        // 强制类型转换和边界处理
+                        if (typeof level !== 'number' || isNaN(level)) {
+                            level = 0;
+                        }
+
+                        // 强制边界处理
+                        level = Math.max(0, Math.min(1, level));
+
+                        // 强制精度处理 - 这是关键修改
+                        level = parseFloat(level.toFixed(4));
+
                         let color = 'red';
                         if (level >= 0.8) color = 'green';
                         else if (level >= 0.5) color = 'orange';
@@ -124,31 +135,19 @@ export default {
                                 width: '100%'
                             }
                         }, [
-                            h('div', {
+                            h('Progress', {
+                                props: {
+                                    percent: parseFloat((level * 100).toFixed(2)),  // 强制保留2位小数
+                                    status: level >= 0.8 ? 'success' : 'normal',
+                                    strokeColor: color,
+                                    showInfo: false
+                                },
                                 style: {
-                                    width: '70%'
+                                    width: '100%'
                                 }
-                            }, [
-                                h('Progress', {
-                                    props: {
-                                        percent: level * 100,
-                                        status: level >= 0.8 ? 'success' : 'normal',
-                                        strokeColor: color,
-                                        showInfo: false
-                                    }
-                                })
-                            ]),
-                            h('span', {
-                                style: {
-                                    marginLeft: '10px',
-                                    minWidth: '50px',
-                                    fontWeight: 'bold'
-                                }
-                            }, `${percentage}%`)
+                            })
                         ])
                     }
-
-
                 },
                 {
                     title: '正确/总计',
@@ -187,13 +186,31 @@ export default {
     },
     computed: {
         masteredPoints() {
-            return this.knowledgePoints.filter(kp => kp.proficiency_level >= 0.8).length
+            // 强制处理计算属性
+            return this.knowledgePoints.filter(kp => {
+                const level = typeof kp.proficiency_level === 'number' && !isNaN(kp.proficiency_level)
+                    ? kp.proficiency_level
+                    : 0;
+                return level >= 0.8;
+            }).length
         },
         learningPoints() {
-            return this.knowledgePoints.filter(kp => kp.proficiency_level >= 0.5 && kp.proficiency_level < 0.8).length
+            // 强制处理计算属性
+            return this.knowledgePoints.filter(kp => {
+                const level = typeof kp.proficiency_level === 'number' && !isNaN(kp.proficiency_level)
+                    ? kp.proficiency_level
+                    : 0;
+                return level >= 0.5 && level < 0.8;
+            }).length
         },
         needImprovementPoints() {
-            return this.knowledgePoints.filter(kp => kp.proficiency_level < 0.5).length
+            // 强制处理计算属性
+            return this.knowledgePoints.filter(kp => {
+                const level = typeof kp.proficiency_level === 'number' && !isNaN(kp.proficiency_level)
+                    ? kp.proficiency_level
+                    : 0;
+                return level < 0.5;
+            }).length
         }
     },
     mounted() {
@@ -201,27 +218,65 @@ export default {
         this.loadRecommendations()
     },
     methods: {
+        formatPercentage(value) {
+            if (typeof value !== 'number' || isNaN(value)) {
+                return '0.00';
+            }
+
+            // 边界值处理
+            if (value < 0) value = 0;
+            if (value > 1) value = 1;
+
+            // 特殊处理接近边界值的情况
+            if (value > 0.9999) value = 1;
+            if (value < 0.0001) value = 0;
+
+            // 转换为百分比并格式化为2位小数
+            const percentage = value * 100;
+            return percentage.toFixed(2);
+        },
+        fixFloatPrecision(value) {
+            if (typeof value !== 'number' || isNaN(value)) {
+                return 0;
+            }
+
+            // 使用高精度处理
+            return Math.round(value * 10000) / 10000;
+        },
         async loadKnowledgePoints() {
             this.loading = true
             try {
                 const res = await api.getKnowledgePoints()
                 const rawData = res.data.data || res.data || []
 
-                this.knowledgePoints = rawData.map(item => ({
-                    ...item,
-                    proficiency_level: typeof item.proficiency_level === 'number'
-                        ? parseFloat(item.proficiency_level.toFixed(4))
-                        : 0
-                }))
+                // 强制数据处理
+                this.knowledgePoints = rawData.map(item => {
+                    let proficiency_level = item.proficiency_level;
+
+                    // 强制类型检查和默认值
+                    if (typeof proficiency_level !== 'number' || isNaN(proficiency_level)) {
+                        proficiency_level = 0;
+                    }
+
+                    // 强制边界处理
+                    proficiency_level = Math.max(0, Math.min(1, proficiency_level));
+
+                    // 强制精度处理 - 关键修改
+                    proficiency_level = parseFloat(proficiency_level.toFixed(4));
+
+                    return {
+                        ...item,
+                        proficiency_level: proficiency_level
+                    };
+                });
             } catch (err) {
                 console.error('获取知识点掌握情况失败:', err)
-                this.$error('获取知识点掌握情况失败')
+                this.$error('获取知识点掌握情况失败: ' + (err.message || '未知错误'))
                 this.knowledgePoints = []
             } finally {
                 this.loading = false
             }
         },
-
         async loadRecommendations() {
             try {
                 const res = await api.getKnowledgeRecommendations()

@@ -548,22 +548,28 @@ class KnowledgePointAPI(APIView):
         """
         获取用户知识点掌握情况
         """
-        logger.info("KnowledgePointAPI GET request received")
         try:
             user = request.user
             knowledge_states = KnowledgePointService.get_user_knowledge_state(user.id)
             
             result = []
             for name, state in knowledge_states.items():
+                # 确保掌握程度值精度正确
+                proficiency_level = state.proficiency_level
+                if not isinstance(proficiency_level, (int, float)):
+                    proficiency_level = 0.0
+                else:
+                    # 修复浮点数精度问题
+                    proficiency_level = round(float(proficiency_level), 4)
+                
                 result.append({
                     'knowledge_point': name,
-                    'proficiency_level': state.proficiency_level,
+                    'proficiency_level': proficiency_level,
                     'correct_attempts': state.correct_attempts,
                     'total_attempts': state.total_attempts,
                     'last_updated': state.last_updated.isoformat() if state.last_updated else None
                 })
             
-            logger.info(f"Returning knowledge states for user {user.id}")
             return self.success(result)
         except Exception as e:
             logger.error(f"Failed to get user knowledge state: {str(e)}")

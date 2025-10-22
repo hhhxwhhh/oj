@@ -180,6 +180,8 @@ class AIUserKnowledgeState(models.Model):
         # 简单的掌握程度计算算法
         self.proficiency_level = min(1.0, accuracy * 0.7 + self.proficiency_level * 0.3)
         
+        self.proficiency_level = round(self.proficiency_level, 4)
+        
         self.save()
 
 
