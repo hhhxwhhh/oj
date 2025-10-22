@@ -395,5 +395,8 @@ export const m = {
   Syntax_Errors: "Syntax Errors",
   Logic_Errors: "Logic Errors",
   Performance_Issues: "Performance Issues",
-  Best_Practices: "Best Practices"
+  Best_Practices: "Best Practices",
+  No_issues_found: "No issues found",
+  No_suggestions_available: "No suggestions available",
+  Real_Time_Suggestions: "Real-Time Suggestions"
 };

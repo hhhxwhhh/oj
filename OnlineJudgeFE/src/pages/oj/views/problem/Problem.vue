@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-          }}: {{
+              }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -53,7 +53,8 @@
       <!--problem main end-->
       <Card :padding="20" id="submit-code" dis-hover>
         <CodeMirror :value.sync="code" :languages="problem.languages" :language="language" :theme="theme"
-          @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"></CodeMirror>
+          @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"
+          @suggestions="onSuggestionsReceived"></CodeMirror>
 
         <Row type="flex" justify="space-between">
           <Col :span="10">
@@ -80,26 +81,60 @@
           <div v-if="contestEnded">
             <Alert type="warning" show-icon>{{ $t('m.Contest_has_ended') }}</Alert>
           </div>
-          <div v-if="diagnosisIssues.length > 0" class="real-time-diagnosis">
-            <div class="diagnosis-header">
-              <h4>{{ $t('m.Real_Time_Diagnosis') }}</h4>
-              <Button size="small" @click="refreshDiagnosis">{{ $t('m.Refresh') }}</Button>
-            </div>
-            <div class="diagnosis-content">
-              <div v-for="(group, type) in groupedDiagnosisIssues" :key="type" class="diagnosis-group">
-                <div class="group-header">
-                  <Icon :type="getIssueIcon(type)" :style="{ color: getIssueColor(type) }"></Icon>
-                  <span class="group-title">{{ getIssueTypeName(type) }}</span>
-                  <Tag :color="getIssueColor(type)">{{ group.length }}</Tag>
+          <!-- 实时建议和诊断结果显示 -->
+          <div v-if="showAIPanel" class="ai-assistant-panel">
+            <Tabs value="diagnosis" @on-click="handleAIPanelTabChange">
+              <TabPane :label="$t('m.Real_Time_Diagnosis')" name="diagnosis">
+                <div v-if="diagnosisIssues.length > 0" class="real-time-diagnosis">
+                  <div class="diagnosis-content">
+                    <div v-for="(group, type) in groupedDiagnosisIssues" :key="type" class="diagnosis-group">
+                      <div class="group-header">
+                        <Icon :type="getIssueIcon(type)" :style="{ color: getIssueColor(type) }"></Icon>
+                        <span class="group-title">{{ getIssueTypeName(type) }}</span>
+                        <Tag :color="getIssueColor(type)">{{ group.length }}</Tag>
+                      </div>
+                      <ul class="issue-list">
+                        <li v-for="(issue, index) in group" :key="index" class="issue-item">
+                          {{ issue.message }}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="panel-footer">
+                    <Button size="small" @click="refreshDiagnosis" type="ghost">
+                      <Icon type="refresh"></Icon>
+                      {{ $t('m.Refresh') }}
+                    </Button>
+                  </div>
                 </div>
-                <ul class="issue-list">
-                  <li v-for="(issue, index) in group" :key="index" class="issue-item">
-                    {{ issue.message }}
-                  </li>
-                </ul>
-              </div>
-            </div>
+                <div v-else class="no-issues">
+                  <Icon type="ios-checkmark-circle" size="30" color="#19be6b"></Icon>
+                  <p>{{ $t('m.No_issues_found') }}</p>
+                </div>
+              </TabPane>
+              <TabPane :label="$t('m.Real_Time_Suggestions')" name="suggestions">
+                <div v-if="suggestions.length > 0" class="real-time-suggestions">
+                  <div class="suggestions-content">
+                    <div v-for="(suggestion, index) in suggestions" :key="index" class="suggestion-item">
+                      <Icon type="ios-information-circle" color="#2d8cf0"></Icon>
+                      <span>{{ suggestion }}</span>
+                    </div>
+                  </div>
+                  <div class="panel-footer">
+                    <Button size="small" @click="refreshSuggestions" type="ghost">
+                      <Icon type="refresh"></Icon>
+                      {{ $t('m.Refresh') }}
+                    </Button>
+                  </div>
+                </div>
+                <div v-else class="no-issues">
+                  <Icon type="ios-checkmark-circle" size="30" color="#19be6b"></Icon>
+                  <p>{{ $t('m.No_suggestions_available') }}</p>
+                </div>
+              </TabPane>
+            </Tabs>
           </div>
+
           </Col>
 
 
@@ -355,7 +390,12 @@ export default {
       // 添加实时诊断相关数据
       diagnosisTimer: null,
       diagnosisIssues: [],
-      diagnosisLoading: false
+      diagnosisLoading: false,
+      suggestions: [],
+      suggestionTimer: null,
+      lastCursorPosition: null,
+      activeAIPanelTab: 'diagnosis',
+
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -418,6 +458,66 @@ export default {
         }
       }, 30000)
     },
+    onSuggestionsReceived(suggestions) {
+      if (suggestions && Array.isArray(suggestions)) {
+        // 合并所有建议类型
+        this.suggestions = [
+          ...(suggestions.suggestions || []),
+          ...(suggestions.completions || []),
+          ...(suggestions.issues || []),
+          ...(suggestions.knowledge_points || [])
+        ];
+      }
+    },
+    handleAIPanelTabChange(name) {
+      this.activeAIPanelTab = name;
+    },
+    async fetchRealTimeSuggestions() {
+      if (!this.code || this.code.trim() === '') return;
+
+      try {
+        const res = await api.getRealTimeSuggestion({
+          code: this.code,
+          language: this.language,
+          problem_id: this.problem.id
+        });
+
+        if (res.data && res.data.data) {
+          const data = res.data.data;
+          // 合并所有建议
+          this.suggestions = [
+            ...(data.suggestions || []),
+            ...(data.completions || []),
+            ...(data.issues || []),
+            ...(data.knowledge_points || [])
+          ];
+        }
+      } catch (err) {
+        console.error('获取实时建议失败:', err);
+      }
+    },
+    refreshSuggestions() {
+      this.fetchRealTimeSuggestions();
+    },
+    getIssueTypeName(type) {
+      const typeNames = {
+        syntax: this.$t('m.Syntax_Errors'),
+        logic: this.$t('m.Logic_Errors'),
+        performance: this.$t('m.Performance_Issues'),
+        best_practice: this.$t('m.Best_Practices')
+      }
+      return typeNames[type] || type
+    },
+    getIssueIcon(type) {
+      const icons = {
+        syntax: 'ios-close-circle',
+        logic: 'ios-bug',
+        performance: 'ios-speedometer',
+        best_practice: 'ios-thumbs-up'
+      }
+      return icons[type] || 'ios-information-circle'
+    },
+
 
     async performRealTimeDiagnosis() {
       if (this.diagnosisLoading) return
@@ -975,6 +1075,19 @@ export default {
     contestEnded() {
       return this.contestStatus === CONTEST_STATUS.ENDED
     },
+    showAIPanel() {
+      return this.diagnosisIssues.length > 0 || this.suggestions.length > 0;
+    },
+    groupedDiagnosisIssues() {
+      const groups = {}
+      this.diagnosisIssues.forEach(issue => {
+        if (!groups[issue.type]) {
+          groups[issue.type] = []
+        }
+        groups[issue.type].push(issue)
+      })
+      return groups
+    },
     submissionStatus() {
       return {
         text: JUDGE_STATUS[this.result.result]['name'],
@@ -1347,6 +1460,156 @@ export default {
         font-size: 13px;
         line-height: 1.4;
       }
+    }
+  }
+}
+
+.ai-assistant-panel {
+  margin-top: 15px;
+  border: 1px solid #dddee1;
+  border-radius: 4px;
+
+  .ivu-tabs {
+    border: none;
+  }
+
+  .ivu-tabs-bar {
+    margin-bottom: 0;
+  }
+
+  .ivu-tabs-nav-container {
+    border-bottom: 1px solid #dddee1;
+  }
+
+  .ivu-tabs-tab {
+    padding: 8px 16px;
+  }
+
+  .ivu-tabs-content {
+    min-height: 150px;
+  }
+
+  .panel-footer {
+    padding: 10px 15px;
+    border-top: 1px solid #dddee1;
+    text-align: right;
+    background-color: #f8f8f9;
+  }
+
+  .no-issues {
+    text-align: center;
+    padding: 30px 15px;
+
+    p {
+      margin-top: 10px;
+      color: #657180;
+    }
+  }
+}
+
+.real-time-diagnosis,
+.real-time-suggestions {
+
+  .diagnosis-content,
+  .suggestions-content {
+    padding: 10px 15px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .diagnosis-group {
+    margin-bottom: 15px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 5px 10px;
+      background-color: #fff;
+      border-radius: 3px;
+      border-left: 3px solid #ccc;
+
+      i {
+        margin-right: 8px;
+        font-size: 16px;
+      }
+
+      .group-title {
+        flex: 1;
+        font-weight: 500;
+        color: #495060;
+      }
+
+      .ivu-tag {
+        margin: 0;
+      }
+    }
+
+    &.syntax {
+      .group-header {
+        border-left-color: #ed4014;
+      }
+    }
+
+    &.logic {
+      .group-header {
+        border-left-color: #ff9900;
+      }
+    }
+
+    &.performance {
+      .group-header {
+        border-left-color: #2d8cf0;
+      }
+    }
+
+    &.best_practice {
+      .group-header {
+        border-left-color: #19be6b;
+      }
+    }
+
+    .issue-list {
+      margin: 0;
+      padding-left: 25px;
+
+      .issue-item {
+        margin: 5px 0;
+        padding: 3px 0;
+        color: #657180;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  .suggestion-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background-color: #fff;
+    border-radius: 4px;
+    border-left: 3px solid #2d8cf0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    i {
+      margin-right: 10px;
+      margin-top: 2px;
+    }
+
+    span {
+      flex: 1;
+      color: #657180;
+      font-size: 13px;
+      line-height: 1.4;
     }
   }
 }

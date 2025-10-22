@@ -201,5 +201,7 @@ export const m = {
   Syntax_Errors: "语法错误",
   Logic_Errors: "逻辑错误",
   Performance_Issues: "性能问题",
-  Best_Practices: "最佳实践"
+  Best_Practices: "最佳实践",
+  No_issues_found: "未发现问题",
+  No_suggestions_available: "暂无建议"
 };

@@ -157,6 +157,11 @@ export default {
         this.triggerAutoCompletion()
       }
     })
+
+    // 添加代码更改事件监听器，用于触发实时建议
+    this.editor.on('change', () => {
+      this.scheduleSuggestions()
+    })
   },
   methods: {
     onEditorCodeChange(newCode) {
@@ -199,50 +204,38 @@ export default {
         this.scheduleSuggestions(cm)
       }
     },
-    scheduleSuggestions(cm) {
+    scheduleSuggestions() {
       // 清除之前的定时器
       if (this.suggestionTimer) {
         clearTimeout(this.suggestionTimer)
       }
 
-      // 设置新的定时器，延迟500ms触发建议
+      // 设置新的定时器，延迟1秒触发建议
       this.suggestionTimer = setTimeout(() => {
-        this.fetchRealTimeSuggestions(cm)
-      }, 500)
+        this.fetchRealTimeSuggestions()
+      }, 1000)
     },
-    async fetchRealTimeSuggestions(cm) {
+
+    applySuggestion(suggestion) {
+      // 应用建议（这里可以进一步定制）
+      this.suggestions = []
+      // 可以添加更多逻辑来实际应用建议
+    },
+    async fetchRealTimeSuggestions() {
       const code = this.editor.getValue()
-      const cursor = cm.getCursor()
-      const cursorPosition = {
-        line: cursor.line,
-        ch: cursor.ch
-      }
 
       try {
         const res = await api.getRealTimeSuggestion({
           code: code,
           language: this.language,
-          cursor_position: cursorPosition,
           problem_id: this.problemId
         })
 
-        if (res.data && res.data.data) {
-          const data = res.data.data
-          // 合并所有建议
-          this.suggestions = [
-            ...(data.suggestions || []),
-            ...(data.issues || []),
-            ...(data.knowledge_points || [])
-          ]
-        }
+        // 这里可以通过事件将建议传递给父组件
+        this.$emit('suggestions', res.data.data || [])
       } catch (err) {
-        console.error('Failed to fetch real-time suggestions:', err)
+        console.error('获取实时建议失败:', err)
       }
-    },
-    applySuggestion(suggestion) {
-      // 应用建议（这里可以进一步定制）
-      this.suggestions = []
-      // 可以添加更多逻辑来实际应用建议
     },
     triggerAutoCompletion() {
       // 触发自动补全
