@@ -109,6 +109,23 @@ export default {
             const chartDom = document.getElementById('knowledge-graph')
             this.chart = echarts.init(chartDom)
 
+            // 定义不同分类的颜色
+            const categoryColors = [
+                '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
+                '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#2ab7ca'
+            ]
+
+            // 为每个节点分配颜色
+            const nodesWithColors = this.graphData.nodes.map((node) => {
+                const categoryIndex = this.categories.indexOf(node.category)
+                return {
+                    ...node,
+                    itemStyle: {
+                        color: categoryColors[categoryIndex % categoryColors.length]
+                    }
+                }
+            })
+
             const option = {
                 title: {
                     text: '知识点依赖关系图',
@@ -145,9 +162,14 @@ export default {
                         edgeLength: 200,
                         layoutAnimation: true
                     },
-                    data: this.graphData.nodes,
+                    data: nodesWithColors,
                     links: this.graphData.edges,
-                    categories: this.categories.map(category => ({ name: category })),
+                    categories: this.categories.map((category, index) => ({
+                        name: category,
+                        itemStyle: {
+                            color: categoryColors[index % categoryColors.length]
+                        }
+                    })),
                     roam: true,
                     draggable: true,
                     focusNodeAdjacency: true,
