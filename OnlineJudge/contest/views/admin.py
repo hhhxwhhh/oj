@@ -298,34 +298,12 @@ class ContestAnalyticsAPI(APIView):
                     ).count()
                     
                     time_series_data.append({
-                        "time": current_time.strftime("%m-%d %H:%M"),  
+                        "time": current_time.strftime("%m-%d %H:%M"),  # 修复：显示完整日期时间
                         "count": count
                     })
                     
                     current_time = next_hour
-            else:
-                # 如果竞赛时间范围无效，使用提交数据的时间范围
-                first_submission = submissions.order_by('create_time').first()
-                last_submission = submissions.order_by('-create_time').first()
-                if first_submission and last_submission:
-                    start_time = timezone.localtime(first_submission.create_time)
-                    end_time = timezone.localtime(last_submission.create_time)
-                    if start_time < end_time:
-                        current_time = start_time.replace(minute=0, second=0, microsecond=0)
-                        while current_time <= end_time:
-                            next_hour = current_time + datetime.timedelta(hours=1)
-                            count = submissions.filter(
-                                create_time__gte=current_time,
-                                create_time__lt=next_hour
-                            ).count()
-                            
-                            time_series_data.append({
-                                "time": current_time.strftime("%m-%d %H:%M"),
-                                "count": count
-                            })
-                            
-                            current_time = next_hour
-        
+
         # 构建分数分布数据
         score_distribution = []
         if ranks.exists():
