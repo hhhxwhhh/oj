@@ -399,5 +399,7 @@ export const m = {
   No_issues_found: "No issues found",
   No_suggestions_available: "No suggestions available",
   Real_Time_Suggestions: "Real-Time Suggestions",
-  Refresh_Suggestions: "Refresh Suggestions"
+  Refresh_Suggestions: "Refresh Suggestions",
+  Auto_Complete: "Auto Complete",
+  No_completions_available: "No completions available"
 };

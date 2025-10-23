@@ -36,12 +36,6 @@
       <codemirror :value="value" :options="options" @change="onEditorCodeChange" @cursorActivity="onCursorActivity"
         ref="myEditor">
       </codemirror>
-      <div v-if="suggestions.length > 0" class="suggestions-panel">
-        <div v-for="(suggestion, index) in suggestions" :key="index" class="suggestion-item"
-          @click="applySuggestion(suggestion)">
-          {{ suggestion }}
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -204,6 +198,75 @@ export default {
         this.scheduleSuggestions(cm)
       }
     },
+    triggerAutoCompletion() {
+      // 触发自动补全
+      const code = this.editor.getValue()
+      const cursor = this.editor.getCursor()
+      const line = this.editor.getLine(cursor.line)
+      let start = cursor.ch
+      let end = start
+      while (end < line.length && /[\w$]/.test(line.charAt(end))) ++end
+      while (start && /[\w$]/.test(line.charAt(start - 1))) --start
+      const prefix = line.slice(start, end)
+
+      console.log('触发自动补全，前缀:', prefix);
+
+      if (prefix.length > 0) {
+        this.fetchAutoCompletion(code, prefix)
+      }
+    },
+    async fetchAutoCompletion(code, prefix) {
+      console.log('获取代码自动补全');
+      console.log('代码:', code);
+      console.log('前缀:', prefix);
+
+      try {
+        const res = await api.getCodeAutoCompletion({
+          code: code,
+          language: this.language,
+          prefix: prefix,
+          problem_id: this.problemId
+        });
+
+        console.log('自动补全响应:', res);
+
+        if (res.data && res.data.data && res.data.data.completions) {
+          const completions = res.data.data.completions;
+          // 使用CodeMirror内置的hint功能显示补全建议
+          this.showAutoCompletionHints(completions, prefix);
+        }
+      } catch (err) {
+        console.error('获取代码自动补全失败:', err);
+      }
+    },
+    showAutoCompletionHints(completions, prefix) {
+      if (completions.length > 0) {
+        // 构造CodeMirror hint格式的数据
+        const hints = {
+          list: completions.map(item => ({
+            text: item.text,
+            displayText: item.text + (item.description ? ' - ' + item.description : ''),
+            className: 'code-autocomplete-hint'
+          })),
+          from: this.editor.getCursor(),
+          to: this.editor.getCursor()
+        };
+
+        // 移动光标到前缀的开始位置
+        const cursor = this.editor.getCursor();
+        const from = { line: cursor.line, ch: cursor.ch - prefix.length };
+        const to = { line: cursor.line, ch: cursor.ch };
+        hints.from = from;
+        hints.to = to;
+
+        // 显示补全提示
+        this.editor.showHint({
+          hint: () => hints,
+          completeSingle: false,
+          alignWithWord: false
+        });
+      }
+    },
     scheduleSuggestions() {
       // 清除之前的定时器
       if (this.suggestionTimer) {
@@ -248,22 +311,6 @@ export default {
         console.error('获取实时建议失败:', err)
         // 出错时也通知父组件
         this.$emit('suggestions', [])
-      }
-    },
-
-    triggerAutoCompletion() {
-      // 触发自动补全
-      const code = this.editor.getValue()
-      const cursor = this.editor.getCursor()
-      const line = this.editor.getLine(cursor.line)
-      let start = cursor.ch
-      let end = start
-      while (end < line.length && /[\w$]/.test(line.charAt(end))) ++end
-      while (start && /[\w$]/.test(line.charAt(start - 1))) --start
-      const prefix = line.slice(start, end)
-
-      if (prefix.length > 0) {
-        this.fetchAutoCompletion(code, prefix)
       }
     },
     async fetchAutoCompletion(code, prefix) {

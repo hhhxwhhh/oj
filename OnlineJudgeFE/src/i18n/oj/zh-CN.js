@@ -204,5 +204,7 @@ export const m = {
   Best_Practices: "最佳实践",
   No_issues_found: "未发现问题",
   No_suggestions_available: "暂无建议",
-  Refresh_Suggestions: "刷新建议"
+  Refresh_Suggestions: "刷新建议",
+  Auto_Complete: "自动补全",
+  No_completions_available: "暂无补全建议"
 };

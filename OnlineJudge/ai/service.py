@@ -460,7 +460,12 @@ class AIService:
             logger.error(f"Failed to generate auto completion: {str(e)}")
             # 返回默认补全
             return {
-                "completions": []
+                "completions": [
+                {"text": prefix + "printf", "description": "格式化输出函数"},
+                {"text": prefix + "scanf", "description": "格式化输入函数"},
+                {"text": prefix + "if", "description": "条件语句"},
+                {"text": prefix + "for", "description": "循环语句"}
+            ]
             }
 
 class AIRecommendationService:
