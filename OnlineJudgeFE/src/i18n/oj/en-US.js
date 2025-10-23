@@ -401,5 +401,24 @@ export const m = {
   Real_Time_Suggestions: "Real-Time Suggestions",
   Refresh_Suggestions: "Refresh Suggestions",
   Auto_Complete: "Auto Complete",
-  No_completions_available: "No completions available"
+  No_completions_available: "No completions available",
+  Super_Administrator: "Super Administrator",
+  Change_Password: "Change Password",
+  Old_Password: "Old Password",
+  New_Password: "New Password",
+  Confirm_New_Password: "Confirm New Password",
+  Current_Password: "Current Password",
+  Change_Email: "Change Email",
+  Old_Email: "Old Email",
+  New_Email: "New Email",
+  Confirm_New_Email: "Confirm New Email",
+  Enter_your_new_email: "Enter your new email",
+  Change_Email_Success: "Change Email Success",
+  Enter_your_new_password: "Enter your new password",
+  Enter_your_new_email: "Enter your new email",
+  Enter_a_new_password: "Enter a new password",
+  Password_must_be_at_least_6_characters:
+    "Password must be at least 6 characters",
+  Enter_your_current_password: "Enter your current password",
+  Confirm_your_new_password: "Confirm your new password"
 };
