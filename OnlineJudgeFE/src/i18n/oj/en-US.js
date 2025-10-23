@@ -420,5 +420,7 @@ export const m = {
   Password_must_be_at_least_6_characters:
     "Password must be at least 6 characters",
   Enter_your_current_password: "Enter your current password",
-  Confirm_your_new_password: "Confirm your new password"
+  Confirm_your_new_password: "Confirm your new password",
+  No_Upcoming_Contests: "No Upcoming Contests",
+  Upcoming_Contests: "Upcoming Contests"
 };
