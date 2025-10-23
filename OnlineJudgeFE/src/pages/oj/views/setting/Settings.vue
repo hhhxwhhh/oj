@@ -1,30 +1,45 @@
 <template>
   <div class="container">
-    <Card :padding="0">
-      <div class="flex-container">
-        <div class="menu">
-          <Menu accordion @on-select="goRoute" :activeName="activeName" style="text-align: center;" width="auto">
-            <div class="avatar-editor">
-              <div class="avatar-container">
-                <img class="avatar" :src="profile.avatar"/>
-                <div class="avatar-mask">
-                  <a @click.stop="goRoute({name: 'profile-setting'})">
-                    <div class="mask-content">
-                      <Icon type="camera" size="30"></Icon>
-                      <p class="text">change avatar</p>
-                    </div>
-                  </a>
-                </div>
+    <Card :padding="0" class="settings-card">
+      <div class="settings-layout">
+        <div class="sidebar">
+          <div class="user-profile">
+            <div class="avatar-wrapper">
+              <img class="avatar" :src="profile.avatar" alt="User Avatar" />
+              <div class="avatar-overlay" @click="goRoute({ name: 'profile-setting' })">
+                <Icon type="md-camera" size="20" />
               </div>
             </div>
+            <div class="user-details">
+              <h3 class="username">{{ profile.user.username }}</h3>
+              <p class="user-role">{{ getUserRole }}</p>
+            </div>
+          </div>
 
-            <Menu-item name="/setting/profile">{{$t('m.Profile')}}</Menu-item>
-            <Menu-item name="/setting/account">{{$t('m.Account')}}</Menu-item>
-            <Menu-item name="/setting/security">{{$t('m.Security')}}</Menu-item>
-          </Menu>
+          <div class="menu-wrapper">
+            <Menu accordion @on-select="goRoute" :activeName="activeName" width="100%" class="settings-menu">
+              <Menu-item name="/setting/profile">
+                <Icon type="md-person" class="menu-icon" />
+                <span class="menu-text">{{ $t('m.Profile') }}</span>
+              </Menu-item>
+              <Menu-item name="/setting/account">
+                <Icon type="md-settings" class="menu-icon" />
+                <span class="menu-text">{{ $t('m.Account') }}</span>
+              </Menu-item>
+              <Menu-item name="/setting/security">
+                <Icon type="md-lock" class="menu-icon" />
+                <span class="menu-text">{{ $t('m.Security') }}</span>
+              </Menu-item>
+            </Menu>
+          </div>
+
+          <div class="sidebar-footer">
+            <p class="version">v{{ version }}</p>
+          </div>
         </div>
-        <div class="panel">
-          <transition name="fadeInUp">
+
+        <div class="content-area">
+          <transition name="fade-transform" mode="out-in">
             <router-view></router-view>
           </transition>
         </div>
@@ -32,119 +47,320 @@
     </Card>
   </div>
 </template>
-<script>
-  import { mapGetters } from 'vuex'
 
-  export default {
-    name: 'profile',
-    methods: {
-      goRoute (routePath) {
-        this.$router.push(routePath)
-      }
+<script>
+import { mapGetters } from 'vuex'
+
+export default {
+  name: 'settings',
+  data() {
+    return {
+      version: process.env.VERSION || '1.0'
+    }
+  },
+  methods: {
+    goRoute(routePath) {
+      this.$router.push(routePath)
+    }
+  },
+  computed: {
+    ...mapGetters(['profile']),
+    activeName() {
+      return this.$route.path
     },
-    computed: {
-      ...mapGetters(['profile']),
-      activeName () {
-        return this.$route.path
+    getUserRole() {
+      const user = this.profile.user || {}
+      switch (user.admin_type) {
+        case 'Super Admin':
+          return this.$t('m.Super_Administrator')
+        case 'Admin':
+          return this.$t('m.Administrator')
+        default:
+          return this.$t('m.Regular_User')
       }
     }
   }
+}
 </script>
 
 <style lang="less" scoped>
-  @avatar-radius: 50%;
+.container {
+  width: 90%;
+  min-width: 800px;
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 0 15px;
+}
 
-  .container {
-    width: 90%;
-    min-width: 800px;
-    margin: auto;
-  }
+.settings-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 
-  .flex-container {
-    .menu {
-      flex: 1 0 150px;
-      max-width: 250px;
-      .avatar-editor {
-        padding: 10% 22%;
-        margin-bottom: 10px;
-        .avatar-container {
+  .settings-layout {
+    display: flex;
+    min-height: 650px;
+
+    .sidebar {
+      flex: 0 0 260px;
+      width: 260px;
+      background: linear-gradient(180deg, #f0f8ff 0%, #e6f7ff 100%);
+      border-right: 1px solid #dcdee2;
+      display: flex;
+      flex-direction: column;
+
+      .user-profile {
+        padding: 30px 20px 20px;
+        text-align: center;
+
+        .avatar-wrapper {
+          position: relative;
+          width: 90px;
+          height: 90px;
+          margin: 0 auto 15px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 3px solid #fff;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+          cursor: pointer;
+          transition: all 0.3s ease;
+
           &:hover {
-            .avatar-mask {
-              opacity: .5;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+
+            .avatar-overlay {
+              opacity: 1;
             }
           }
-          position: relative;
+
           .avatar {
             width: 100%;
-            height: auto;
-            max-width: 100%;
-            display: block;
-            border-radius: @avatar-radius;
-            box-shadow: 0px 0px 1px 0px;
+            height: 100%;
+            object-fit: cover;
           }
-          .avatar-mask {
-            transition: opacity .2s ease-in;
-            z-index: 1;
-            border-radius: @avatar-radius;
+
+          .avatar-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: black;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             opacity: 0;
-            .mask-content {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              z-index: 3;
+            transition: opacity 0.3s ease;
+
+            i {
               color: #fff;
-              font-size: 16px;
-              text-align: center;
-              transform: translate(-50%, -50%);
-              .text {
-                white-space: nowrap;
+            }
+          }
+        }
+
+        .user-details {
+          .username {
+            margin: 0 0 5px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+          }
+
+          .user-role {
+            margin: 0;
+            font-size: 13px;
+            color: #7f8c8d;
+          }
+        }
+      }
+
+      .menu-wrapper {
+        flex: 1;
+        padding: 10px 0;
+
+        .settings-menu {
+          background: transparent;
+          border-right: none;
+
+          /deep/ .ivu-menu-item {
+            padding: 14px 20px;
+            margin: 2px 10px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+
+            &:hover {
+              background-color: rgba(45, 140, 240, 0.1);
+              color: #2d8cf0;
+            }
+
+            &.ivu-menu-item-active {
+              background-color: #2d8cf0;
+              color: #fff;
+
+              &:hover {
+                background-color: #2d8cf0;
+                color: #fff;
               }
+
+              .menu-icon {
+                color: #fff;
+              }
+            }
+
+            .menu-icon {
+              margin-right: 12px;
+              width: 20px;
+              text-align: center;
+              font-size: 18px;
+            }
+
+            .menu-text {
+              flex: 1;
             }
           }
         }
       }
 
-    }
+      .sidebar-footer {
+        padding: 20px 0 15px;
+        text-align: center;
 
-    .panel {
-      flex: auto;
-      &::before {
-        content: '';
-        display: block;
-        width: 1px;
-        height: 100%;
-        background: #dddee1;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        z-index: 1;
+        .version {
+          margin: 0;
+          font-size: 12px;
+          color: #999;
+        }
       }
     }
 
+    .content-area {
+      flex: 1;
+      padding: 30px;
+      background: #fff;
+    }
+  }
+}
+
+// 动画效果
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-transform-enter {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+// 响应式设计
+@media (max-width: 992px) {
+  .container {
+    min-width: auto;
+    width: 95%;
   }
 
-  .ivu-menu-vertical.ivu-menu-light:after {
-    /*取消默认的伪元素*/
-    width: 0;
+  .settings-card .settings-layout .sidebar {
+    flex: 0 0 220px;
+    width: 220px;
   }
+}
+
+@media (max-width: 768px) {
+  .settings-card .settings-layout {
+    flex-direction: column;
+
+    .sidebar {
+      width: 100%;
+      flex: 0 0 auto;
+
+      .user-profile {
+        display: flex;
+        align-items: center;
+        padding: 20px;
+        text-align: left;
+
+        .avatar-wrapper {
+          width: 70px;
+          height: 70px;
+          margin: 0 15px 0 0;
+        }
+
+        .user-details {
+          text-align: left;
+        }
+      }
+
+      .menu-wrapper {
+        .settings-menu /deep/ .ivu-menu-item {
+          padding: 12px 15px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding: 0 10px;
+  }
+
+  .settings-card .settings-layout .content-area {
+    padding: 20px 15px;
+  }
+}
 </style>
 
 <style lang="less">
-  .setting-main {
-    position: relative;
-    margin: 10px 40px;
-    padding-bottom: 20px;
-    .setting-content {
-      margin-left: 20px;
-    }
-    .mini-container {
-      width: 500px;
+.setting-main {
+  position: relative;
+  margin: 0;
+  padding: 0;
+
+  .setting-content {
+    margin-left: 0;
+  }
+
+  .mini-container {
+    width: 100%;
+    max-width: 500px;
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e8eaec;
+    display: flex;
+    align-items: center;
+
+    i {
+      margin-right: 10px;
+      color: #2d8cf0;
     }
   }
+
+  .section-subtitle {
+    font-size: 18px;
+    font-weight: 500;
+    color: #515a6e;
+    margin: 30px 0 20px;
+  }
+}
+
+// 移除iview菜单的默认样式
+.ivu-menu-vertical.ivu-menu-light:after {
+  width: 0;
+}
 </style>
