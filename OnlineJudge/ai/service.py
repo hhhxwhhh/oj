@@ -16,6 +16,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import hashlib
 from account.models import User
+from time import timezone
 
 logger=logging.getLogger(__name__)
 
@@ -1227,25 +1228,38 @@ class KnowledgePointService:
     @staticmethod
     def get_knowledge_recommendations(user_id, count=5):
         """
-        基于知识点掌握情况推荐需要加强的知识点
+        基于知识点掌握情况推荐需要加强的知识点（增强版）
         """
         try:
             # 获取用户知识点状态，按掌握程度排序（掌握程度低的排在前面）
             user_states = AIUserKnowledgeState.objects.filter(
                 user_id=user_id
-            ).order_by('proficiency_level')[:count]
+            ).select_related('knowledge_point').order_by('proficiency_level')[:count*2]  # 多取一些用于筛选
             
             recommendations = []
             for state in user_states:
+                # 计算推荐分数（考虑掌握程度和最近更新时间）
+                proficiency = state.proficiency_level
+                days_since_update = (timezone.now() - state.last_updated).days if state.last_updated else 0
+                
+                # 掌握程度越低，推荐优先级越高
+                # 长时间未练习的知识点，推荐优先级也应提高
+                score = (1 - proficiency) + min(days_since_update / 30.0, 1.0) * 0.3
+                
                 recommendations.append({
                     'knowledge_point': state.knowledge_point.name,
                     'proficiency_level': state.proficiency_level,
+                    'score': score,
+                    'correct_attempts': state.correct_attempts,
+                    'total_attempts': state.total_attempts,
                     'recommended_problems': KnowledgePointService._get_problems_for_knowledge_point(
                         state.knowledge_point, user_id
                     )
                 })
             
-            return recommendations
+            # 按分数排序并返回前count个
+            recommendations.sort(key=lambda x: x['score'], reverse=True)
+            return recommendations[:count]
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return []
@@ -1270,6 +1284,120 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"Failed to get problems for knowledge point: {str(e)}")
             return []
+        
+
+    @staticmethod
+    def create_knowledge_points_from_tags_detailed():
+        """
+        从题目标签创建知识点（增强版）
+        """
+        from problem.models import ProblemTag, Problem
+        tags = ProblemTag.objects.all()
+        
+        created_count = 0
+        updated_count = 0
+        
+        for tag in tags:
+            # 创建或更新知识点
+            kp, created = KnowledgePoint.objects.get_or_create(
+                name=tag.name,
+                defaults={
+                    'description': f'与{tag.name}相关的知识点',
+                    'category': '算法与数据结构',
+                    'difficulty': 3
+                }
+            )
+            
+            if created:
+                created_count += 1
+            else:
+                updated_count += 1
+            
+            # 关联相关题目
+            problems = Problem.objects.filter(tags=tag, visible=True)
+            kp.related_problems.set(problems)
+        
+        return {
+            'created': created_count,
+            'updated': updated_count,
+            'total_tags': tags.count()
+        }
+    
+    @staticmethod
+    def build_knowledge_point_dependencies():
+        """
+        建立知识点之间的依赖关系
+        """
+        # 定义知识点依赖关系
+        dependencies = {
+            '数组': [],
+            '链表': ['数组'],
+            '栈': ['数组'],
+            '队列': ['数组'],
+            '哈希表': ['数组'],
+            '字符串': ['数组'],
+            '树': ['链表'],
+            '二叉树': ['树'],
+            '二叉搜索树': ['二叉树'],
+            '堆': ['树'],
+            '图': ['树'],
+            '排序': ['数组'],
+            '查找': ['数组'],
+            '递归': ['函数'],
+            '分治': ['递归'],
+            '动态规划': ['递归', '数组'],
+            '贪心算法': ['排序'],
+            '回溯算法': ['递归'],
+            '深度优先搜索': ['图', '递归'],
+            '广度优先搜索': ['图', '队列']
+        }
+        
+        updated_count = 0
+        
+        for kp_name, parent_names in dependencies.items():
+            try:
+                kp = KnowledgePoint.objects.get(name=kp_name)
+                parent_points = KnowledgePoint.objects.filter(name__in=parent_names)
+                kp.parent_points.set(parent_points)
+                updated_count += 1
+            except KnowledgePoint.DoesNotExist:
+                # 知识点不存在，跳过
+                continue
+        
+        return {
+            'updated_knowledge_points': updated_count,
+            'total_dependencies': len(dependencies)
+        }
+    
+    @staticmethod
+    def associate_problems_with_knowledge_points():
+        """
+        关联所有题目与知识点
+        """
+        from problem.models import Problem, ProblemTag
+        from .models import KnowledgePoint
+        
+        # 获取所有题目
+        problems = Problem.objects.filter(visible=True)
+        association_count = 0
+        
+        for problem in problems:
+            # 获取题目的标签
+            tags = problem.tags.all()
+            tag_names = [tag.name for tag in tags]
+            
+            # 查找对应的知识点
+            knowledge_points = KnowledgePoint.objects.filter(name__in=tag_names)
+            
+            # 建立关联
+            problem.knowledgepoint_set.set(knowledge_points)
+            association_count += 1
+            
+        return {
+            'associated_problems': association_count,
+            'total_problems': problems.count()
+        }
+
 
     
 

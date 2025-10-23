@@ -598,6 +598,57 @@ class KnowledgePointManagementAPI(APIView):
         except Exception as e:
             logger.error(f"Failed to create knowledge points: {str(e)}")
             return self.error("Failed to create knowledge points")
+        
+    def put(self, request):
+        """
+        更新知识点信息
+        """
+        try:
+            knowledge_point_id = request.data.get("id")
+            name = request.data.get("name")
+            description = request.data.get("description")
+            category = request.data.get("category")
+            difficulty = request.data.get("difficulty")
+            parent_points = request.data.get("parent_points", [])
+            related_problems = request.data.get("related_problems", [])
+            
+            knowledge_point = KnowledgePoint.objects.get(id=knowledge_point_id)
+            
+            # 更新知识点信息
+            if name:
+                knowledge_point.name = name
+            if description:
+                knowledge_point.description = description
+            if category:
+                knowledge_point.category = category
+            if difficulty:
+                knowledge_point.difficulty = difficulty
+                
+            knowledge_point.save()
+            
+            # 更新前置知识点关联
+            if parent_points:
+                parent_kps = KnowledgePoint.objects.filter(name__in=parent_points)
+                knowledge_point.parent_points.set(parent_kps)
+            
+            # 更新相关题目关联
+            if related_problems:
+                from problem.models import Problem
+                problems = Problem.objects.filter(id__in=related_problems)
+                knowledge_point.related_problems.set(problems)
+            
+            return self.success({
+                "id": knowledge_point.id,
+                "name": knowledge_point.name,
+                "description": knowledge_point.description,
+                "category": knowledge_point.category,
+                "difficulty": knowledge_point.difficulty
+            })
+        except KnowledgePoint.DoesNotExist:
+            return self.error("Knowledge point not found")
+        except Exception as e:
+            logger.error(f"Failed to update knowledge point: {str(e)}")
+            return self.error("Failed to update knowledge point")
 
 class KnowledgePointRecommendationAPI(APIView):
     @login_required
