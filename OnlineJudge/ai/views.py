@@ -320,19 +320,41 @@ class AIRecommendProblemsAPI(APIView):
 class AIRecommendationFeedbackAPI(APIView):
     @login_required
     @validate_serializer(CreateAIRecommendationFeedbackSerializer)
-    def post(self,request):
-        data=request.data
-        user=request.user
+    def post(self, request):
+        data = request.data
+        user = request.user
         try:
-            feedback=AIFeedback.objects.create(
+            from .models import AIRecommendation, AIRecommendationFeedback
+            
+            # 获取推荐记录
+            try:
+                recommendation = AIRecommendation.objects.get(id=data["recommendation_id"])
+            except AIRecommendation.DoesNotExist:
+                return self.error("Recommendation not found")
+            
+            # 创建反馈
+            feedback = AIRecommendationFeedback.objects.create(
                 user=user,
+                problem=recommendation.problem,
+                recommendation=recommendation,
+                accepted=data['accepted'],
+                solved=data.get("solved", False),
+                feedback=data.get("feedback", ""),
+            )
+            
+            # 处理反馈以优化推荐算法
+            from .service import KnowledgePointService
+            KnowledgePointService.process_recommendation_feedback(
+                user_id=user.id,
                 recommendation_id=data["recommendation_id"],
                 accepted=data['accepted'],
-                solved=data.get("solved",False),
-                feedback=data.get("feedback",""),
+                solved=data.get("solved", False),
+                feedback_text=data.get("feedback", "")
             )
+            
             return self.success(AIRecommendationFeedbackSerializer(feedback).data)
         except Exception as e:
+            logger.error(f"Failed to create recommendation feedback: {str(e)}")
             return self.error(str(e))
 
 class AICodeReviewAPI(APIView):

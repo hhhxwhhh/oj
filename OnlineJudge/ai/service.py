@@ -637,32 +637,114 @@ class AIRecommendationService:
             candidate_problems.sort(key=lambda x:x[1],reverse=True)
             return candidate_problems[:count]
     @staticmethod
-    def hybrid_recommendations(user_id,count=10):
-        cf_recommendations=AIRecommendationService.collaborative_filtering_recommendations(user_id=user_id,count=count*2)
-        cb_recommendations=AIRecommendationService.content_based_recommendations(user_id=user_id,count=count*2)
-        problem_socres=defaultdict(list)
-        for probelm_id,score,reason in cf_recommendations:
-            problem_socres[probelm_id].append((score,reason))
-        for probelm_id,score,reason in cb_recommendations:
-            problem_socres[probelm_id].append((score,reason))
-        final_recomendations=[]
-        for problem_id,scores_reasons in problem_socres.items():
+    def hybrid_recommendations(user_id, count=10):
+        """
+        混合推荐算法，结合协同过滤和内容推荐，并考虑用户行为数据
+        """
+        # 获取各种推荐结果
+        cf_recommendations = AIRecommendationService.collaborative_filtering_recommendations(user_id=user_id, count=count*2)
+        cb_recommendations = AIRecommendationService.content_based_recommendations(user_id=user_id, count=count*2)
+        
+        # 获取用户行为数据
+        behavior_weights = AIRecommendationService._get_user_behavior_weights(user_id)
+        
+        problem_scores = defaultdict(list)
+        for problem_id, score, reason in cf_recommendations:
+            problem_scores[problem_id].append((score, reason))
+        for problem_id, score, reason in cb_recommendations:
+            problem_scores[problem_id].append((score, reason))
+            
+        final_recommendations = []
+        for problem_id, scores_reasons in problem_scores.items():
+            # 计算平均分数
             avg_score = sum(score for score, _ in scores_reasons) / len(scores_reasons)
-            reasons=list(set(reason for _,reason in scores_reasons))
-            combined_reason=", ".join(reasons)
-            final_recomendations.append((problem_id,avg_score,combined_reason))
+            
+            # 获取该题目的行为权重
+            behavior_weight = behavior_weights.get(problem_id, 1.0)
+            
+            # 综合分数 = 平均分数 * 行为权重
+            final_score = avg_score * behavior_weight
+            
+            reasons = list(set(reason for _, reason in scores_reasons))
+            combined_reason = ", ".join(reasons)
+            
+            final_recommendations.append((problem_id, final_score, combined_reason))
 
-        final_recomendations.sort(key=lambda x:x[1],reverse=True)
-        return final_recomendations[:count]
+        # 按分数排序
+        final_recommendations.sort(key=lambda x: x[1], reverse=True)
+        return final_recommendations[:count]
     
     @staticmethod
-    def recommend_problems(user_id,count=10):
+    def _get_user_behavior_weights(user_id):
+        """
+        根据用户行为数据计算题目推荐权重
+        考虑提交频率、通过率等行为因素
+        """
+        try:
+            from django.db.models import Count
+            from submission.models import Submission
+            
+            # 获取用户最近的提交行为
+            recent_submissions = Submission.objects.filter(
+                user_id=user_id
+            ).order_by('-create_time')[:50]  # 最近50次提交
+            
+            if not recent_submissions:
+                return {}
+            
+            # 统计各题目的提交次数和通过次数
+            problem_stats = {}
+            for submission in recent_submissions:
+                problem_id = submission.problem_id
+                if problem_id not in problem_stats:
+                    problem_stats[problem_id] = {'total': 0, 'accepted': 0}
+                
+                problem_stats[problem_id]['total'] += 1
+                if submission.result == 0:  # 0表示通过
+                    problem_stats[problem_id]['accepted'] += 1
+            
+            # 计算行为权重
+            behavior_weights = {}
+            for problem_id, stats in problem_stats.items():
+                # 通过率越高，相似题目的推荐权重越低（用户已经掌握相关知识点）
+                # 提交次数越多，相似题目的推荐权重越低（用户已经练习过相关知识点）
+                acceptance_rate = stats['accepted'] / stats['total'] if stats['total'] > 0 else 0
+                submission_count = stats['total']
+                
+                # 权重计算公式：基础权重 * 通过率惩罚因子 * 提交次数惩罚因子
+                base_weight = 1.0
+                acceptance_penalty = 1 - acceptance_rate * 0.5  # 通过率越高，惩罚越大
+                submission_penalty = max(0.5, 1 - submission_count * 0.02)  # 提交次数越多，惩罚越大
+                
+                behavior_weights[problem_id] = base_weight * acceptance_penalty * submission_penalty
+                
+            return behavior_weights
+        except Exception as e:
+            logger.error(f"Failed to get user behavior weights: {str(e)}")
+            return {}
+    
+    @staticmethod
+    def recommend_problems(user_id,count=10,algorithm='hybrid'):
         """推荐题目的对外接口"""
         try:
-            recommendations=AIRecommendationService.hybrid_recommendations(user_id=user_id,count=count)
+            if algorithm == 'collaborative':
+                recommendations = AIRecommendationService.collaborative_filtering_recommendations(
+                    user_id=user_id, count=count)
+            elif algorithm == 'content':
+                recommendations = AIRecommendationService.content_based_recommendations(
+                    user_id=user_id, count=count)
+            elif algorithm == 'deep_learning':
+                recommendations = AIRecommendationService.deep_learning_recommendations(
+                    user_id=user_id, count=count)
+            else:  # 默认使用混合推荐
+                recommendations = AIRecommendationService.hybrid_recommendations(
+                    user_id=user_id, count=count)
+            
             return recommendations
         except Exception as e:
-            popular_problems=Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+            logger.error(f"Recommendation failed with algorithm {algorithm}: {str(e)}")
+            # 出错时回退到热门题目推荐
+            popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
             return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
         
     @staticmethod
@@ -738,6 +820,159 @@ class AIRecommendationService:
         except Exception as e:
             logger.error(f"Error in generate_code_explanation: {str(e)}")
             raise Exception(f"Failed to generate code explanation: {str(e)}")
+        
+
+    @staticmethod
+    def deep_learning_recommendations(user_id, count=10):
+        """
+        基于用户行为模式的深度学习推荐算法
+        使用简单的神经网络思想进行推荐
+        """
+        try:
+            from sklearn.preprocessing import StandardScaler
+            import numpy as np
+            
+            # 获取用户历史行为数据
+            submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
+            
+            if not submissions:
+                # 如果没有提交记录，返回热门题目
+                popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+                return [(problem.id, 0.5, "热门题目推荐") for problem in popular_problems]
+            
+            # 构建用户特征向量
+            user_features = AIRecommendationService._build_user_features(user_id)
+            
+            # 获取所有可见题目
+            all_problems = Problem.objects.filter(visible=True)
+            
+            # 为每个题目计算匹配分数
+            problem_scores = []
+            for problem in all_problems:
+                # 检查用户是否已解决该题目
+                solved = submissions.filter(problem_id=problem.id, result=0).exists()
+                if solved:
+                    continue  # 跳过已解决的题目
+                
+                # 构建题目特征向量
+                problem_features = AIRecommendationService._build_problem_features(problem)
+                
+                # 计算用户与题目的匹配分数（简化版余弦相似度）
+                similarity = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
+                
+                # 考虑题目的热度因素
+                popularity_factor = min(1.0, problem.accepted_number / 1000.0) if problem.accepted_number else 0.1
+                
+                # 综合分数
+                final_score = similarity * (0.7 + 0.3 * popularity_factor)
+                
+                problem_scores.append((problem.id, final_score, "基于深度学习推荐"))
+            
+            # 按分数排序并返回前count个
+            problem_scores.sort(key=lambda x: x[1], reverse=True)
+            return problem_scores[:count]
+            
+        except Exception as e:
+            logger.error(f"Deep learning recommendation failed: {str(e)}")
+            # 出错时回退到混合推荐
+            return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
+        
+    @staticmethod
+    def _build_user_features(user_id):
+        """
+        构建用户特征向量
+        """
+        try:
+            # 获取用户提交记录
+            submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
+            
+            # 基础特征
+            total_submissions = submissions.count()
+            accepted_submissions = submissions.filter(result=0).count()
+            acceptance_rate = accepted_submissions / total_submissions if total_submissions > 0 else 0
+            
+            # 难度特征
+            high_difficulty_count = submissions.filter(problem__difficulty='High', result=0).count()
+            mid_difficulty_count = submissions.filter(problem__difficulty='Mid', result=0).count()
+            low_difficulty_count = submissions.filter(problem__difficulty='Low', result=0).count()
+            
+            # 标签特征（简化处理）
+            tag_stats = defaultdict(int)
+            for submission in submissions.filter(result=0):
+                for tag in submission.problem.tags.all():
+                    tag_stats[tag.name] += 1
+            
+            # 构建特征向量
+            features = {
+                'total_submissions': total_submissions,
+                'acceptance_rate': acceptance_rate,
+                'high_difficulty_count': high_difficulty_count,
+                'mid_difficulty_count': mid_difficulty_count,
+                'low_difficulty_count': low_difficulty_count,
+                'top_tags': dict(sorted(tag_stats.items(), key=lambda x: x[1], reverse=True)[:5])
+            }
+            
+            return features
+        except Exception as e:
+            logger.error(f"Failed to build user features: {str(e)}")
+            return {}
+        
+    @staticmethod
+    def _build_problem_features(problem):
+        """
+        构建题目特征向量
+        """
+        try:
+            # 标签特征
+            tags = [tag.name for tag in problem.tags.all()]
+            
+            # 难度映射
+            difficulty_map = {'Low': 1, 'Mid': 2, 'High': 3}
+            difficulty_score = difficulty_map.get(problem.difficulty, 2)
+            
+            # 热度特征
+            acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+            
+            # 构建特征向量
+            features = {
+                'difficulty': difficulty_score,
+                'tags': tags,
+                'acceptance_rate': acceptance_rate,
+                'submission_number': problem.submission_number,
+                'accepted_number': problem.accepted_number
+            }
+            
+            return features
+        except Exception as e:
+            logger.error(f"Failed to build problem features: {str(e)}")
+            return {}
+        
+    @staticmethod
+    def _calculate_feature_similarity(user_features, problem_features):
+        """
+        计算用户和题目的特征相似度
+        """
+        try:
+            # 简化的相似度计算
+            # 考虑接受率相似性
+            user_acc_rate = user_features.get('acceptance_rate', 0)
+            problem_acc_rate = problem_features.get('acceptance_rate', 0)
+            acc_rate_similarity = 1 - abs(user_acc_rate - problem_acc_rate)
+            
+            # 考虑标签匹配度
+            user_tags = set(user_features.get('top_tags', {}).keys())
+            problem_tags = set(problem_features.get('tags', []))
+            tag_overlap = len(user_tags.intersection(problem_tags))
+            tag_union = len(user_tags.union(problem_tags))
+            tag_similarity = tag_overlap / tag_union if tag_union > 0 else 0
+            
+            # 综合相似度
+            similarity = 0.6 * acc_rate_similarity + 0.4 * tag_similarity
+            return max(0.1, similarity)  # 确保最小相似度
+            
+        except Exception as e:
+            logger.error(f"Failed to calculate feature similarity: {str(e)}")
+            return 0.1
 
 
 class AILearningPathService:
@@ -1228,7 +1463,7 @@ class KnowledgePointService:
     @staticmethod
     def get_knowledge_recommendations(user_id, count=5):
         """
-        基于知识点掌握情况推荐需要加强的知识点（增强版）
+        考虑用户反馈和行为数据优化推荐
         """
         try:
             # 获取用户知识点状态，按掌握程度排序（掌握程度低的排在前面）
@@ -1236,20 +1471,31 @@ class KnowledgePointService:
                 user_id=user_id
             ).select_related('knowledge_point').order_by('proficiency_level')[:count*2]  # 多取一些用于筛选
             
+            # 获取用户对推荐的反馈数据
+            feedback_weights = KnowledgePointService._get_user_feedback_weights(user_id)
+            
             recommendations = []
             for state in user_states:
                 # 计算推荐分数（考虑掌握程度和最近更新时间）
                 proficiency = state.proficiency_level
                 days_since_update = (timezone.now() - state.last_updated).days if state.last_updated else 0
                 
-                # 掌握程度越低，推荐优先级越高
+                # 基础分数：掌握程度越低，推荐优先级越高
                 # 长时间未练习的知识点，推荐优先级也应提高
-                score = (1 - proficiency) + min(days_since_update / 30.0, 1.0) * 0.3
+                base_score = (1 - proficiency) + min(days_since_update / 30.0, 1.0) * 0.3
+                
+                # 获取该知识点的反馈权重
+                feedback_weight = feedback_weights.get(state.knowledge_point.name, 1.0)
+                
+                # 综合分数 = 基础分数 * 反馈权重
+                final_score = base_score * feedback_weight
                 
                 recommendations.append({
                     'knowledge_point': state.knowledge_point.name,
                     'proficiency_level': state.proficiency_level,
-                    'score': score,
+                    'score': final_score,
+                    'base_score': base_score,
+                    'feedback_weight': feedback_weight,
                     'correct_attempts': state.correct_attempts,
                     'total_attempts': state.total_attempts,
                     'recommended_problems': KnowledgePointService._get_problems_for_knowledge_point(
@@ -1263,6 +1509,43 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return []
+    @staticmethod
+    def _get_user_feedback_weights(user_id):
+        """
+        根据用户反馈计算知识点推荐权重
+        正面反馈增加权重，负面反馈降低权重
+        """
+        try:
+            from .models import AIRecommendationFeedback
+            
+            # 获取用户对推荐的反馈
+            feedbacks = AIRecommendationFeedback.objects.filter(
+                user_id=user_id,
+                recommendation__user_id=user_id
+            ).select_related('recommendation')
+            
+            # 统计每个知识点的反馈情况
+            knowledge_point_feedback = defaultdict(list)
+            for feedback in feedbacks:
+                kp_name = feedback.recommendation.problem.tags.first().name if feedback.recommendation.problem.tags.exists() else None
+                if kp_name:
+                    # 正面反馈(accepted=True, solved=True)权重>1，负面反馈权重<1
+                    if feedback.accepted and feedback.solved:
+                        knowledge_point_feedback[kp_name].append(1.5)  # 强烈推荐
+                    elif feedback.accepted:
+                        knowledge_point_feedback[kp_name].append(1.2)  # 一般推荐
+                    else:
+                        knowledge_point_feedback[kp_name].append(0.7)  # 不推荐
+                        
+            # 计算每个知识点的平均权重
+            feedback_weights = {}
+            for kp_name, weights in knowledge_point_feedback.items():
+                feedback_weights[kp_name] = sum(weights) / len(weights)
+                
+            return feedback_weights
+        except Exception as e:
+            logger.error(f"Failed to get user feedback weights: {str(e)}")
+            return {}
 
     @staticmethod
     def _get_problems_for_knowledge_point(knowledge_point, user_id):
@@ -1397,6 +1680,53 @@ class KnowledgePointService:
             'associated_problems': association_count,
             'total_problems': problems.count()
         }
+    @staticmethod
+    def process_recommendation_feedback(user_id, recommendation_id, accepted, solved, feedback_text=""):
+        """
+        处理用户对推荐的反馈
+        """
+        try:
+            from .models import AIRecommendation, AIRecommendationFeedback
+            
+            # 创建反馈记录
+            recommendation = AIRecommendation.objects.get(id=recommendation_id)
+            feedback = AIRecommendationFeedback.objects.create(
+                user_id=user_id,
+                problem=recommendation.problem,
+                recommendation=recommendation,
+                accepted=accepted,
+                solved=solved,
+                feedback=feedback_text
+            )
+            
+            # 根据反馈更新推荐模型（简化版在线学习）
+            if accepted and solved:
+                # 正面反馈：增加相关知识点的推荐权重
+                KnowledgePointService._update_knowledge_point_weights(
+                    user_id, recommendation.problem, 1.2)
+            elif not accepted:
+                # 负面反馈：减少相关知识点的推荐权重
+                KnowledgePointService._update_knowledge_point_weights(
+                    user_id, recommendation.problem, 0.8)
+                
+            return feedback
+        except Exception as e:
+            logger.error(f"Failed to process recommendation feedback: {str(e)}")
+            raise
+
+    @staticmethod
+    def _update_knowledge_point_weights(user_id, problem, weight_factor):
+        """
+        根据反馈更新知识点权重
+        """
+        try:
+            #后续考虑使用adam 优化 sgd等等
+            for kp in problem.knowledgepoint_set.all():
+                kp.weight *= weight_factor
+                kp.save()
+        except Exception as e:
+            logger.error(f"Failed to update knowledge point weights: {str(e)}")
+
 
 
     
