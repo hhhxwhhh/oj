@@ -61,7 +61,10 @@
       </template>
       <template v-else>
         <Dropdown class="drop-menu" @on-click="handleRoute" placement="bottom" trigger="click">
-          <Button type="text" class="drop-menu-title">{{ user.username }}
+          <Button type="text" class="drop-menu-title">
+            <!-- 添加头像显示 -->
+            <img :src="profile.avatar || '/public/avatar/default.png'" class="navbar-avatar" />
+            <span class="username">{{ user.username }}</span>
             <Icon type="arrow-down-b"></Icon>
           </Button>
           <Dropdown-menu slot="list">
@@ -114,7 +117,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['website', 'modalStatus', 'user', 'isAuthenticated', 'isAdminRole']),
+    ...mapGetters(['website', 'modalStatus', 'user', 'isAuthenticated', 'isAdminRole', 'profile']),
     // 跟随路由变化
     activeMenu() {
       return '/' + this.$route.path.split('/')[1]
@@ -145,13 +148,15 @@ export default {
 
   .oj-menu {
     background: #fdfdfd;
+    height: 60px;
+    display: flex;
+    align-items: center;
   }
 
   .logo {
     margin-left: 2%;
     margin-right: 2%;
     font-size: 20px;
-    float: left;
     line-height: 60px;
   }
 
@@ -162,7 +167,34 @@ export default {
     right: 10px;
 
     &-title {
-      font-size: 18px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      height: 60px;
+      padding: 0 10px;
+
+      .navbar-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        margin-right: 10px;
+        object-fit: cover;
+        border: 2px solid #e8eaec;
+        transition: all 0.3s ease;
+        vertical-align: middle;
+      }
+
+      .username {
+        margin-right: 5px;
+        font-weight: 500;
+      }
+
+      &:hover {
+        .navbar-avatar {
+          border-color: #5cadff;
+          transform: scale(1.05);
+        }
+      }
     }
   }
 
@@ -170,6 +202,7 @@ export default {
     font-size: 16px;
     float: right;
     margin-right: 10px;
+    line-height: 60px;
   }
 }
 

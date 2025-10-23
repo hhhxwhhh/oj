@@ -124,11 +124,11 @@ USE_TZ = True
 
 STATIC_URL = '/public/'
 STATIC_ROOT = os.environ.get('STATIC_ROOT', os.path.join(BASE_DIR, 'staticfiles'))
-
 # 静态文件目录
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
+    os.path.join(DATA_DIR, "public"),
 ]
+
 
 AUTH_USER_MODEL = 'account.User'
 
@@ -140,8 +140,6 @@ AVATAR_UPLOAD_DIR = f"{DATA_DIR}{AVATAR_URI_PREFIX}"
 
 UPLOAD_PREFIX = "/public/upload"
 UPLOAD_DIR = f"{DATA_DIR}{UPLOAD_PREFIX}"
-
-STATICFILES_DIRS = [os.path.join(DATA_DIR, "public")]
 
 
 LOGGING_HANDLERS = ['console', 'sentry'] if production_env else ['console']
