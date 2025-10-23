@@ -4,7 +4,7 @@
             <Col :span="22">
             <Panel shadow class="graph-panel">
                 <div slot="title" class="panel-title">
-                    <Icon type="md-git-network" class="title-icon" /> 知识点图谱
+                    <Icon type="ios-git-network" class="title-icon" /> 知识点图谱
                 </div>
                 <div class="graph-container">
                     <div class="graph-header">
@@ -52,35 +52,69 @@
 
                     <div id="knowledge-graph" class="graph-content"></div>
 
-                    <div class="graph-info" v-if="selectedNode">
-                        <Card class="node-card">
-                            <div slot="title" class="card-title">
-                                <Icon type="md-information-circle" /> {{ selectedNode.name }}
+                    <!-- 节点详细信息弹窗 -->
+                    <Modal v-model="nodeDetailModalVisible" title="知识点详情" width="600" :footer-hide="true">
+                        <div v-if="selectedNodeDetail" class="node-detail-content">
+                            <div class="detail-header">
+                                <h3>{{ selectedNodeDetail.name }}</h3>
+                                <Tag :color="getCategoryColor(selectedNodeDetail.category)">{{
+                                    selectedNodeDetail.category }}</Tag>
                             </div>
-                            <div class="node-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">分类:</span>
-                                    <span class="detail-value">{{ selectedNode.category }}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">难度:</span>
-                                    <span class="detail-value">{{ getDifficultyText(selectedNode.difficulty) }}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">描述:</span>
-                                    <span class="detail-value">{{ selectedNode.description }}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">相关题目数:</span>
-                                    <span class="detail-value">{{ selectedNode.size - 20 }}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">推荐权重:</span>
-                                    <span class="detail-value">{{ selectedNode.value }}</span>
+
+                            <div class="detail-section">
+                                <h4>基本信息</h4>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <span class="label">难度等级:</span>
+                                        <span class="value">{{ getDifficultyText(selectedNodeDetail.difficulty)
+                                            }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">推荐权重:</span>
+                                        <span class="value">{{ selectedNodeDetail.value }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">相关题目数:</span>
+                                        <span class="value">{{ selectedNodeDetail.size - 20 }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">知识点ID:</span>
+                                        <span class="value">{{ selectedNodeDetail.id }}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </Card>
-                    </div>
+
+                            <div class="detail-section" v-if="selectedNodeDetail.description">
+                                <h4>描述</h4>
+                                <p class="description">{{ selectedNodeDetail.description }}</p>
+                            </div>
+
+                            <div class="detail-section" v-if="nodeRelations.incoming.length > 0">
+                                <h4>前置知识点</h4>
+                                <div class="relations-list">
+                                    <Tag v-for="relation in nodeRelations.incoming" :key="relation.source"
+                                        @click.native="showRelatedNodeDetail(relation.source)" class="relation-tag">
+                                        {{ getNodeName(relation.source) }}
+                                    </Tag>
+                                </div>
+                            </div>
+
+                            <div class="detail-section" v-if="nodeRelations.outgoing.length > 0">
+                                <h4>后续知识点</h4>
+                                <div class="relations-list">
+                                    <Tag v-for="relation in nodeRelations.outgoing" :key="relation.target"
+                                        @click.native="showRelatedNodeDetail(relation.target)" class="relation-tag">
+                                        {{ getNodeName(relation.target) }}
+                                    </Tag>
+                                </div>
+                            </div>
+
+                            <div class="detail-actions">
+                                <Button type="primary" @click="goToRelatedProblems">查看相关题目</Button>
+                                <Button @click="addToLearningPath">添加到学习路径</Button>
+                            </div>
+                        </div>
+                    </Modal>
                 </div>
             </Panel>
             </Col>
@@ -108,8 +142,22 @@ export default {
             categories: [],
             selectedCategories: [],
             selectedNode: null,
+            selectedNodeDetail: null,
+            nodeDetailModalVisible: false,
             zoomLevel: 1,
             colorMode: 'category' // 默认按分类着色
+        }
+    },
+    computed: {
+        nodeRelations() {
+            if (!this.selectedNodeDetail || !this.graphData.edges) {
+                return { incoming: [], outgoing: [] }
+            }
+
+            const incoming = this.graphData.edges.filter(edge => edge.target === this.selectedNodeDetail.id)
+            const outgoing = this.graphData.edges.filter(edge => edge.source === this.selectedNodeDetail.id)
+
+            return { incoming, outgoing }
         }
     },
     mounted() {
@@ -237,7 +285,7 @@ export default {
             // 监听节点点击事件
             this.chart.on('click', (params) => {
                 if (params.dataType === 'node') {
-                    this.selectedNode = params.data
+                    this.showNodeDetail(params.data)
                 }
             })
 
@@ -245,6 +293,37 @@ export default {
             this.chart.on('zoom', (params) => {
                 this.zoomLevel = params.zoom
             })
+        },
+
+        // 显示节点详情
+        showNodeDetail(nodeData) {
+            this.selectedNodeDetail = nodeData
+            this.nodeDetailModalVisible = true
+        },
+
+        // 显示相关节点详情
+        showRelatedNodeDetail(nodeId) {
+            const node = this.graphData.nodes.find(n => n.id === nodeId)
+            if (node) {
+                this.showNodeDetail(node)
+            }
+        },
+
+        // 获取节点名称
+        getNodeName(nodeId) {
+            const node = this.graphData.nodes.find(n => n.id === nodeId)
+            return node ? node.name : '未知节点'
+        },
+
+        // 获取分类颜色
+        getCategoryColor(category) {
+            const categoryColors = [
+                'blue', 'green', 'yellow', 'red', 'cyan',
+                'geekblue', 'orange', 'purple', 'pink', 'volcano'
+            ]
+
+            const categoryIndex = this.categories.indexOf(category)
+            return categoryColors[categoryIndex % categoryColors.length]
         },
 
         // 根据着色模式获取带颜色的节点
@@ -397,6 +476,21 @@ export default {
                 5: '专家'
             }
             return difficultyMap[difficulty] || '未知'
+        },
+
+        // 跳转到相关题目
+        goToRelatedProblems() {
+            if (this.selectedNodeDetail) {
+                this.$router.push(`/problem?knowledge_point=${this.selectedNodeDetail.id}`)
+            }
+        },
+
+        // 添加到学习路径
+        addToLearningPath() {
+            if (this.selectedNodeDetail) {
+                this.$Message.success(`已将 "${this.selectedNodeDetail.name}" 添加到学习路径`)
+                // 这里可以调用API将知识点添加到用户的学习路径中
+            }
         }
     }
 }
@@ -500,48 +594,83 @@ export default {
             border-radius: 6px;
             background-color: #fff;
         }
+    }
+}
 
-        .graph-info {
-            margin-top: 20px;
+// 节点详情弹窗样式
+.node-detail-content {
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e8eaec;
 
-            .node-card {
-                border-radius: 6px;
-                box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+        h3 {
+            margin: 0;
+            font-size: 20px;
+            color: #17233d;
+        }
+    }
 
-                .card-title {
-                    display: flex;
-                    align-items: center;
-                    font-weight: 600;
-                    color: #17233d;
+    .detail-section {
+        margin-bottom: 20px;
+
+        h4 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #17233d;
+            font-weight: 600;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+
+            .detail-item {
+                display: flex;
+                padding: 8px 0;
+
+                .label {
+                    font-weight: 500;
+                    color: #515a6e;
+                    min-width: 100px;
                 }
 
-                .node-details {
-                    .detail-item {
-                        display: flex;
-                        margin-bottom: 10px;
-                        padding-bottom: 10px;
-                        border-bottom: 1px solid #f0f0f0;
-
-                        &:last-child {
-                            margin-bottom: 0;
-                            padding-bottom: 0;
-                            border-bottom: none;
-                        }
-
-                        .detail-label {
-                            font-weight: 500;
-                            color: #515a6e;
-                            min-width: 100px;
-                        }
-
-                        .detail-value {
-                            flex: 1;
-                            color: #17233d;
-                        }
-                    }
+                .value {
+                    flex: 1;
+                    color: #17233d;
                 }
             }
         }
+
+        .description {
+            color: #515a6e;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .relations-list {
+            .relation-tag {
+                margin-right: 8px;
+                margin-bottom: 8px;
+                cursor: pointer;
+
+                &:hover {
+                    opacity: 0.8;
+                }
+            }
+        }
+    }
+
+    .detail-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding-top: 20px;
+        border-top: 1px solid #e8eaec;
     }
 }
 
@@ -571,6 +700,12 @@ export default {
 
         .graph-content {
             height: 400px;
+        }
+
+        .node-detail-content {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
         }
     }
 }

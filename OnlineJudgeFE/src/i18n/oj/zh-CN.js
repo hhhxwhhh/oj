@@ -209,5 +209,16 @@ export const m = {
   Refresh_Suggestions: "刷新建议",
   Auto_Complete: "自动补全",
   No_completions_available: "暂无补全建议",
-  Knowledge_Graph: "知识图谱"
+  Knowledge_Graph: "知识图谱",
+  Knowledge_Point_Detail: "知识点详情",
+  Basic_Information: "基本信息",
+  Difficulty_Level: "难度等级",
+  Recommended_Weight: "推荐权重",
+  Related_Problems_Count: "相关题目数",
+  Knowledge_Point_ID: "知识点ID",
+  Description: "描述",
+  Prerequisite_Knowledge: "前置知识点",
+  Subsequent_Knowledge: "后续知识点",
+  View_Related_Problems: "查看相关题目",
+  Add_to_Learning_Path: "添加到学习路径"
 };

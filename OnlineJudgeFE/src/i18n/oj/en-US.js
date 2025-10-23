@@ -438,5 +438,16 @@ export const m = {
   Problem: "Problem",
   Refresh: "Refresh",
   Failed_to_get_analytics_data: "Failed to get analytics data",
-  Knowledge_Graph: "Knowledge Graph"
+  Knowledge_Graph: "Knowledge Graph",
+  Knowledge_Point_Detail: "Knowledge Point Detail",
+  Basic_Information: "Basic Information",
+  Difficulty_Level: "Difficulty Level",
+  Recommended_Weight: "Recommended Weight",
+  Related_Problems_Count: "Related Problems Count",
+  Knowledge_Point_ID: "Knowledge Point ID",
+  Description: "Description",
+  Prerequisite_Knowledge: "Prerequisite Knowledge",
+  Subsequent_Knowledge: "Subsequent Knowledge",
+  View_Related_Problems: "View Related Problems",
+  Add_to_Learning_Path: "Add to Learning Path"
 };
