@@ -422,5 +422,20 @@ export const m = {
   Enter_your_current_password: "Enter your current password",
   Confirm_your_new_password: "Confirm your new password",
   No_Upcoming_Contests: "No Upcoming Contests",
-  Upcoming_Contests: "Upcoming Contests"
+  Upcoming_Contests: "Upcoming Contests",
+  Contest_Analytics: "Contest Analytics",
+  Participants: "Participants",
+  Total_Submissions: "Total Submissions",
+  Accepted_Submissions: "Accepted Submissions",
+  Acceptance_Rate: "Acceptance Rate",
+  Submission_Trend: "Submission Trend",
+  Score_Distribution: "Score Distribution",
+  Top_Users: "Top Users",
+  User: "User",
+  Total_Score: "Total Score",
+  Total_Time: "Total Time",
+  Problem_Statistics: "Problem Statistics",
+  Problem: "Problem",
+  Refresh: "Refresh",
+  Failed_to_get_analytics_data: "Failed to get analytics data"
 };

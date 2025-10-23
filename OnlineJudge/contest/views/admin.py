@@ -199,6 +199,10 @@ class ContestAnalyticsAPI(APIView):
             ensure_created_by(contest, request.user)
         except Contest.DoesNotExist:
             return self.error("Contest does not exist")
+        if contest.rule_type == "ACM":
+            participants_count = ACMContestRank.objects.filter(contest=contest).count()
+        else:  # OI
+            participants_count = OIContestRank.objects.filter(contest=contest).count()
         
         # 获取竞赛基本信息
         contest_info = {
@@ -208,7 +212,7 @@ class ContestAnalyticsAPI(APIView):
             "end_time": contest.end_time,
             "status": contest.status,
             "rule_type": contest.rule_type,
-            "participants_count": contest.contestparticipant_set.count()
+            "participants_count": participants_count
         }
         
         # 获取提交统计数据

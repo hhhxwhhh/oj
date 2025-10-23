@@ -331,6 +331,13 @@ export default {
         id
       }
     });
+  },
+  getContestAnalytics(contestId) {
+    return ajax("admin/contest/analytics", "get", {
+      params: {
+        contest_id: contestId
+      }
+    });
   }
 };
 

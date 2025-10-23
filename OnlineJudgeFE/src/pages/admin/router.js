@@ -18,6 +18,7 @@ import {
   AIModel
 } from "./views";
 Vue.use(VueRouter);
+import ContestAnalytics from "./views/contest/ContestAnalytics.vue";
 const GenerateTags = () => import("./views/problem/GenerateTags.vue");
 export default new VueRouter({
   mode: "history",
@@ -122,6 +123,11 @@ export default new VueRouter({
           path: "/contest/:contestId/problem/:problemId/edit",
           name: "edit-contest-problem",
           component: Problem
+        },
+        {
+          path: "/contest/analytics",
+          name: "contest-analytics",
+          component: ContestAnalytics
         },
         {
           path: "admin/generate-tags",
