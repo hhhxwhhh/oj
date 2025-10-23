@@ -1463,13 +1463,13 @@ class KnowledgePointService:
     @staticmethod
     def get_knowledge_recommendations(user_id, count=5):
         """
-        考虑用户反馈和行为数据优化推荐
+        考虑用户反馈和行为数据优化推荐 引入权重
         """
         try:
             # 获取用户知识点状态，按掌握程度排序（掌握程度低的排在前面）
             user_states = AIUserKnowledgeState.objects.filter(
                 user_id=user_id
-            ).select_related('knowledge_point').order_by('proficiency_level')[:count*2]  # 多取一些用于筛选
+            ).select_related('knowledge_point').order_by('proficiency_level')[:count*2]  
             
             # 获取用户对推荐的反馈数据
             feedback_weights = KnowledgePointService._get_user_feedback_weights(user_id)
@@ -1479,16 +1479,17 @@ class KnowledgePointService:
                 # 计算推荐分数（考虑掌握程度和最近更新时间）
                 proficiency = state.proficiency_level
                 days_since_update = (timezone.now() - state.last_updated).days if state.last_updated else 0
-                
-                # 基础分数：掌握程度越低，推荐优先级越高
-                # 长时间未练习的知识点，推荐优先级也应提高
+
                 base_score = (1 - proficiency) + min(days_since_update / 30.0, 1.0) * 0.3
                 
                 # 获取该知识点的反馈权重
                 feedback_weight = feedback_weights.get(state.knowledge_point.name, 1.0)
                 
-                # 综合分数 = 基础分数 * 反馈权重
-                final_score = base_score * feedback_weight
+                # 获取知识点的推荐权重
+                knowledge_point_weight = state.knowledge_point.weight
+                
+                # 综合分数 = 基础分数 * 反馈权重 * 知识点权重
+                final_score = base_score * feedback_weight * knowledge_point_weight
                 
                 recommendations.append({
                     'knowledge_point': state.knowledge_point.name,
@@ -1496,6 +1497,7 @@ class KnowledgePointService:
                     'score': final_score,
                     'base_score': base_score,
                     'feedback_weight': feedback_weight,
+                    'knowledge_point_weight': knowledge_point_weight,
                     'correct_attempts': state.correct_attempts,
                     'total_attempts': state.total_attempts,
                     'recommended_problems': KnowledgePointService._get_problems_for_knowledge_point(
@@ -1509,6 +1511,7 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return []
+
     @staticmethod
     def _get_user_feedback_weights(user_id):
         """
@@ -1713,17 +1716,44 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"Failed to process recommendation feedback: {str(e)}")
             raise
-
     @staticmethod
     def _update_knowledge_point_weights(user_id, problem, weight_factor):
         """
         根据反馈更新知识点权重
+        使用指数移动平均方法更新权重，使推荐系统能够适应用户偏好变化
         """
         try:
-            #后续考虑使用adam 优化 sgd等等
-            for kp in problem.knowledgepoint_set.all():
-                kp.weight *= weight_factor
-                kp.save()
+            # 获取与题目关联的所有知识点
+            knowledge_points = problem.knowledgepoint_set.all()
+            for kp in knowledge_points:
+                # 获取用户对该知识点的掌握状态
+                try:
+                    user_knowledge_state = AIUserKnowledgeState.objects.get(
+                        user_id=user_id,
+                        knowledge_point=kp
+                    )
+                    # 基于用户掌握程度调整权重更新因子
+                    # 用户掌握程度越高，权重调整幅度应该越小
+                    proficiency_factor = 1.0 - user_knowledge_state.proficiency_level
+                    
+                    # 计算调整后的权重因子
+                    adjusted_weight_factor = 1.0 + (weight_factor - 1.0) * proficiency_factor
+                    alpha = 0.3  # 学习率
+                    new_weight = kp.weight * (1 - alpha) + adjusted_weight_factor * alpha
+                    
+                    # 确保权重在合理范围内
+                    kp.weight = max(0.1, min(10.0, new_weight))
+                    kp.save()
+                    
+                    logger.info(f"Updated knowledge point '{kp.name}' weight from {kp.weight/adjusted_weight_factor:.4f} to {kp.weight:.4f} for user {user_id}")
+                except AIUserKnowledgeState.DoesNotExist:
+                    alpha = 0.3
+                    new_weight = kp.weight * (1 - alpha) + weight_factor * alpha
+                    kp.weight = max(0.1, min(10.0, new_weight))
+                    kp.save()
+                    
+                    logger.info(f"Updated knowledge point '{kp.name}' weight from {kp.weight/weight_factor:.4f} to {kp.weight:.4f} for user {user_id}")
+                    
         except Exception as e:
             logger.error(f"Failed to update knowledge point weights: {str(e)}")
 

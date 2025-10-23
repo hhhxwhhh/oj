@@ -129,6 +129,8 @@ class KnowledgePoint(models.Model):
     parent_points = models.ManyToManyField('self', symmetrical=False, blank=True, help_text="前置知识点")
     related_problems = models.ManyToManyField('problem.Problem', blank=True, help_text="相关题目")
     create_time = models.DateTimeField(auto_now_add=True)
+    # 推荐权重字段，默认为1.0
+    weight = models.FloatField(default=1.0, help_text="推荐权重")
     
     class Meta:
         db_table = 'ai_knowledge_point'
@@ -137,6 +139,7 @@ class KnowledgePoint(models.Model):
 
     def __str__(self):
         return self.name
+
 
 
 class AIUserKnowledgeState(models.Model):
