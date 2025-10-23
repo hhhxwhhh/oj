@@ -773,4 +773,60 @@ class AIRealTimeDiagnosisAPI(APIView):
         except Exception as e:
             logger.error(f"Real-time diagnosis failed: {str(e)}")
             return self.error("Failed to diagnose code in real-time")
+        
+class KnowledgePointGraphAPI(APIView):
+    @login_required
+    def get(self, request):
+        """
+        获取知识点图谱数据
+        """
+        try:
+            # 获取所有知识点
+            knowledge_points = KnowledgePoint.objects.all()
+            
+            # 构建节点数据
+            nodes = []
+            # 构建边数据
+            edges = []
+            
+            # 节点ID映射，用于构建边
+            node_id_map = {}
+            
+            # 构建节点数据
+            for i, kp in enumerate(knowledge_points):
+                node_id_map[kp.id] = i
+                nodes.append({
+                    'id': i,
+                    'name': kp.name,
+                    'category': kp.category,
+                    'difficulty': kp.difficulty,
+                    'description': kp.description,
+                    'size': 20 + kp.related_problems.count() * 2,  
+                    'symbolSize': 20 + kp.related_problems.count() * 2,
+                    'value': kp.weight  # 使用权重作为节点值
+                })
+            
+            # 构建边数据（前置知识点关系）
+            for kp in knowledge_points:
+                source_id = node_id_map[kp.id]
+                for parent_point in kp.parent_points.all():
+                    if parent_point.id in node_id_map:
+                        target_id = node_id_map[parent_point.id]
+                        edges.append({
+                            'source': source_id,
+                            'target': target_id,
+                            'relation': '依赖',
+                            'lineStyle': {
+                                'width': 2,
+                                'type': 'solid'
+                            }
+                        })
+            
+            return self.success({
+                'nodes': nodes,
+                'edges': edges
+            })
+        except Exception as e:
+            logger.error(f"Failed to get knowledge point graph data: {str(e)}")
+            return self.error("Failed to get knowledge point graph data")
 
