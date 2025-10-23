@@ -137,7 +137,6 @@ export default {
   }
 }
 </script>
-
 <style lang="less" scoped>
 #header {
   min-width: 300px;
@@ -155,31 +154,52 @@ export default {
     height: 60px;
     display: flex;
     align-items: center;
+    padding: 0 1%;
+
+    // 控制菜单项间距和样式
+    /deep/ .ivu-menu-item,
+    /deep/ .ivu-menu-submenu-title {
+      margin: 0 5px;
+      height: 60px;
+      line-height: 60px;
+      padding: 0 12px !important; // 固定内边距
+      white-space: nowrap; // 防止文字换行
+      font-size: 14px;
+
+      // 确保图标和文字在同一行
+      display: flex;
+      align-items: center;
+
+      .ivu-icon {
+        margin-right: 5px;
+      }
+    }
   }
 
   .logo {
-    margin-left: 2%;
-    margin-right: 2%;
-    font-size: 20px;
+    margin-right: 15px;
+    font-size: 18px;
+    font-weight: 600;
     line-height: 60px;
+    white-space: nowrap;
   }
 
   .drop-menu {
-    float: right;
-    margin-right: 30px;
-    position: absolute;
-    right: 10px;
+    margin-left: auto;
+    margin-right: 10px;
+    position: relative;
+    right: 0;
 
     &-title {
-      font-size: 16px;
+      font-size: 14px;
       display: flex;
       align-items: center;
       height: 60px;
       padding: 0 10px;
 
       .navbar-avatar {
-        width: 42px;
-        height: 42px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         margin-right: 10px;
         object-fit: cover;
@@ -191,6 +211,10 @@ export default {
       .username {
         margin-right: 5px;
         font-weight: 500;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       &:hover {
@@ -203,10 +227,16 @@ export default {
   }
 
   .btn-menu {
-    font-size: 16px;
-    float: right;
+    margin-left: auto;
     margin-right: 10px;
-    line-height: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+
+    .ivu-btn {
+      margin-left: 10px;
+      white-space: nowrap;
+    }
   }
 }
 
@@ -214,6 +244,49 @@ export default {
   &-title {
     font-size: 18px;
     font-weight: 600;
+  }
+}
+
+// 响应式优化 - 在小屏幕上进一步优化
+@media (max-width: 1200px) {
+  .oj-menu {
+
+    /deep/ .ivu-menu-item,
+    /deep/ .ivu-menu-submenu-title {
+      padding: 0 10px !important;
+      font-size: 13px;
+
+      .ivu-icon {
+        margin-right: 3px;
+      }
+    }
+
+    .logo {
+      font-size: 16px;
+      margin-right: 10px;
+    }
+  }
+}
+
+@media (max-width: 992px) {
+  .oj-menu {
+
+    /deep/ .ivu-menu-item,
+    /deep/ .ivu-menu-submenu-title {
+      padding: 0 8px !important;
+      font-size: 12px;
+    }
+
+    .logo {
+      font-size: 14px;
+      margin-right: 5px;
+    }
+
+    .drop-menu-title {
+      .username {
+        max-width: 80px;
+      }
+    }
   }
 }
 </style>
