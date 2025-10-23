@@ -1,102 +1,147 @@
 <template>
   <div class="container">
-    <div class="avatar-container">
-      <img class="avatar" :src="profile.avatar" />
-    </div>
-    <Card :padding="100">
-      <div v-if="profile.user">
-        <p style="margin-top: -10px">
-          <span v-if="profile.user" class="emphasis">{{ profile.user.username }}</span>
-          <span v-if="profile.school">@{{ profile.school }}</span>
-        </p>
-        <p v-if="profile.mood">
-          {{ profile.mood }}
-        </p>
-        <hr id="split" />
-
-        <div class="flex-container">
-          <div class="left">
-            <p>{{ $t('m.UserHomeSolved') }}</p>
-            <p class="emphasis">{{ profile.accepted_number }}</p>
-          </div>
-          <div class="middle">
-            <p>{{ $t('m.UserHomeserSubmissions') }}</p>
-            <p class="emphasis">{{ profile.submission_number }}</p>
-          </div>
-          <div class="right">
-            <p>{{ $t('m.UserHomeScore') }}</p>
-            <p class="emphasis">{{ profile.total_score }}</p>
-          </div>
+    <Card :padding="0">
+      <div class="user-header">
+        <div class="avatar-wrapper">
+          <img class="avatar" :src="profile.avatar" />
         </div>
+        <div class="user-info">
+          <h2>{{ profile.user.username }}</h2>
+          <p v-if="profile.school" class="school">@{{ profile.school }}</p>
+          <p v-if="profile.mood" class="mood">{{ profile.mood }}</p>
+        </div>
+      </div>
+    </Card>
 
+    <Card :padding="20" class="stats-card">
+      <div class="flex-container">
+        <div class="stat-item">
+          <p class="stat-label">{{ $t('m.UserHomeSolved') }}</p>
+          <p class="stat-value">{{ profile.accepted_number }}</p>
+        </div>
+        <div class="stat-item">
+          <p class="stat-label">{{ $t('m.UserHomeserSubmissions') }}</p>
+          <p class="stat-value">{{ profile.submission_number }}</p>
+        </div>
+        <div class="stat-item">
+          <p class="stat-label">{{ $t('m.UserHomeScore') }}</p>
+          <p class="stat-value">{{ profile.total_score }}</p>
+        </div>
+      </div>
+    </Card>
+
+    <div class="content-grid">
+      <Card :padding="20" class="section-card">
         <div id="learning-paths" v-if="learningPaths.length > 0">
-          <div class="section-title">{{ $t('m.My_Learning_Path') }}</div>
-          <div class="btns">
-            <div class="problem-btn" v-for="path of learningPaths" :key="path.id">
-              <Button type="primary" @click="goLearningPath(path.id)">{{ path.title }}</Button>
-              <div class="problem-info">
-                <span class="problem-title">{{ path.description }}</span>
-                <span class="problem-reason">{{ path.estimated_duration }} {{ $t('m.Hours') }}</span>
+          <div class="section-header">
+            <Icon type="ios-book" size="20" class="section-icon"></Icon>
+            <h3 class="section-title">{{ $t('m.My_Learning_Path') }}</h3>
+          </div>
+
+          <div class="learning-paths-container">
+            <div class="learning-path-card" v-for="path of learningPaths" :key="path.id">
+              <div class="path-header">
+                <h4 class="path-title">{{ path.title }}</h4>
+              </div>
+              <div class="path-content">
+                <p class="path-description">{{ path.description }}</p>
+                <div class="path-meta">
+                  <span class="path-duration">
+                    <Icon type="ios-time-outline" size="14"></Icon>
+                    {{ path.estimated_duration }} {{ $t('m.Hours') }}
+                  </span>
+                </div>
+              </div>
+              <div class="path-footer">
+                <Button type="primary" size="small" @click="goLearningPath(path.id)" long>
+                  {{ $t('m.Continue_Learning') }}
+                </Button>
               </div>
             </div>
           </div>
-          <div style="text-align: right; margin-top: 10px;">
-            <Button type="ghost" size="small" @click="goToLearningPathAll">{{ $t('m.View_All') }}</Button>
+
+          <div class="section-footer">
+            <Button type="ghost" @click="goToLearningPathAll" long>
+              {{ $t('m.View_All_Learning_Paths') }}
+              <Icon type="ios-arrow-forward" size="14"></Icon>
+            </Button>
           </div>
         </div>
+      </Card>
 
-        <!-- 添加推荐题目模块 -->
-        <div id="recommended-problems" v-if="recommendedProblems.length > 0">
-          <div class="section-title">{{ $t('m.Recommended_For_You') }}</div>
-          <div class="btns">
-            <div class="problem-btn" v-for="problem of recommendedProblems" :key="problem.problem_id">
-              <Button type="primary" @click="goProblem(problem.problem_display_id)">{{ problem.problem_display_id
-                }}</Button>
+      <Card :padding="20" class="section-card" v-if="recommendedProblems.length > 0">
+        <div id="recommended-problems">
+          <div class="section-header">
+            <Icon type="ios-star" size="20" class="section-icon"></Icon>
+            <h3 class="section-title">{{ $t('m.Recommended_For_You') }}</h3>
+          </div>
+
+          <div class="problems-container">
+            <div class="problem-item" v-for="problem of recommendedProblems" :key="problem.problem_id">
+              <Button type="primary" size="small" @click="goProblem(problem.problem_display_id)">
+                {{ problem.problem_display_id }}
+              </Button>
               <div class="problem-info">
-                <span class="problem-title">{{ problem.title }}</span>
-                <span class="problem-reason">{{ problem.reason }}</span>
+                <h4 class="problem-title">{{ problem.title }}</h4>
+                <p class="problem-reason">{{ problem.reason }}</p>
               </div>
             </div>
           </div>
         </div>
+      </Card>
 
+      <Card :padding="20" class="section-card">
         <div id="problems">
-          <div v-if="problems.length">{{ $t('m.List_Solved_Problems') }}
-            <Poptip v-if="refreshVisible" trigger="hover" placement="right-start">
-              <Icon type="ios-help-outline"></Icon>
-              <div slot="content">
-                <p>If you find the following problem id does not exist,<br> try to click the button.</p>
-                <Button type="info" @click="freshProblemDisplayID">regenerate</Button>
-              </div>
-            </Poptip>
+          <div class="section-header">
+            <Icon type="ios-list-box" size="20" class="section-icon"></Icon>
+            <h3 class="section-title">
+              {{ $t('m.List_Solved_Problems') }}
+              <Poptip v-if="refreshVisible" trigger="hover" placement="right-start">
+                <Icon type="ios-help-circle-outline" size="16" class="help-icon"></Icon>
+                <div slot="content">
+                  <p>{{ $t('m.If_problem_id_does_not_exist') }}</p>
+                  <Button type="info" size="small" @click="freshProblemDisplayID">
+                    {{ $t('m.Regenerate') }}
+                  </Button>
+                </div>
+              </Poptip>
+            </h3>
           </div>
-          <p v-else>{{ $t('m.UserHomeIntro') }}</p>
-          <div class="btns">
-            <div class="problem-btn" v-for="problemID of problems" :key="problemID">
-              <Button type="ghost" @click="goProblem(problemID)">{{ problemID }}</Button>
+
+          <div class="problems-container">
+            <div class="problem-item" v-for="problemID of problems" :key="problemID">
+              <Button type="ghost" size="small" @click="goProblem(problemID)">
+                {{ problemID }}
+              </Button>
             </div>
+            <p v-if="!problems.length" class="no-problems">
+              {{ $t('m.UserHomeIntro') }}
+            </p>
           </div>
         </div>
-        <div id="icons">
-          <a :href="profile.github">
-            <Icon type="social-github-outline" size="30"></Icon>
-          </a>
-          <a :href="'mailto:' + profile.user.email">
-            <Icon class="icon" type="ios-email-outline" size="30"></Icon>
-          </a>
-          <a :href="profile.blog">
-            <Icon class="icon" type="ios-world-outline" size="30"></Icon>
-          </a>
-        </div>
+      </Card>
+    </div>
+
+    <Card :padding="20" class="social-card">
+      <div id="icons">
+        <a :href="profile.github" v-if="profile.github">
+          <Icon type="logo-github" size="24"></Icon>
+        </a>
+        <a :href="'mailto:' + profile.user.email" v-if="profile.user.email">
+          <Icon type="ios-mail" size="24"></Icon>
+        </a>
+        <a :href="profile.blog" v-if="profile.blog">
+          <Icon type="ios-link" size="24"></Icon>
+        </a>
       </div>
     </Card>
   </div>
 </template>
+
 <script>
 import { mapActions } from 'vuex'
 import time from '@/utils/time'
 import api from '@oj/api'
-import LearningPath from '../ai/LearningPath.vue';
 
 export default {
   data() {
@@ -104,7 +149,7 @@ export default {
       username: '',
       profile: {},
       problems: [],
-      recommendedProblems: [],// 添加推荐题目数据
+      recommendedProblems: [],
       learningPaths: []
     }
   },
@@ -119,7 +164,7 @@ export default {
         this.changeDomTitle({ title: res.data.data.user.username })
         this.profile = res.data.data
         this.getSolvedProblems()
-        this.getRecommendedProblems() // 获取推荐题目
+        this.getRecommendedProblems()
         this.getLearningPaths()
         let registerTime = time.utcToLocal(this.profile.user.create_time, 'YYYY-MM-D')
         console.log('The guy registered at ' + registerTime + '.')
@@ -128,7 +173,6 @@ export default {
     getSolvedProblems() {
       let ACMProblems = this.profile.acm_problems_status.problems || {}
       let OIProblems = this.profile.oi_problems_status.problems || {}
-      // todo oi problems
       let ACProblems = []
       for (let problems of [ACMProblems, OIProblems]) {
         Object.keys(problems).forEach(problemID => {
@@ -147,7 +191,6 @@ export default {
         console.error('Failed to load learning paths:', err)
       })
     },
-    // 添加获取推荐题目的方法
     getRecommendedProblems() {
       api.getRecommendedProblems(5).then(res => {
         this.recommendedProblems = res.data.data || []
@@ -191,130 +234,275 @@ export default {
 <style lang="less" scoped>
 .container {
   position: relative;
-  width: 75%;
-  margin: 170px auto;
-  text-align: center;
+  width: 80%;
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 20px 0;
 
-  p {
-    margin-top: 8px;
-    margin-bottom: 8px;
-  }
+  .user-header {
+    display: flex;
+    padding: 30px;
+    background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+    border-radius: 4px 4px 0 0;
 
-  .avatar-container {
-    position: absolute;
-    left: 50%;
-    transform: translate(-50%);
-    z-index: 1;
-    top: -90px;
-
-    .avatar {
-      width: 140px;
-      height: 140px;
+    .avatar-wrapper {
+      width: 100px;
+      height: 100px;
       border-radius: 50%;
-      box-shadow: 0 1px 1px 0;
+      overflow: hidden;
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      margin-right: 20px;
+      flex-shrink: 0;
+
+      .avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      color: #fff;
+
+      h2 {
+        margin: 0 0 5px 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .school {
+        margin: 5px 0;
+        font-size: 16px;
+        opacity: 0.9;
+      }
+
+      .mood {
+        margin: 5px 0;
+        font-size: 14px;
+        opacity: 0.8;
+      }
     }
   }
 
-  .emphasis {
-    font-size: 20px;
-    font-weight: 600;
-  }
+  .stats-card {
+    margin: 20px 0;
 
-  #split {
-    margin: 20px auto;
-    width: 90%;
-  }
+    .flex-container {
+      display: flex;
+      text-align: center;
 
-  .flex-container {
-    margin-top: 30px;
-    padding: auto 20px;
+      .stat-item {
+        flex: 1;
+        padding: 15px;
 
-    .left {
-      flex: 1 1;
+        .stat-label {
+          margin: 0;
+          font-size: 14px;
+          color: #808695;
+        }
+
+        .stat-value {
+          margin: 5px 0 0;
+          font-size: 24px;
+          font-weight: 600;
+          color: #2d8cf0;
+        }
+      }
+
+      .stat-item:not(:last-child) {
+        border-right: 1px solid #e8eaec;
+      }
     }
-
-    .middle {
-      flex: 1 1;
-      border-left: 1px solid #999;
-      border-right: 1px solid #999;
-    }
-
-    .right {
-      flex: 1 1;
-    }
   }
 
-  .section-title {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 15px;
-    color: #2d8cf0;
+  .content-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
   }
 
-  #recommended-problems {
-    margin-top: 30px;
-    padding: 15px;
-    background-color: #f8f8f9;
-    border-radius: 4px;
+  .section-card {
+    .section-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e8eaec;
 
-    .btns {
-      .problem-btn {
+      .section-icon {
+        color: #2d8cf0;
+        margin-right: 10px;
+      }
+
+      .section-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #495060;
         display: flex;
         align-items: center;
-        margin: 10px 0;
-        padding: 10px;
-        background: white;
+
+        .help-icon {
+          margin-left: 8px;
+          color: #c5c8ce;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .section-footer {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #f5f7f9;
+    }
+
+    .learning-paths-container {
+      display: grid;
+      gap: 15px;
+
+      .learning-path-card {
+        border: 1px solid #e8eaec;
         border-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+        transition: all 0.3s ease;
+        background: #fff;
+
+        &:hover {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          border-color: #5cadff;
+        }
+
+        .path-header {
+          margin-bottom: 10px;
+
+          .path-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #495060;
+          }
+        }
+
+        .path-content {
+          .path-description {
+            color: #657180;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+          }
+
+          .path-meta {
+            .path-duration {
+              display: flex;
+              align-items: center;
+              font-size: 13px;
+              color: #808695;
+
+              i {
+                margin-right: 5px;
+              }
+            }
+          }
+        }
+
+        .path-footer {
+          margin-top: 10px;
+        }
+      }
+    }
+
+    .problems-container {
+      display: grid;
+      gap: 10px;
+
+      .problem-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 0;
 
         .ivu-btn {
           margin-right: 15px;
+          flex-shrink: 0;
         }
 
         .problem-info {
-          text-align: left;
           flex: 1;
 
           .problem-title {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
+            margin: 0 0 3px 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: #495060;
           }
 
           .problem-reason {
-            display: block;
+            margin: 0;
             font-size: 12px;
             color: #808695;
           }
         }
       }
-    }
-  }
 
-  #problems {
-    margin-top: 40px;
-    padding-left: 30px;
-    padding-right: 30px;
-    font-size: 18px;
-
-    .btns {
-      margin-top: 15px;
-
-      .problem-btn {
-        display: inline-block;
-        margin: 5px;
+      .no-problems {
+        text-align: center;
+        color: #808695;
+        font-style: italic;
+        margin: 20px 0;
       }
     }
   }
 
-  #icons {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translate(-50%);
+  .social-card {
+    text-align: center;
 
-    .icon {
-      padding-left: 20px;
+    #icons {
+      a {
+        display: inline-block;
+        margin: 0 15px;
+        color: #808695;
+        transition: all 0.3s ease;
+
+        &:hover {
+          color: #2d8cf0;
+          transform: scale(1.1);
+        }
+
+        i {
+          vertical-align: middle;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    width: 95%;
+    padding: 10px 0;
+
+    .user-header {
+      flex-direction: column;
+      text-align: center;
+
+      .avatar-wrapper {
+        margin: 0 auto 15px;
+      }
+    }
+
+    .content-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .stats-card .flex-container {
+      flex-direction: column;
+
+      .stat-item:not(:last-child) {
+        border-right: none;
+        border-bottom: 1px solid #e8eaec;
+      }
     }
   }
 }
