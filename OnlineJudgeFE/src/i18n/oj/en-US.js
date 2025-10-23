@@ -437,5 +437,6 @@ export const m = {
   Problem_Statistics: "Problem Statistics",
   Problem: "Problem",
   Refresh: "Refresh",
-  Failed_to_get_analytics_data: "Failed to get analytics data"
+  Failed_to_get_analytics_data: "Failed to get analytics data",
+  Knowledge_Graph: "Knowledge Graph"
 };

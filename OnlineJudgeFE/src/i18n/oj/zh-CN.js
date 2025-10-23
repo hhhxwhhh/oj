@@ -1,3 +1,5 @@
+import KnowledgeGraph from "../../pages/oj/views/ai/KnowledgeGraph.vue";
+
 export const m = {
   // SideMenu.vue
   Dashboard: "仪表盘",
@@ -206,5 +208,6 @@ export const m = {
   No_suggestions_available: "暂无建议",
   Refresh_Suggestions: "刷新建议",
   Auto_Complete: "自动补全",
-  No_completions_available: "暂无补全建议"
+  No_completions_available: "暂无补全建议",
+  Knowledge_Graph: "知识图谱"
 };

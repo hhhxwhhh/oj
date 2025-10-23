@@ -385,6 +385,9 @@ export default {
       data
     });
   },
+  getKnowledgePointGraph() {
+    return ajax("ai/knowledge_point/graph", "get");
+  },
 
   updateLearningPathNode(nodeId, data) {
     return ajax(`ai/learning_path/node/${nodeId}`, "put", {
