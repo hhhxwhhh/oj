@@ -1,42 +1,101 @@
 import random
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from account.models import User, UserProfile
-from contest.models import Contest, ACMContestRank, OIContestRank
+from django.utils import timezone
+from datetime import timedelta
+from account.models import User, UserProfile, AdminType
+from contest.models import Contest,ACMContestRank,OIContestRank
 from problem.models import Problem
-from submission.models import Submission
-from utils.constants import JudgeStatus
+from submission.models import Submission, JudgeStatus
 
 UserModel = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Generate test data for contest analytics'
+    help = 'Create a complete test contest with problems and generate test data for analytics'
 
     def add_arguments(self, parser):
-        parser.add_argument('--contest-id', type=int, required=True, help='Contest ID to generate data for')
+        parser.add_argument('--title', type=str, default='Test Contest for Analytics', help='Contest title')
+        parser.add_argument('--rule-type', type=str, choices=['ACM', 'OI'], default='ACM', help='Contest rule type')
+        parser.add_argument('--problems', type=int, default=5, help='Number of problems to create (default: 5)')
         parser.add_argument('--users', type=int, default=100, help='Number of users to generate (default: 100)')
-        parser.add_argument('--clear', action='store_true', help='Clear existing data before generating')
 
     def handle(self, *args, **options):
-        contest_id = options['contest_id']
-        num_users = options['users']
-        clear_existing = options['clear']
+        # 获取管理员用户
+        try:
+            # 修复：使用正确的字段admin_type来查询超级管理员
+            admin_user = User.objects.filter(admin_type=AdminType.SUPER_ADMIN).first()
+            if not admin_user:
+                self.stdout.write(self.style.ERROR('No admin user found. Please create an admin user first.'))
+                return
+        except User.DoesNotExist:
+            self.stdout.write(self.style.ERROR('No admin user found. Please create an admin user first.'))
+            return
 
+        # 创建竞赛
+        start_time = timezone.now() - timedelta(hours=2)  # 开始2小时前
+        end_time = timezone.now() + timedelta(hours=22)   # 还有22小时结束
+
+        contest = Contest.objects.create(
+            title=options['title'],
+            description='This is a test contest created for analytics development and testing.',
+            start_time=start_time,
+            end_time=end_time,
+            rule_type=options['rule_type'],
+            created_by=admin_user,
+            visible=True,
+            real_time_rank=True
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'Successfully created contest "{contest.title}" with ID {contest.id}'
+            )
+        )
+
+        # 创建题目
+        self.stdout.write(f'Creating {options["problems"]} problems...')
+        for i in range(options['problems']):
+            problem = Problem.objects.create(
+                _id=f'TEST{i+1:02d}',
+                contest=contest,
+                is_public=True,
+                title=f'Test Problem {i+1}',
+                description=f'This is the description for test problem {i+1}.',
+                input_description='Sample input description',
+                output_description='Sample output description',
+                samples=[{"input": "1 2", "output": "3"}],
+                test_case_id="test_case_id",
+                test_case_score=[],
+                hint="This is a hint",
+                languages=["C", "C++", "Java", "Python2"],
+                template={},
+                created_by=admin_user,
+                time_limit=1000,
+                memory_limit=256,
+                spj=False,
+                rule_type=options['rule_type'],
+                visible=True,
+                difficulty="Low",
+                source="Test Source",
+                total_score=100,
+                submission_number=0,
+                accepted_number=0,
+                statistic_info={},
+                share_submission=False
+            )
+            self.stdout.write(f'  Created problem: {problem.title} (ID: {problem.id})')
+
+        # 生成用户和提交数据
+        self.stdout.write(f'Generating {options["users"]} users and test data...')
+        self.generate_test_data(contest.id, options['users'])
+
+    def generate_test_data(self, contest_id, num_users):
         try:
             contest = Contest.objects.get(id=contest_id)
         except Contest.DoesNotExist:
             self.stdout.write(self.style.ERROR(f'Contest with ID {contest_id} does not exist'))
             return
-
-        # 如果指定了clear选项，则删除已有的参赛数据
-        if clear_existing:
-            self.stdout.write('Clearing existing contest data...')
-            if contest.rule_type == 'ACM':
-                ACMContestRank.objects.filter(contest=contest).delete()
-            else:
-                OIContestRank.objects.filter(contest=contest).delete()
-            Submission.objects.filter(contest=contest).delete()
 
         # 获取竞赛中的题目
         problems = list(contest.problem_set.all())
@@ -67,6 +126,13 @@ class Command(BaseCommand):
         # 为用户生成排名数据和提交记录
         self.stdout.write(f'Generating contest data for {len(users)} users...')
         
+        # 预先计算时间点，确保提交时间按小时分布
+        contest_duration_hours = int((contest.end_time - contest.start_time).total_seconds() / 3600)
+        time_points = []
+        for hour in range(contest_duration_hours + 1):
+            time_point = contest.start_time + timedelta(hours=hour)
+            time_points.append(time_point)
+        
         for i, user in enumerate(users):
             # 模拟不同的用户表现
             # 前10%是高手，中间60%是普通用户，后30%是新手
@@ -96,18 +162,24 @@ class Command(BaseCommand):
                 attempts = random.randint(1, 3)
                 for attempt in range(attempts):
                     is_accepted = (attempt == attempts - 1)  # 最后一次提交是AC
+                    # 按小时分布提交时间，而不是完全随机
+                    hour_offset = random.randint(0, contest_duration_hours)
+                    create_time = contest.start_time + timedelta(hours=hour_offset, 
+                                                                minutes=random.randint(0, 59),
+                                                                seconds=random.randint(0, 59))
+                    
                     submission = Submission.objects.create(
                         problem=problem,
-                        user=user,
+                        user_id=user.id,
                         contest=contest,
                         code=f"// Test code for problem {problem.title}\n// User: {user.username}\n// Attempt: {attempt+1}",
                         result=JudgeStatus.ACCEPTED if is_accepted else random.choice([
                             JudgeStatus.WRONG_ANSWER, 
-                            JudgeStatus.TIME_LIMIT_EXCEEDED, 
+                            JudgeStatus.CPU_TIME_LIMIT_EXCEEDED, 
                             JudgeStatus.MEMORY_LIMIT_EXCEEDED,
                             JudgeStatus.RUNTIME_ERROR
                         ]),
-                        create_time=contest.start_time + (contest.end_time - contest.start_time) * random.random()
+                        create_time=create_time
                     )
                     submissions.append(submission)
             
@@ -117,18 +189,24 @@ class Command(BaseCommand):
                 # 从未解决的题目中随机选择
                 additional_problems = random.choices(unsolved_problems, k=min(remaining_submissions, len(unsolved_problems)))
                 for problem in additional_problems:
+                    # 按小时分布提交时间
+                    hour_offset = random.randint(0, contest_duration_hours)
+                    create_time = contest.start_time + timedelta(hours=hour_offset, 
+                                                                minutes=random.randint(0, 59),
+                                                                seconds=random.randint(0, 59))
+                    
                     submission = Submission.objects.create(
                         problem=problem,
-                        user=user,
+                        user_id=user.id,
                         contest=contest,
                         code=f"// Test code for problem {problem.title}\n// User: {user.username}\n// Not solved",
                         result=random.choice([
                             JudgeStatus.WRONG_ANSWER, 
-                            JudgeStatus.TIME_LIMIT_EXCEEDED, 
+                            JudgeStatus.CPU_TIME_LIMIT_EXCEEDED, 
                             JudgeStatus.MEMORY_LIMIT_EXCEEDED,
                             JudgeStatus.RUNTIME_ERROR
                         ]),
-                        create_time=contest.start_time + (contest.end_time - contest.start_time) * random.random()
+                        create_time=create_time
                     )
                     submissions.append(submission)
             

@@ -21,6 +21,21 @@ class UserManager(models.Manager):
 
     def get_by_natural_key(self, username):
         return self.get(**{f"{self.model.USERNAME_FIELD}__iexact": username})
+    def create_user(self, username, password=None, **extra_fields):
+        if not username:
+            raise ValueError('The Username field must be set')
+        user = self.model(username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    def create_superuser(self, username, password=None, **extra_fields):
+        extra_fields.setdefault('admin_type', AdminType.SUPER_ADMIN)
+        extra_fields.setdefault('problem_permission', ProblemPermission.ALL)
+        
+        if extra_fields.get('admin_type') != AdminType.SUPER_ADMIN:
+            raise ValueError('Superuser must have admin_type=Super Admin.')
+            
+        return self.create_user(username, password, **extra_fields)
 
 
 class User(AbstractBaseUser):

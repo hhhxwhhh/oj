@@ -1,6 +1,7 @@
 import functools
 import json
 import logging
+from datetime import datetime, date
 
 from django.http import HttpResponse, QueryDict
 from django.utils.decorators import method_decorator
@@ -8,6 +9,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 logger = logging.getLogger("")
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, date):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 class APIError(Exception):
@@ -45,7 +55,7 @@ class JSONResponse(object):
 
     @classmethod
     def response(cls, data):
-        resp = HttpResponse(json.dumps(data, indent=4), content_type=cls.content_type)
+        resp = HttpResponse(json.dumps(data, indent=4, cls=CustomJSONEncoder), content_type=cls.content_type)
         resp.data = data
         return resp
 

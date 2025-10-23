@@ -240,12 +240,24 @@ export default {
                 this.scoreDistribution = data.score_distribution
 
                 // 更新时间序列图表
-                this.timeSeriesChartOptions.xAxis.data = this.timeSeriesData.map(item => item.time)
-                this.timeSeriesChartOptions.series[0].data = this.timeSeriesData.map(item => item.count)
+                if (this.timeSeriesData.length > 0) {
+                    this.timeSeriesChartOptions.xAxis.data = this.timeSeriesData.map(item => item.time)
+                    this.timeSeriesChartOptions.series[0].data = this.timeSeriesData.map(item => item.count)
+                } else {
+                    this.timeSeriesChartOptions.title.text = this.$t('m.Submission_Trend') + ' (暂无数据)'
+                    this.timeSeriesChartOptions.xAxis.data = ['暂无数据']
+                    this.timeSeriesChartOptions.series[0].data = [0]
+                }
 
                 // 更新分数分布图表
-                this.scoreDistributionChartOptions.xAxis.data = this.scoreDistribution.map(item => item.range)
-                this.scoreDistributionChartOptions.series[0].data = this.scoreDistribution.map(item => item.count)
+                if (this.scoreDistribution.length > 0) {
+                    this.scoreDistributionChartOptions.xAxis.data = this.scoreDistribution.map(item => item.range)
+                    this.scoreDistributionChartOptions.series[0].data = this.scoreDistribution.map(item => item.count)
+                } else {
+                    this.scoreDistributionChartOptions.title.text = this.$t('m.Score_Distribution') + ' (暂无数据)'
+                    this.scoreDistributionChartOptions.xAxis.data = ['暂无数据']
+                    this.scoreDistributionChartOptions.series[0].data = [0]
+                }
             } catch (err) {
                 this.$error(this.$t('m.Failed_to_get_analytics_data'))
             } finally {

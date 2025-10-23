@@ -282,56 +282,112 @@ class ContestAnalyticsAPI(APIView):
         from django.utils import timezone
         time_series_data = []
         if total_submissions > 0:
-            # 获取时间范围
+            # 获取时间范围 - 修复：始终使用竞赛实际时间范围
             start_time = timezone.localtime(contest.start_time)
-            end_time = min(timezone.localtime(contest.end_time), timezone.now())
+            end_time = timezone.localtime(contest.end_time)
             
-            # 按小时统计
-            current_time = start_time.replace(minute=0, second=0, microsecond=0)
-            while current_time <= end_time:
-                next_hour = current_time + datetime.timedelta(hours=1)
-                count = submissions.filter(
-                    create_time__gte=current_time,
-                    create_time__lt=next_hour
-                ).count()
-                
-                time_series_data.append({
-                    "time": current_time.strftime("%Y-%m-%d %H:%M"),
-                    "count": count
-                })
-                
-                current_time = next_hour
+            # 确保至少有一个时间点
+            if start_time < end_time:
+                # 按小时统计
+                current_time = start_time.replace(minute=0, second=0, microsecond=0)
+                while current_time <= end_time:
+                    next_hour = current_time + datetime.timedelta(hours=1)
+                    count = submissions.filter(
+                        create_time__gte=current_time,
+                        create_time__lt=next_hour
+                    ).count()
+                    
+                    time_series_data.append({
+                        "time": current_time.strftime("%m-%d %H:%M"),  
+                        "count": count
+                    })
+                    
+                    current_time = next_hour
+            else:
+                # 如果竞赛时间范围无效，使用提交数据的时间范围
+                first_submission = submissions.order_by('create_time').first()
+                last_submission = submissions.order_by('-create_time').first()
+                if first_submission and last_submission:
+                    start_time = timezone.localtime(first_submission.create_time)
+                    end_time = timezone.localtime(last_submission.create_time)
+                    if start_time < end_time:
+                        current_time = start_time.replace(minute=0, second=0, microsecond=0)
+                        while current_time <= end_time:
+                            next_hour = current_time + datetime.timedelta(hours=1)
+                            count = submissions.filter(
+                                create_time__gte=current_time,
+                                create_time__lt=next_hour
+                            ).count()
+                            
+                            time_series_data.append({
+                                "time": current_time.strftime("%m-%d %H:%M"),
+                                "count": count
+                            })
+                            
+                            current_time = next_hour
         
         # 构建分数分布数据
         score_distribution = []
-        if contest.rule_type == "OI" and ranks.exists():
-            # 对OI竞赛计算分数分布
-            scores = list(ranks.values_list('total_score', flat=True))
-            if scores:
-                min_score = min(scores)
-                max_score = max(scores)
-                range_size = (max_score - min_score) / 10 or 1  # 防止除零
-                
-                for i in range(10):
-                    range_min = min_score + i * range_size
-                    range_max = min_score + (i + 1) * range_size
+        if ranks.exists():
+            if contest.rule_type == "OI":
+                # 对OI竞赛计算分数分布
+                scores = list(ranks.values_list('total_score', flat=True))
+                if scores:
+                    min_score = min(scores)
+                    max_score = max(scores)
                     
-                    count = sum(1 for score in scores if range_min <= score < range_max)
-                    # 最后一个区间包含最大值
-                    if i == 9:
-                        count = sum(1 for score in scores if range_min <= score <= range_max)
+                    if max_score - min_score <= 1:
+                        # 如果分数差异很小，创建固定区间
+                        score_distribution = [
+                            {"range": f"{int(min_score)}分", "count": len(scores)}
+                        ]
+                    else:
+                        range_size = max((max_score - min_score) / 5, 1)  # 最多5个区间
+                        
+                        for i in range(5):
+                            range_min = min_score + i * range_size
+                            range_max = min_score + (i + 1) * range_size
+                            
+                            count = sum(1 for score in scores if range_min <= score < range_max)
+                            if i == 4:
+                                count = sum(1 for score in scores if range_min <= score <= max_score)
+                            
+                            if count > 0:
+                                score_distribution.append({
+                                    "range": f"{int(range_min)}-{int(range_max)}",
+                                    "count": count
+                                })
+            else:  # ACM规则
+                # 对ACM竞赛计算通过题目数量分布
+                accepted_counts = list(ranks.values_list('accepted_number', flat=True))
+                if accepted_counts:
+                    max_count = max(accepted_counts)
+                    min_count = min(accepted_counts)
                     
-                    score_distribution.append({
-                        "range": f"{int(range_min)}-{int(range_max)}",
-                        "count": count
-                    })
-        
+                    
+                    if max_count == min_count:
+                        # 如果所有用户通过题目数相同，创建单点分布
+                        score_distribution = [{
+                            "range": f"{max_count}题", 
+                            "count": len(accepted_counts)
+                        }]
+                    else:
+                        # 创建从min_count到max_count的完整分布
+                        for i in range(min_count, max_count + 1):
+                            count = sum(1 for ac_count in accepted_counts if ac_count == i)
+                            if count > 0:
+                                score_distribution.append({
+                                    "range": f"{i}题",
+                                    "count": count
+                                })
+
+        # 不截断时间序列数据，返回完整数据
         analytics_data = {
             "contest_info": contest_info,
             "submission_stats": submission_stats,
             "rank_data": rank_data[:20],  # 只返回前20名
             "problem_stats": problem_stats,
-            "time_series_data": time_series_data[-24:],  # 只返回最近24小时的数据
+            "time_series_data": time_series_data,  # 返回完整时间序列数据
             "score_distribution": score_distribution
         }
         
