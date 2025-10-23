@@ -26,8 +26,8 @@
         <Icon type="ios-bookmarks" />
         {{ $t('m.Knowledge_Points') }}
       </Menu-item>
-      <Menu-item name="/knowledge-graph"> <!-- 新增 -->
-        <Icon type="md-git-network" />
+      <Menu-item name="/knowledge-graph">
+        <Icon type="social-nodejs" />
         {{ $t('m.Knowledge_Graph') }}
       </Menu-item>
       <Submenu name="rank">
