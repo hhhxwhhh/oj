@@ -3,6 +3,7 @@ import requests
 import json
 import re
 from django.db import transaction
+from django.utils import timezone
 from .models import AIModel, AIMessage,AICodeExplanationCache,AIUserKnowledgeState,AIUserLearningPath,AIUserLearningPathNode
 from .models import KnowledgePoint,AIUserKnowledgeState
 from problem.models import Problem
@@ -16,7 +17,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import hashlib
 from account.models import User
-from time import timezone
 
 logger=logging.getLogger(__name__)
 
@@ -1148,7 +1148,7 @@ class AILearningPathService:
                 # 创建学习路径节点
                 nodes_data = path_data.get("nodes", [])
                 for i, node_data in enumerate(nodes_data):
-                    # 处理content_id可能为空的情况
+                    # 处理content_id可能为空或为字符串的情况
                     content_id = node_data.get("content_id")
                     if content_id is None:
                         # 如果content_id为空，根据节点类型设置默认值
@@ -1159,6 +1159,17 @@ class AILearningPathService:
                         else:
                             # 对于其他类型节点，设置为0
                             content_id = 0
+                    else:
+                        # 确保content_id是整数
+                        try:
+                            content_id = int(content_id)
+                        except (ValueError, TypeError):
+                            # 如果转换失败，使用默认值
+                            node_type = node_data.get("node_type", "")
+                            if node_type == "problem":
+                                content_id = 1
+                            else:
+                                content_id = 0
                     
                     # 处理知识点关联
                     knowledge_point = None
@@ -1184,7 +1195,7 @@ class AILearningPathService:
                         order=i,
                         estimated_time=node_data.get("estimated_time", 30),
                         prerequisites=node_data.get("prerequisites", []),
-                        knowledge_point=knowledge_point  # 新增字段
+                        knowledge_point=knowledge_point  
                     )
                 
                 return learning_path
@@ -1478,6 +1489,7 @@ class KnowledgePointService:
             for state in user_states:
                 # 计算推荐分数（考虑掌握程度和最近更新时间）
                 proficiency = state.proficiency_level
+                from django.utils import timezone
                 days_since_update = (timezone.now() - state.last_updated).days if state.last_updated else 0
 
                 base_score = (1 - proficiency) + min(days_since_update / 30.0, 1.0) * 0.3
