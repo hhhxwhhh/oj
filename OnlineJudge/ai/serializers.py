@@ -1,6 +1,6 @@
 from utils.api import serializers
 from .models import AIModel,AIMessage,AICodeReview,AIConversation,AIFeedback,AIRecommendation,AIRecommendationFeedback,AIUserLearningPathNode
-from .models import AIUserLearningPath,AIUserLearningPathNode,AIUserKnowledgeState
+from .models import AIUserLearningPath,AIUserLearningPathNode,AIUserKnowledgeState,KnowledgePoint
 
 
 class AIModelSerializer(serializers.ModelSerializer):
@@ -126,3 +126,9 @@ class AIUserLearningPathDetailSerializer(serializers.ModelSerializer):
         nodes = AIUserLearningPathNode.objects.filter(learning_path=obj).order_by('order')
         from .serializers import AIUserLearningPathNodeSerializer
         return AIUserLearningPathNodeSerializer(nodes, many=True).data
+    
+
+class KnowledgePointSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KnowledgePoint
+        fields = "__all__"

@@ -67,7 +67,7 @@
                                     <div class="detail-item">
                                         <span class="label">难度等级:</span>
                                         <span class="value">{{ getDifficultyText(selectedNodeDetail.difficulty)
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="label">推荐权重:</span>
@@ -481,7 +481,10 @@ export default {
         // 跳转到相关题目
         goToRelatedProblems() {
             if (this.selectedNodeDetail) {
-                this.$router.push(`/problem?knowledge_point=${this.selectedNodeDetail.id}`)
+                this.$router.push({
+                    name: 'singleknowledge-point-problems',
+                    params: { knowledgePointId: this.selectedNodeDetail.id }
+                })
             }
         },
 

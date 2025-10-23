@@ -388,6 +388,22 @@ export default {
   getKnowledgePointGraph() {
     return ajax("ai/knowledge_point/graph", "get");
   },
+  getKnowledgePoint(knowledgePointId) {
+    return ajax("ai/knowledge_point", "get", {
+      params: {
+        id: knowledgePointId
+      }
+    });
+  },
+  getKnowledgePointProblems(knowledgePointId, offset, limit) {
+    return ajax("ai/knowledge_point/problems", "get", {
+      params: {
+        knowledge_point_id: knowledgePointId,
+        offset: offset,
+        limit: limit
+      }
+    });
+  },
 
   updateLearningPathNode(nodeId, data) {
     return ajax(`ai/learning_path/node/${nodeId}`, "put", {
@@ -435,9 +451,6 @@ function ajax(url, method, options) {
           }
         } else {
           resolve(res);
-          // if (method !== 'get') {
-          //   Vue.prototype.$success('Succeeded')
-          // }
         }
       },
       res => {

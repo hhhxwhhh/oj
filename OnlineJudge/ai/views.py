@@ -830,3 +830,65 @@ class KnowledgePointGraphAPI(APIView):
             logger.error(f"Failed to get knowledge point graph data: {str(e)}")
             return self.error("Failed to get knowledge point graph data")
 
+class SingleKnowledgePointAPI(APIView):
+    @login_required
+    def get(self, request):
+        """
+        获取知识点详情
+        """
+        knowledge_point_id = request.GET.get("id")
+        if not knowledge_point_id:
+            return self.error("参数错误")
+        
+        try:
+            knowledge_point = KnowledgePoint.objects.get(id=knowledge_point_id)
+            from .serializers import KnowledgePointSerializer
+            return self.success(KnowledgePointSerializer(knowledge_point).data)
+        except KnowledgePoint.DoesNotExist:
+            return self.error("知识点不存在")
+        except Exception as e:
+            return self.error(str(e))
+
+
+
+class KnowledgePointProblemsAPI(APIView):
+    @login_required
+    def get(self, request):
+        """
+        获取知识点相关的题目列表
+        """
+        knowledge_point_id = request.GET.get("knowledge_point_id")
+        offset = int(request.GET.get("offset", 0))
+        limit = int(request.GET.get("limit", 10))
+        
+        if not knowledge_point_id:
+            return self.error("参数错误")
+        
+        try:
+            knowledge_point = KnowledgePoint.objects.get(id=knowledge_point_id)
+            problems = knowledge_point.related_problems.all()
+            
+            # 分页处理
+            total = problems.count()
+            problems = problems[offset:offset + limit]
+            
+            # 序列化题目数据
+            from problem.serializers import ProblemSerializer
+            problem_data = []
+            for problem in problems:
+                problem_data.append({
+                    '_id': problem._id,
+                    'title': problem.title,
+                    'difficulty': problem.difficulty,
+                    'submission_number': problem.submission_number,
+                    'accepted_number': problem.accepted_number
+                })
+            
+            return self.success({
+                'results': problem_data,
+                'total': total
+            })
+        except KnowledgePoint.DoesNotExist:
+            return self.error("知识点不存在")
+        except Exception as e:
+            return self.error(str(e))

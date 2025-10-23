@@ -3,6 +3,7 @@ import LearningPath from "../views/ai/LearningPath.vue";
 import CodeDiagnosis from "../views/problem/CodeDiagnosis.vue";
 import KnowledgePoints from "../views/ai/KnowledgePoints.vue";
 import KnowledgeGraph from "../views/ai/KnowledgeGraph.vue";
+import KnowledgePointProblems from "../views/ai/KnowledgePointProblems.vue";
 import {
   About,
   ACMRank,
@@ -92,7 +93,11 @@ export default [
     component: KnowledgeGraph,
     meta: { requiresAuth: true }
   },
-
+  {
+    path: "/knowledge-point/:knowledgePointId/problems",
+    name: "singleknowledge-point-problems",
+    component: KnowledgePointProblems
+  },
   {
     name: "contest-details",
     path: "/contest/:contestID/",

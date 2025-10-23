@@ -173,7 +173,7 @@ export default {
       },
       showRecommended: false,
       recommendedProblemList: [], // 存储推荐题目列表
-      tagsVisible: false // 跟踪tags显示状态
+      tagsVisible: false,// 跟踪tags显示状态
     }
   },
   mounted() {
