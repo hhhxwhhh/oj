@@ -41,11 +41,11 @@
 
                         <div class="control-group">
                             <div class="control-title">着色模式</div>
-                            <RadioGroup v-model="colorMode" @on-change="changeColorMode" class="color-mode-selector"
-                                type="button">
-                                <Radio label="category">按分类</Radio>
-                                <Radio label="difficulty">按难度</Radio>
-                                <Radio label="weight">按权重</Radio>
+                            <RadioGroup v-model="colorMode" @on-change="changeColorMode">
+                                <Radio label="category">按分类着色</Radio>
+                                <Radio label="difficulty">按难度着色</Radio>
+                                <Radio label="weight">按权重着色</Radio>
+                                <Radio label="proficiency">按掌握状态着色</Radio>
                             </RadioGroup>
                         </div>
                     </div>
@@ -80,6 +80,20 @@
                                     <div class="detail-item">
                                         <span class="label">知识点ID:</span>
                                         <span class="value">{{ selectedNodeDetail.id }}</span>
+                                    </div>
+                                    <div class="detail-item" v-if="selectedNodeDetail.proficiency_level !== undefined">
+                                        <span class="label">掌握程度:</span>
+                                        <span class="value">
+                                            <Progress :percent="Math.round(selectedNodeDetail.proficiency_level * 100)"
+                                                :stroke-width="8" />
+                                            <span>{{ Math.round(selectedNodeDetail.proficiency_level * 100) }}%</span>
+                                        </span>
+                                    </div>
+                                    <div class="detail-item"
+                                        v-if="selectedNodeDetail.correct_attempts !== undefined && selectedNodeDetail.total_attempts !== undefined">
+                                        <span class="label">答题情况:</span>
+                                        <span class="value">{{ selectedNodeDetail.correct_attempts }}/{{
+                                            selectedNodeDetail.total_attempts }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -126,11 +140,13 @@
 import api from '@oj/api'
 import Panel from '@oj/components/Panel.vue'
 import echarts from 'echarts'
+import { Progress } from 'iview'
 
 export default {
     name: 'KnowledgeGraph',
     components: {
-        Panel
+        Panel,
+        Progress
     },
     data() {
         return {
@@ -145,7 +161,7 @@ export default {
             selectedNodeDetail: null,
             nodeDetailModalVisible: false,
             zoomLevel: 1,
-            colorMode: 'category' // 默认按分类着色
+            colorMode: 'proficiency' // 默认使用掌握状态着色
         }
     },
     computed: {
@@ -161,18 +177,57 @@ export default {
         }
     },
     mounted() {
-        this.initGraph()
+        // 使用setTimeout确保DOM完全渲染后再初始化图表
+        setTimeout(() => {
+            this.initGraph()
+        }, 500)
+        window.addEventListener('resize', this.handleResize)
     },
     beforeDestroy() {
+        // 移除窗口大小变化监听器
+        window.removeEventListener('resize', this.handleResize)
+
+        // 销毁图表实例
         if (this.chart) {
             this.chart.dispose()
+            this.chart = null
         }
     },
     methods: {
+        andleResize() {
+            // 确保图表实例存在且容器有效
+            if (this.chart && this.chart.getDom()) {
+                try {
+                    this.chart.resize()
+                } catch (error) {
+                    console.warn('图表resize操作失败:', error)
+                }
+            }
+        },
         async initGraph() {
             try {
                 const res = await api.getKnowledgePointGraph()
                 this.graphData = res.data.data
+
+                // 检查数据是否有效
+                if (!this.graphData || !this.graphData.nodes || !this.graphData.edges) {
+                    console.error('知识点图谱数据格式不正确:', this.graphData)
+                    this.$error('知识点图谱数据格式不正确')
+                    return
+                }
+
+                // 确保节点ID为字符串类型
+                this.graphData.nodes = this.graphData.nodes.map(node => ({
+                    ...node,
+                    id: String(node.id)
+                }))
+
+                // 确保边的source和target为字符串类型
+                this.graphData.edges = this.graphData.edges.map(edge => ({
+                    ...edge,
+                    source: String(edge.source),
+                    target: String(edge.target)
+                }))
 
                 // 提取所有分类
                 this.categories = [...new Set(this.graphData.nodes.map(node => node.category))]
@@ -180,18 +235,43 @@ export default {
 
                 this.renderGraph()
             } catch (err) {
-                this.$error('获取知识点图谱数据失败')
+                this.$error('获取知识点图谱数据失败: ' + (err.message || err))
             }
         },
 
         renderGraph() {
             const chartDom = document.getElementById('knowledge-graph')
+            if (!chartDom) {
+                return
+            }
+
+            // 如果已存在图表实例，先销毁
+            if (this.chart) {
+                this.chart.dispose()
+            }
+
+            console.log('初始化图表容器...')
             this.chart = echarts.init(chartDom)
 
             // 根据着色模式为节点分配颜色
             const nodesWithColors = this.getNodesWithColors()
 
+            // 优化力导向布局参数
+            const nodeCount = nodesWithColors.length
+            let repulsion = 1000
+            let edgeLength = 200
+
+            // 根据节点数量调整布局参数
+            if (nodeCount > 100) {
+                repulsion = nodeCount * 10
+                edgeLength = 100
+            } else if (nodeCount > 50) {
+                repulsion = nodeCount * 15
+                edgeLength = 150
+            }
+
             const option = {
+                backgroundColor: '#fff',
                 title: {
                     text: '知识点依赖关系图',
                     subtext: '箭头方向表示依赖关系',
@@ -219,12 +299,23 @@ export default {
                     },
                     formatter: (params) => {
                         if (params.dataType === 'node') {
+                            let proficiencyInfo = '';
+                            if (params.data.proficiency_level !== undefined) {
+                                const proficiencyPercent = Math.round(params.data.proficiency_level * 100);
+                                proficiencyInfo = `<div class="tooltip-item">掌握程度: ${proficiencyPercent}%</div>`;
+
+                                if (params.data.correct_attempts !== undefined && params.data.total_attempts !== undefined) {
+                                    proficiencyInfo += `<div class="tooltip-item">答题情况: ${params.data.correct_attempts}/${params.data.total_attempts}</div>`;
+                                }
+                            }
+
                             return `
                                 <div class="tooltip-content">
                                     <div class="tooltip-title">${params.data.name}</div>
                                     <div class="tooltip-item">分类: ${params.data.category}</div>
                                     <div class="tooltip-item">难度: ${this.getDifficultyText(params.data.difficulty)}</div>
                                     <div class="tooltip-item">相关题目数: ${params.data.size - 20}</div>
+                                    ${proficiencyInfo}
                                 </div>
                             `
                         } else {
@@ -233,7 +324,9 @@ export default {
                     }
                 },
                 legend: [{
-                    data: this.categories,
+                    data: this.colorMode === 'proficiency' ?
+                        ['未掌握', '部分掌握', '已掌握'] :
+                        this.categories,
                     bottom: 10,
                     left: 'center'
                 }],
@@ -244,10 +337,11 @@ export default {
                     type: 'graph',
                     layout: 'force',
                     force: {
-                        repulsion: 100,
+                        repulsion: repulsion,  // 根据节点数量动态调整斥力
                         gravity: 0.1,
-                        edgeLength: 200,
-                        layoutAnimation: true
+                        edgeLength: edgeLength,  // 根据节点数量动态调整边长度
+                        layoutAnimation: true,
+                        preventOverlap: true  // 防止节点重叠
                     },
                     data: nodesWithColors,
                     links: this.graphData.edges,
@@ -256,6 +350,7 @@ export default {
                     draggable: true,
                     focusNodeAdjacency: true,
                     nodeScaleRatio: 0.6,
+                    // 调整标签显示策略，避免标签重叠
                     label: {
                         show: true,
                         position: 'right',
@@ -266,7 +361,8 @@ export default {
                     lineStyle: {
                         color: 'source',
                         curveness: 0,
-                        width: 1.5
+                        width: 1.5,
+                        opacity: 0.7
                     },
                     emphasis: {
                         lineStyle: {
@@ -280,6 +376,7 @@ export default {
                 }]
             }
 
+            console.log('设置图表配置...')
             this.chart.setOption(option)
 
             // 监听节点点击事件
@@ -293,6 +390,17 @@ export default {
             this.chart.on('zoom', (params) => {
                 this.zoomLevel = params.zoom
             })
+
+            // 添加图表渲染完成事件监听
+            this.chart.on('rendered', () => {
+                console.log('图表渲染完成')
+            })
+
+            // 强制重新渲染
+            setTimeout(() => {
+                console.log('强制重新渲染图表...')
+                this.chart.resize()
+            }, 100)
         },
 
         // 显示节点详情
@@ -333,6 +441,8 @@ export default {
                     return this.getNodesColoredByDifficulty()
                 case 'weight':
                     return this.getNodesColoredByWeight()
+                case 'proficiency':
+                    return this.getNodesColoredByProficiency()
                 case 'category':
                 default:
                     return this.getNodesColoredByCategory()
@@ -402,8 +512,42 @@ export default {
             })
         },
 
+        // 按掌握状态着色
+        getNodesColoredByProficiency() {
+            return this.graphData.nodes.map((node) => {
+                let color = '#ee6666'; // 默认红色，表示未掌握
+                let category = '未掌握'; // 默认分类
+
+                if (node.proficiency_level !== undefined) {
+                    if (node.proficiency_level >= 0.7) {
+                        color = '#91cc75'; // 绿色，表示已掌握
+                        category = '已掌握';
+                    } else if (node.proficiency_level >= 0.3) {
+                        color = '#fac858'; // 黄色，表示部分掌握
+                        category = '部分掌握';
+                    }
+                }
+
+                return {
+                    ...node,
+                    category: category, // 设置分类属性
+                    itemStyle: {
+                        color: color
+                    }
+                }
+            })
+        },
+
         // 获取带颜色的分类
         getCategoriesWithColors() {
+            if (this.colorMode === 'proficiency') {
+                return [
+                    { name: '未掌握', itemStyle: { color: '#ee6666' } },
+                    { name: '部分掌握', itemStyle: { color: '#fac858' } },
+                    { name: '已掌握', itemStyle: { color: '#91cc75' } }
+                ]
+            }
+
             if (this.colorMode !== 'category') {
                 return this.categories.map(category => ({ name: category }))
             }

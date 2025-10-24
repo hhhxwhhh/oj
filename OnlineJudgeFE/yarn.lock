@@ -7511,7 +7511,7 @@ simple-uploader@^2.0.7, "simple-uploader@file:./simple-uploader", "simple-upload
   version "3.0.0"
   dependencies:
     jquery "=3.1.1"
-    simple-module "file:../../Library/Caches/Yarn/v6/npm-simple-uploader-3.0.0-0ea85bc3-0cf9-4685-a4ff-b6732dd736b7-1761208838239/node_modules/simple-module"
+    simple-module "file:../usr/local/share/.cache/yarn/v6/npm-simple-uploader-3.0.0-ccaaa0c6-8f93-47e4-bde8-7d090ec488bc-1761307178144/node_modules/simple-module"
 
 slash@^1.0.0:
   version "1.0.0"

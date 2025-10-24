@@ -800,46 +800,74 @@ class KnowledgePointGraphAPI(APIView):
         获取知识点图谱数据
         """
         try:
+            # 获取当前用户
+            user = request.user
+            
             # 获取所有知识点
             knowledge_points = KnowledgePoint.objects.all()
+            
+            # 获取用户的知识点掌握状态
+            user_knowledge_states = KnowledgePointService.get_user_knowledge_state(user.id)
             
             # 构建节点数据
             nodes = []
             # 构建边数据
             edges = []
             
-            # 节点ID映射，用于构建边
-            node_id_map = {}
-            
             # 构建节点数据
-            for i, kp in enumerate(knowledge_points):
-                node_id_map[kp.id] = i
+            for kp in knowledge_points:
+                # 获取用户对该知识点的掌握状态
+                user_state = user_knowledge_states.get(kp.name)
+                proficiency_level = 0.0  # 默认掌握程度
+                correct_attempts = 0
+                total_attempts = 0
+                
+                if user_state:
+                    proficiency_level = user_state.proficiency_level
+                    correct_attempts = user_state.correct_attempts
+                    total_attempts = user_state.total_attempts
+                
+                # 根据掌握程度设置节点颜色
+                # 0-0.3: 红色(未掌握), 0.3-0.7: 黄色(部分掌握), 0.7-1: 绿色(已掌握)
+                if proficiency_level < 0.3:
+                    item_color = '#ff4d4f'  # 红色
+                elif proficiency_level < 0.7:
+                    item_color = '#faad14'  # 黄色
+                else:
+                    item_color = '#52c41a'  # 绿色
+                
                 nodes.append({
-                    'id': i,
+                    'id': str(kp.id),  # 使用字符串格式的知识点ID
                     'name': kp.name,
                     'category': kp.category,
                     'difficulty': kp.difficulty,
                     'description': kp.description,
                     'size': 20 + kp.related_problems.count() * 2,  
                     'symbolSize': 20 + kp.related_problems.count() * 2,
-                    'value': kp.weight  # 使用权重作为节点值
+                    'value': kp.weight,  # 使用权重作为节点值
+                    'proficiency_level': proficiency_level,  # 添加掌握程度
+                    'correct_attempts': correct_attempts,  # 添加正确尝试次数
+                    'total_attempts': total_attempts,  # 添加总尝试次数
+                    'itemStyle': {
+                        'color': item_color  # 根据掌握程度设置颜色
+                    }
                 })
             
             # 构建边数据（前置知识点关系）
             for kp in knowledge_points:
-                target_id = node_id_map[kp.id]
+                # 使用字符串格式的知识点ID
+                target_id = str(kp.id)
                 for parent_point in kp.parent_points.all():
-                    if parent_point.id in node_id_map:
-                        source_id = node_id_map[parent_point.id]
-                        edges.append({
-                            'source': source_id,
-                            'target': target_id,
-                            'relation': '依赖',
-                            'lineStyle': {
-                                'width': 2,
-                                'type': 'solid'
-                            }
-                        })
+                    source_id = str(parent_point.id)
+                    edges.append({
+                        'source': source_id,
+                        'target': target_id,
+                        'relation': '依赖',
+                        'lineStyle': {
+                            'width': 2,
+                            'type': 'solid'
+                        }
+                    })
             
             return self.success({
                 'nodes': nodes,
@@ -848,6 +876,7 @@ class KnowledgePointGraphAPI(APIView):
         except Exception as e:
             logger.error(f"Failed to get knowledge point graph data: {str(e)}")
             return self.error("Failed to get knowledge point graph data")
+
 
 class SingleKnowledgePointAPI(APIView):
     @login_required
