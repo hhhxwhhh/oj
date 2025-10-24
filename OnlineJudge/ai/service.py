@@ -2,11 +2,11 @@ import openai
 import requests
 import json
 import re
-from django.db import transaction
+from django.db import transaction,models
 from django.utils import timezone
 from .models import AIModel, AIMessage,AICodeExplanationCache,AIUserKnowledgeState,AIUserLearningPath,AIUserLearningPathNode
 from .models import KnowledgePoint,AIUserKnowledgeState,AIAbilityDimension,AIProgrammingAbility,AIUserAbilityDetail
-from problem.models import Problem
+from problem.models import Problem,ProblemTag
 from submission.models import Submission
 import logging
 import numpy as np

@@ -2,7 +2,7 @@ from django.shortcuts import render
 from utils.api import serializers
 import openai 
 import requests
-from django.db import transaction
+from django.db import transaction,models
 # Create your views here.
 from utils.api import APIView,validate_serializer
 from account.decorators import login_required
@@ -13,9 +13,14 @@ from .serializers import (
     AIMessageSerializer, CreateAIMessageSerializer,
     AICodeReviewSerializer, CreateAICodeReviewSerializer,
     AIFeedbackSerializer, CreateAIFeedbackSerializer,
-    CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer,AIProblemGenerationSerializer
+    CreateAIRecommendationFeedbackSerializer,
+    AIRecommendationFeedbackSerializer,AIProblemGenerationSerializer,
+    AIAbilityDimensionSerializer,AIUserAbilityDetailSerializer,AIProgrammingAbilitySerializer
 )
-from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService,AIProgrammingAbilityService,AIProgrammingAbility
+from .service import( 
+    AIService,AIRecommendationService,AILearningPathService,
+    AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService,
+    AIProgrammingAbilityService,AIProgrammingAbility)
 from submission.models import Submission
 from problem.models import Problem
 import logging
