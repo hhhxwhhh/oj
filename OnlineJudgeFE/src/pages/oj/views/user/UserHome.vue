@@ -13,6 +13,7 @@
       </div>
     </Card>
 
+
     <Card :padding="20" class="stats-card">
       <div class="flex-container">
         <div class="stat-item">
@@ -26,6 +27,22 @@
         <div class="stat-item">
           <p class="stat-label">{{ $t('m.UserHomeScore') }}</p>
           <p class="stat-value">{{ profile.total_score }}</p>
+        </div>
+      </div>
+    </Card>
+    <Card :padding="20" class="stats-card" v-if="abilityData">
+      <div class="flex-container">
+        <div class="stat-item">
+          <p class="stat-label">编程能力评分</p>
+          <p class="stat-value">{{ abilityData.overall_score.toFixed(0) }}</p>
+        </div>
+        <div class="stat-item">
+          <p class="stat-label">能力等级</p>
+          <p class="stat-value">{{ getLevelDisplay(abilityData.level) }}</p>
+        </div>
+        <div class="stat-item">
+          <p class="stat-label">建议关注</p>
+          <p class="stat-value">{{ getMainRecommendation() }}</p>
         </div>
       </div>
     </Card>
@@ -150,7 +167,8 @@ export default {
       profile: {},
       problems: [],
       recommendedProblems: [],
-      learningPaths: []
+      learningPaths: [],
+      abilityData: null,
     }
   },
   mounted() {
@@ -168,6 +186,7 @@ export default {
         this.getLearningPaths()
         let registerTime = time.utcToLocal(this.profile.user.create_time, 'YYYY-MM-D')
         console.log('The guy registered at ' + registerTime + '.')
+        this.getAbilityData()
       })
     },
     getSolvedProblems() {
@@ -184,6 +203,14 @@ export default {
       ACProblems.sort()
       this.problems = ACProblems
     },
+    getAbilityData() {
+      api.getProgrammingAbilityReport().then(res => {
+        this.abilityData = res.data.data;
+      }).catch(err => {
+        console.error('Failed to load ability data:', err);
+      });
+    },
+
     getLearningPaths() {
       api.getLearningPaths().then(res => {
         this.learningPaths = res.data.data.slice(0, 3);
@@ -206,6 +233,30 @@ export default {
     },
     goToLearningPathAll() {
       this.$router.push({ name: 'learning-path' })
+    },
+    getLevelDisplay(level) {
+      const levelMap = {
+        'beginner': '入门',
+        'intermediate': '中级',
+        'advanced': '高级',
+        'expert': '专家'
+      };
+      return levelMap[level] || level;
+    },
+    getMainRecommendation() {
+      if (!this.abilityData || !this.abilityData.analysis_report) return '暂无';
+      const recommendations = this.abilityData.analysis_report.recommendations;
+      if (recommendations && recommendations.length > 0) {
+        // 返回第一条建议的类型
+        const typeMap = {
+          'basic_programming': '基础',
+          'data_structures': '数据结构',
+          'algorithm_design': '算法',
+          'problem_solving': '解题能力'
+        };
+        return typeMap[recommendations[0].type] || '学习计划';
+      }
+      return '暂无';
     },
     freshProblemDisplayID() {
       api.freshDisplayID().then(res => {

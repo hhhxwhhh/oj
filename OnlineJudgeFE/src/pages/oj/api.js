@@ -409,6 +409,16 @@ export default {
     return ajax(`ai/learning_path/node/${nodeId}`, "put", {
       data
     });
+  },
+  // 编程能力评估接口
+  assessProgrammingAbility() {
+    return ajax("ai/ability/assess", "post");
+  },
+  getProgrammingAbilityReport() {
+    return ajax("ai/ability/report", "get");
+  },
+  getAbilityComparison() {
+    return ajax("ai/ability/compare", "get");
   }
 };
 
