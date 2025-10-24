@@ -15,7 +15,7 @@ from .serializers import (
     AIFeedbackSerializer, CreateAIFeedbackSerializer,
     CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer,AIProblemGenerationSerializer
 )
-from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService
+from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService,AIProgrammingAbilityService,AIProgrammingAbility
 from submission.models import Submission
 from problem.models import Problem
 import logging
@@ -948,3 +948,114 @@ class AIProblemGenerationAPI(APIView):
         except Exception as e:
             logger.error(f"Generate problem failed: {str(e)}")
             return self.error(f"题目生成失败: {str(e)}")
+        
+
+class AIProgrammingAbilityAPI(APIView):
+    """
+    编程能力评估API
+    """
+    
+    @login_required
+    def post(self, request):
+        """
+        触发用户能力评估
+        """
+        try:
+            user_id = request.user.id
+            ability_record = AIProgrammingAbilityService.assess_user_ability(user_id)
+            
+            # 序列化返回结果
+            result = {
+                'overall_score': ability_record.overall_score,
+                'level': ability_record.get_level_display(),
+                'basic_programming_score': ability_record.basic_programming_score,
+                'data_structure_score': ability_record.data_structure_score,
+                'algorithm_design_score': ability_record.algorithm_design_score,
+                'problem_solving_score': ability_record.problem_solving_score,
+                'analysis_report': ability_record.analysis_report,
+                'last_assessed': ability_record.last_assessed
+            }
+            
+            return self.success(result)
+        except Exception as e:
+            logger.error(f"Failed to assess programming ability: {str(e)}")
+            return self.error("能力评估失败，请稍后重试")
+
+    @login_required
+    def get(self, request):
+        """
+        获取用户能力评估报告
+        """
+        try:
+            user_id = request.user.id
+            ability_record = AIProgrammingAbilityService.get_user_ability_report(user_id)
+            
+            result = {
+                'overall_score': ability_record.overall_score,
+                'level': ability_record.get_level_display(),
+                'basic_programming_score': ability_record.basic_programming_score,
+                'data_structure_score': ability_record.data_structure_score,
+                'algorithm_design_score': ability_record.algorithm_design_score,
+                'problem_solving_score': ability_record.problem_solving_score,
+                'analysis_report': ability_record.analysis_report,
+                'last_assessed': ability_record.last_assessed
+            }
+            
+            return self.success(result)
+        except Exception as e:
+            logger.error(f"Failed to get programming ability report: {str(e)}")
+            return self.error("获取能力评估报告失败")
+class AIAbilityComparisonAPI(APIView):
+    """
+    能力对比API
+    """
+    
+    @login_required
+    def get(self, request):
+        """
+        与平均水平或其他用户进行能力对比
+        """
+        try:
+            user_id = request.user.id
+            
+            # 获取当前用户能力
+            user_ability = AIProgrammingAbilityService.get_user_ability_report(user_id)
+            
+            # 计算所有用户的平均能力
+            avg_scores = AIProgrammingAbility.objects.aggregate(
+                avg_overall=models.Avg('overall_score'),
+                avg_basic=models.Avg('basic_programming_score'),
+                avg_ds=models.Avg('data_structure_score'),
+                avg_algo=models.Avg('algorithm_design_score'),
+                avg_ps=models.Avg('problem_solving_score')
+            )
+            
+            comparison = {
+                'user': {
+                    'overall_score': user_ability.overall_score,
+                    'level': user_ability.get_level_display(),
+                    'basic_programming_score': user_ability.basic_programming_score,
+                    'data_structure_score': user_ability.data_structure_score,
+                    'algorithm_design_score': user_ability.algorithm_design_score,
+                    'problem_solving_score': user_ability.problem_solving_score
+                },
+                'average': {
+                    'overall_score': avg_scores['avg_overall'] or 0,
+                    'basic_programming_score': avg_scores['avg_basic'] or 0,
+                    'data_structure_score': avg_scores['avg_ds'] or 0,
+                    'algorithm_design_score': avg_scores['avg_algo'] or 0,
+                    'problem_solving_score': avg_scores['avg_ps'] or 0
+                },
+                'comparison': {
+                    'overall_diff': user_ability.overall_score - (avg_scores['avg_overall'] or 0),
+                    'basic_diff': user_ability.basic_programming_score - (avg_scores['avg_basic'] or 0),
+                    'ds_diff': user_ability.data_structure_score - (avg_scores['avg_ds'] or 0),
+                    'algo_diff': user_ability.algorithm_design_score - (avg_scores['avg_algo'] or 0),
+                    'ps_diff': user_ability.problem_solving_score - (avg_scores['avg_ps'] or 0)
+                }
+            }
+            
+            return self.success(comparison)
+        except Exception as e:
+            logger.error(f"Failed to compare abilities: {str(e)}")
+            return self.error("能力对比失败")

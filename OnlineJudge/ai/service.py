@@ -5,7 +5,7 @@ import re
 from django.db import transaction
 from django.utils import timezone
 from .models import AIModel, AIMessage,AICodeExplanationCache,AIUserKnowledgeState,AIUserLearningPath,AIUserLearningPathNode
-from .models import KnowledgePoint,AIUserKnowledgeState
+from .models import KnowledgePoint,AIUserKnowledgeState,AIAbilityDimension,AIProgrammingAbility,AIUserAbilityDetail
 from problem.models import Problem
 from submission.models import Submission
 import logging
@@ -1951,6 +1951,551 @@ class AIProblemGenerationService:
                 {"input": "0 0", "output": "0"}
             ]
 
+class AIProgrammingAbilityService:
+    """
+    编程能力评估服务
+    """
     
+    @staticmethod
+    def initialize_ability_dimensions():
+        """
+        初始化能力维度定义
+        """
+        dimensions = [
+            {
+                'name': 'basic_programming',
+                'description': '基础编程能力，包括语法掌握、基本控制结构等',
+                'weight': 0.2
+            },
+            {
+                'name': 'data_structures',
+                'description': '数据结构运用能力，如数组、链表、树、图等',
+                'weight': 0.25
+            },
+            {
+                'name': 'algorithm_design',
+                'description': '算法设计与分析能力，包括复杂度分析等',
+                'weight': 0.3
+            },
+            {
+                'name': 'problem_solving',
+                'description': '问题解决能力，包括问题建模、解决方案设计等',
+                'weight': 0.25
+            }
+        ]
+        
+        for dim in dimensions:
+            AIAbilityDimension.objects.get_or_create(
+                name=dim['name'],
+                defaults={
+                    'description': dim['description'],
+                    'weight': dim['weight']
+                }
+            )
+    @staticmethod
+    def assess_user_ability(user_id):
+        """
+        评估用户编程能力
+        """
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise Exception("User not found")
+        
+        # 初始化能力维度
+        AIProgrammingAbilityService.initialize_ability_dimensions()
+        
+        # 计算各个维度得分
+        basic_score = AIProgrammingAbilityService._assess_basic_programming(user_id)
+        ds_score = AIProgrammingAbilityService._assess_data_structures(user_id)
+        algo_score = AIProgrammingAbilityService._assess_algorithm_design(user_id)
+        ps_score = AIProgrammingAbilityService._assess_problem_solving(user_id)
+        
+        # 计算总分
+        overall_score = (
+            basic_score * 0.2 +
+            ds_score * 0.25 +
+            algo_score * 0.3 +
+            ps_score * 0.25
+        )
+        
+        # 确定能力等级
+        level = AIProgrammingAbilityService._determine_level(overall_score)
+        
+        # 生成分析报告
+        analysis_report = AIProgrammingAbilityService._generate_analysis_report(
+            user_id, basic_score, ds_score, algo_score, ps_score
+        )
+        
+        # 更新或创建能力评估记录
+        ability_record, created = AIProgrammingAbility.objects.update_or_create(
+            user=user,
+            defaults={
+                'overall_score': overall_score,
+                'basic_programming_score': basic_score,
+                'data_structure_score': ds_score,
+                'algorithm_design_score': algo_score,
+                'problem_solving_score': ps_score,
+                'level': level,
+                'analysis_report': analysis_report
+            }
+        )
+        
+        # 更新详细能力记录
+        AIProgrammingAbilityService._update_ability_details(
+            user_id, basic_score, ds_score, algo_score, ps_score
+        )
+        
+        return ability_record
+    
+    @staticmethod
+    def _assess_basic_programming(user_id):
+        """
+        评估基础编程能力
+        基于：简单题目通过率、语法错误频率、提交次数等
+        """
+        try:
+            # 获取用户提交记录
+            submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
+            
+            if not submissions.exists():
+                return 0.0
+            
+            # 筛选出标记为"基础"的题目（可以通过标签或难度判断）
+            basic_problems = submissions.filter(
+                problem__difficulty='Low'
+            )
+            
+            if not basic_problems.exists():
+                return 20.0  # 如果没有做基础题，给一个较低的基础分
+            
+            total_basic = basic_problems.count()
+            passed_basic = basic_problems.filter(result=0).count()  # 假设0表示通过
+            
+            # 基础通过率
+            pass_rate = passed_basic / total_basic if total_basic > 0 else 0
+            
+            # 计算平均尝试次数（越少越好）
+            avg_attempts = total_basic / (passed_basic if passed_basic > 0 else 1)
+            attempt_factor = max(0, 1 - (avg_attempts - 1) * 0.1)  # 尝试次数越多，得分越低
+            
+            # 综合得分 (满分40分)
+            score = min(40, pass_rate * 30 + attempt_factor * 10)
+            return score
+            
+        except Exception as e:
+            logger.error(f"Error assessing basic programming ability: {str(e)}")
+            return 20.0  # 默认分数
+        
+    @staticmethod
+    def _assess_data_structures(user_id):
+        """
+        评估数据结构能力
+        基于：数据结构相关题目的表现、知识点掌握情况等
+        """
+        try:
+            # 定义数据结构相关知识点
+            ds_knowledge_points = [
+                '数组', '链表', '栈', '队列', '哈希表', 
+                '树', '二叉树', '堆', '图'
+            ]
+            
+            # 获取用户在这些知识点上的掌握情况
+            knowledge_states = AIUserKnowledgeState.objects.filter(
+                user_id=user_id,
+                knowledge_point__name__in=ds_knowledge_points
+            )
+            
+            if not knowledge_states.exists():
+                return 10.0  # 如果没有相关记录，给较低分数
+            
+            # 计算平均掌握程度
+            total_proficiency = sum(state.proficiency_level for state in knowledge_states)
+            avg_proficiency = total_proficiency / knowledge_states.count()
+            
+            # 获取数据结构相关题目的通过情况
+            ds_tags = ProblemTag.objects.filter(name__in=ds_knowledge_points)
+            ds_problems = Problem.objects.filter(tags__in=ds_tags).distinct()
+            
+            submitted_ds_problems = Submission.objects.filter(
+                user_id=user_id,
+                problem__in=ds_problems
+            ).distinct()
+            
+            passed_ds_problems = submitted_ds_problems.filter(result=0)
+            
+            # 计算通过率
+            ds_pass_rate = (
+                passed_ds_problems.count() / submitted_ds_problems.count() 
+                if submitted_ds_problems.count() > 0 else 0
+            )
+            
+            # 综合得分 (满分40分)
+            # 知识点掌握占60%，通过率占40%
+            score = min(40, avg_proficiency * 24 + ds_pass_rate * 16)
+            return score
+            
+        except Exception as e:
+            logger.error(f"Error assessing data structures ability: {str(e)}")
+            return 15.0  # 默认分数
+        
+    @staticmethod
+    def _assess_algorithm_design(user_id):
+        """
+        评估算法设计能力
+        基于：算法题通过率、时间复杂度优化情况等
+        """
+        try:
+            # 定义算法相关知识点
+            algo_knowledge_points = [
+                '排序', '查找', '递归', '分治', '动态规划',
+                '贪心算法', '回溯算法', '深度优先搜索', '广度优先搜索'
+            ]
+            
+            # 获取用户在这些知识点上的掌握情况
+            knowledge_states = AIUserKnowledgeState.objects.filter(
+                user_id=user_id,
+                knowledge_point__name__in=algo_knowledge_points
+            )
+            
+            # 计算平均掌握程度
+            if knowledge_states.exists():
+                total_proficiency = sum(state.proficiency_level for state in knowledge_states)
+                avg_proficiency = total_proficiency / knowledge_states.count()
+            else:
+                avg_proficiency = 0.3  # 默认掌握程度
+            
+            # 获取算法相关题目的通过情况
+            algo_tags = ProblemTag.objects.filter(name__in=algo_knowledge_points)
+            algo_problems = Problem.objects.filter(tags__in=algo_tags).distinct()
+            
+            submitted_algo_problems = Submission.objects.filter(
+                user_id=user_id,
+                problem__in=algo_problems
+            ).distinct()
+            
+            passed_algo_problems = submitted_algo_problems.filter(result=0)
+            
+            # 计算通过率
+            algo_pass_rate = (
+                passed_algo_problems.count() / submitted_algo_problems.count() 
+                if submitted_algo_problems.count() > 0 else 0
+            )
+            
+            # 获取用户解决的难题数量（高难度题目）
+            hard_problems = passed_algo_problems.filter(problem__difficulty='High')
+            hard_count_score = min(10, hard_problems.count())  # 最多10分
+            
+            # 综合得分 (满分40分)
+            # 知识点掌握占40%，通过率占40%，难题解决占20%
+            score = min(40, avg_proficiency * 16 + algo_pass_rate * 16 + hard_count_score * 0.8)
+            return score
+            
+        except Exception as e:
+            logger.error(f"Error assessing algorithm design ability: {str(e)}")
+            return 15.0  # 默认分数
+    @staticmethod
+    def _assess_problem_solving(user_id):
+        """
+        评估问题解决能力
+        基于：解题速度、一次通过率、调试次数等
+        """
+        try:
+            # 获取用户的所有提交记录
+            submissions = Submission.objects.filter(user_id=user_id)
+            
+            if not submissions.exists():
+                return 10.0
+            
+            # 计算一次通过率
+            total_problems = submissions.values('problem_id').distinct().count()
+            first_pass_count = 0
+            
+            # 统计每个题目第一次就通过的数量
+            problem_first_submissions = {}
+            for submission in submissions.order_by('problem_id', 'create_time'):
+                problem_id = submission.problem_id
+                if problem_id not in problem_first_submissions:
+                    problem_first_submissions[problem_id] = submission
+                    if submission.result == 0:  # 假设0表示通过
+                        first_pass_count += 1
+            
+            first_pass_rate = first_pass_count / total_problems if total_problems > 0 else 0
+            
+            # 计算平均解决时间（从第一次提交到通过的时间）
+            total_solve_time = 0
+            solved_count = 0
+            
+            user_problems = submissions.values('problem_id').distinct()
+            for problem_entry in user_problems:
+                problem_id = problem_entry['problem_id']
+                problem_submissions = submissions.filter(problem_id=problem_id).order_by('create_time')
+                
+                # 找到第一个通过的提交
+                passed_submission = problem_submissions.filter(result=0).first()
+                if passed_submission:
+                    first_submission = problem_submissions.first()
+                    solve_time = (passed_submission.create_time - first_submission.create_time).total_seconds()
+                    total_solve_time += solve_time
+                    solved_count += 1
+            
+            avg_solve_time = total_solve_time / solved_count if solved_count > 0 else 3600  # 默认1小时
+            
+            # 时间因子（时间越短得分越高）
+            time_factor = max(0, 1 - (avg_solve_time / 3600))  # 归一化到1小时内
+            
+            # 综合得分 (满分40分)
+            # 一次通过率占50%，时间因子占50%
+            score = min(40, first_pass_rate * 20 + time_factor * 20)
+            return score
+            
+        except Exception as e:
+            logger.error(f"Error assessing problem solving ability: {str(e)}")
+            return 15.0  # 默认分数
+        
+    @staticmethod
+    def _determine_level(overall_score):
+        """
+        根据总分确定能力等级
+        """
+        if overall_score >= 85:
+            return 'expert'
+        elif overall_score >= 70:
+            return 'advanced'
+        elif overall_score >= 50:
+            return 'intermediate'
+        else:
+            return 'beginner'
+        
+    @staticmethod
+    def _generate_analysis_report(user_id, basic_score, ds_score, algo_score, ps_score):
+        """
+        生成详细的分析报告
+        """
+        report = {
+            'generated_at': timezone.now().isoformat(),
+            'dimensions': {
+                'basic_programming': {
+                    'score': basic_score,
+                    'max_score': 40,
+                    'percentage': (basic_score / 40) * 100 if 40 > 0 else 0,
+                    'assessment': AIProgrammingAbilityService._get_dimension_assessment('basic_programming', basic_score)
+                },
+                'data_structures': {
+                    'score': ds_score,
+                    'max_score': 40,
+                    'percentage': (ds_score / 40) * 100 if 40 > 0 else 0,
+                    'assessment': AIProgrammingAbilityService._get_dimension_assessment('data_structures', ds_score)
+                },
+                'algorithm_design': {
+                    'score': algo_score,
+                    'max_score': 40,
+                    'percentage': (algo_score / 40) * 100 if 40 > 0 else 0,
+                    'assessment': AIProgrammingAbilityService._get_dimension_assessment('algorithm_design', algo_score)
+                },
+                'problem_solving': {
+                    'score': ps_score,
+                    'max_score': 40,
+                    'percentage': (ps_score / 40) * 100 if 40 > 0 else 0,
+                    'assessment': AIProgrammingAbilityService._get_dimension_assessment('problem_solving', ps_score)
+                }
+            },
+            'overall': {
+                'score': (basic_score + ds_score + algo_score + ps_score),
+                'max_score': 160,
+                'level': AIProgrammingAbilityService._determine_level(basic_score + ds_score + algo_score + ps_score)
+            },
+            'recommendations': AIProgrammingAbilityService._generate_recommendations(
+                user_id, basic_score, ds_score, algo_score, ps_score
+            )
+        }
+        return report
+    
+    @staticmethod
+    def _get_dimension_assessment(dimension, score):
+        """
+        根据维度得分给出评估
+        """
+        assessments = {
+            'basic_programming': [
+                "基础较薄弱，需要加强语法和基本编程概念的学习",
+                "基础一般，建议多练习基础题目巩固知识",
+                "基础扎实，继续保持",
+                "基础非常扎实，可以挑战更高难度"
+            ],
+            'data_structures': [
+                "对常用数据结构掌握不够，需要系统学习",
+                "对基本数据结构有一定了解，还需深入理解",
+                "对常见数据结构掌握较好，可以学习高级结构",
+                "对各类数据结构都很熟悉，运用自如"
+            ],
+            'algorithm_design': [
+                "算法思维有待提高，建议从基础算法开始学习",
+                "具备一定算法思维，可以加强练习",
+                "算法设计能力较强，可以挑战复杂算法",
+                "算法设计能力出色，可以研究前沿算法"
+            ],
+            'problem_solving': [
+                "解题思路不够清晰，需要培养分析问题的能力",
+                "有一定的问题分析能力，还需提升解题效率",
+                "解题能力强，思路清晰",
+                "解题能力卓越，能快速准确地解决问题"
+            ]
+        }
+        
+        # 根据分数选择对应的评估（满分40分）
+        if score < 15:
+            idx = 0
+        elif score < 25:
+            idx = 1
+        elif score < 35:
+            idx = 2
+        else:
+            idx = 3
+            
+        return assessments.get(dimension, ["评估不可用"])[idx]
+    @staticmethod
+    def _generate_recommendations(user_id, basic_score, ds_score, algo_score, ps_score):
+        """
+        生成学习建议
+        """
+        recommendations = []
+        
+        # 基础编程建议
+        if basic_score < 25:
+            recommendations.append({
+                'type': 'basic_programming',
+                'priority': 'high',
+                'content': '建议加强基础语法练习，多做一些入门级题目巩固基础知识'
+            })
+        elif basic_score < 35:
+            recommendations.append({
+                'type': 'basic_programming',
+                'priority': 'medium',
+                'content': '基础较为扎实，可以适当减少基础练习，转向更有挑战性的题目'
+            })
+        
+        # 数据结构建议
+        if ds_score < 25:
+            recommendations.append({
+                'type': 'data_structures',
+                'priority': 'high',
+                'content': '建议系统学习常用数据结构，理解其特性和适用场景'
+            })
+        elif ds_score < 35:
+            recommendations.append({
+                'type': 'data_structures',
+                'priority': 'medium',
+                'content': '对基本数据结构掌握良好，可以学习一些高级数据结构'
+            })
+        
+        # 算法设计建议
+        if algo_score < 25:
+            recommendations.append({
+                'type': 'algorithm_design',
+                'priority': 'high',
+                'content': '建议从基础算法入手，逐步学习更复杂的算法设计技巧'
+            })
+        elif algo_score < 35:
+            recommendations.append({
+                'type': 'algorithm_design',
+                'priority': 'medium',
+                'content': '算法基础不错，可以挑战一些经典算法问题'
+            })
+        
+        # 问题解决建议
+        if ps_score < 25:
+            recommendations.append({
+                'type': 'problem_solving',
+                'priority': 'high',
+                'content': '建议在解题前先仔细分析问题，制定清晰的解题思路'
+            })
+        elif ps_score < 35:
+            recommendations.append({
+                'type': 'problem_solving',
+                'priority': 'medium',
+                'content': '解题能力良好，注意提高解题效率和准确性'
+            })
+        
+        # 通用建议
+        recommendations.append({
+            'type': 'general',
+            'priority': 'low',
+            'content': '保持持续练习，定期回顾错题，总结经验教训'
+        })
+        
+        return recommendations
+    
+    @staticmethod
+    def _update_ability_details(user_id, basic_score, ds_score, algo_score, ps_score):
+        """
+        更新详细能力记录
+        """
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return
+        
+        # 更新各项能力详情
+        dimensions = [
+            ('basic_programming', basic_score, '基础编程能力'),
+            ('data_structures', ds_score, '数据结构能力'),
+            ('algorithm_design', algo_score, '算法设计能力'),
+            ('problem_solving', ps_score, '问题解决能力')
+        ]
+        
+        for dim_name, score, desc in dimensions:
+            try:
+                dimension = AIAbilityDimension.objects.get(name=dim_name)
+                proficiency_level = AIProgrammingAbilityService._score_to_level(score)
+                
+                AIUserAbilityDetail.objects.update_or_create(
+                    user=user,
+                    dimension=dimension,
+                    defaults={
+                        'score': score,
+                        'proficiency_level': proficiency_level,
+                        'evidence': {
+                            'last_score': score,
+                            'description': desc,
+                            'updated_at': timezone.now().isoformat()
+                        }
+                    }
+                )
+            except AIAbilityDimension.DoesNotExist:
+                continue
+
+    @staticmethod
+    def _score_to_level(score):
+        """
+        将分数转换为熟练度级别
+        """
+        # 满分40分
+        if score >= 35:
+            return 'expert'
+        elif score >= 25:
+            return 'advanced'
+        elif score >= 15:
+            return 'intermediate'
+        else:
+            return 'beginner'
+    @staticmethod
+    def get_user_ability_report(user_id):
+        """
+        获取用户能力评估报告
+        """
+        try:
+            ability = AIProgrammingAbility.objects.get(user_id=user_id)
+            return ability
+        except AIProgrammingAbility.DoesNotExist:
+            # 如果还没有评估记录，则进行评估
+            return AIProgrammingAbilityService.assess_user_ability(user_id)
+
+
+
+
+    
+
+
 
 

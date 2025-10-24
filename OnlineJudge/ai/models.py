@@ -188,3 +188,63 @@ class AIUserLearningPathNode(models.Model):
     class Meta:
         db_table = 'ai_user_learning_path_node'
 
+
+class AIProgrammingAbility(models.Model):
+    """
+    用户编程能力评估模型
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    overall_score = models.FloatField(default=0.0)  # 总体能力评分 (
+    
+    # 各维度评分
+    basic_programming_score = models.FloatField(default=0.0)  # 基础编程能力
+    data_structure_score = models.FloatField(default=0.0)     # 数据结构能力
+    algorithm_design_score = models.FloatField(default=0.0)   # 算法设计能力
+    problem_solving_score = models.FloatField(default=0.0)    # 解题能力
+    
+    # 能力等级
+    LEVEL_CHOICES = [
+        ('beginner', '入门'),
+        ('intermediate', '中级'),
+        ('advanced', '高级'),
+        ('expert', '专家'),
+    ]
+    level = models.TextField(choices=LEVEL_CHOICES, default='beginner')
+    
+    # 详细分析报告
+    analysis_report = JSONField(default=dict)  # 存储详细的分析报告
+    
+    # 时间戳
+    last_assessed = models.DateTimeField(auto_now=True)
+    create_time = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ai_programming_ability'
+        unique_together = ('user',)
+
+class AIAbilityDimension(models.Model):
+    """
+    能力维度定义
+    """
+    name = models.TextField(unique=True)  
+    description = models.TextField()       
+    weight = models.FloatField(default=1.0)  
+    create_time = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ai_ability_dimension'
+
+class AIUserAbilityDetail(models.Model):
+    """
+    用户各项能力详情
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    dimension = models.ForeignKey(AIAbilityDimension, on_delete=models.CASCADE)
+    score = models.FloatField(default=0.0)  
+    proficiency_level = models.TextField(default='beginner')  #
+    evidence = JSONField(default=dict)  
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'ai_user_ability_detail'
+        unique_together = ('user', 'dimension')

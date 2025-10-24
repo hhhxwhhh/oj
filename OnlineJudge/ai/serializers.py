@@ -1,6 +1,6 @@
 from utils.api import serializers
 from .models import AIModel,AIMessage,AICodeReview,AIConversation,AIFeedback,AIRecommendation,AIRecommendationFeedback,AIUserLearningPathNode
-from .models import AIUserLearningPath,AIUserLearningPathNode,AIUserKnowledgeState,KnowledgePoint
+from .models import AIUserLearningPath,AIUserLearningPathNode,AIUserKnowledgeState,KnowledgePoint,AIProgrammingAbility,AIAbilityDimension,AIUserAbilityDetail
 
 
 class AIModelSerializer(serializers.ModelSerializer):
@@ -143,3 +143,39 @@ class AIProblemGenerationSerializer(serializers.Serializer):
     auto_adjust = serializers.BooleanField(default=True, help_text="是否自动调整难度")
     generate_test_cases = serializers.BooleanField(default=True, help_text="是否生成测试用例")
     test_case_count = serializers.IntegerField(default=5, min_value=1, max_value=20, help_text="测试用例数量")
+
+class AIProgrammingAbilitySerializer(serializers.ModelSerializer):
+    level_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AIProgrammingAbility
+        fields = '__all__'
+        
+    def get_level_display(self, obj):
+        return obj.get_level_display()
+    
+
+class AIAbilityDimensionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIAbilityDimension
+        fields = '__all__'
+
+class AIUserAbilityDetailSerializer(serializers.ModelSerializer):
+    dimension_name = serializers.SerializerMethodField()
+    proficiency_level_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AIUserAbilityDetail
+        fields = '__all__'
+        
+    def get_dimension_name(self, obj):
+        return obj.dimension.name
+        
+    def get_proficiency_level_display(self, obj):
+        level_map = {
+            'beginner': '入门',
+            'intermediate': '中级',
+            'advanced': '高级',
+            'expert': '专家'
+        }
+        return level_map.get(obj.proficiency_level, obj.proficiency_level)
