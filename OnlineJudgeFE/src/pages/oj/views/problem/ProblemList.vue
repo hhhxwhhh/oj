@@ -19,7 +19,7 @@
             </Dropdown>
           </li>
           <li>
-            <i-switch size="large" @on-change="handleTagsVisible">
+            <i-switch size="large" :value="tagsVisible" @on-change="handleTagsVisible">
               <span slot="open">{{ $t('m.Tags') }}</span>
               <span slot="close">{{ $t('m.Tags') }}</span>
             </i-switch>
@@ -173,7 +173,7 @@ export default {
       },
       showRecommended: false,
       recommendedProblemList: [], // 存储推荐题目列表
-      tagsVisible: false,// 跟踪tags显示状态
+      tagsVisible: true,// 跟踪tags显示状态
     }
   },
   mounted() {
@@ -195,6 +195,10 @@ export default {
         this.getTagList()
       }
       this.getProblemList()
+      //默认打开tags列
+      this.$nextTick(() => {
+        this.handleTagsVisible(true)
+      })
     },
     pushRouter() {
       this.$router.push({

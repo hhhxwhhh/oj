@@ -451,5 +451,7 @@ export const m = {
   View_Related_Problems: "View Related Problems",
   Add_to_Learning_Path: "Add to Learning Path",
   Generate_Problem_Placeholder:
-    "Generate a problem based on the knowledge point"
+    "Generate a problem based on the knowledge point",
+  Continue_Learning: "Continue Learning",
+  View_All_Learning_Paths: "View All Learning Path"
 };
