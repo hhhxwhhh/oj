@@ -13,7 +13,7 @@ from .serializers import (
     AIMessageSerializer, CreateAIMessageSerializer,
     AICodeReviewSerializer, CreateAICodeReviewSerializer,
     AIFeedbackSerializer, CreateAIFeedbackSerializer,
-    CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer
+    CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer,AIProblemGenerationSerializer
 )
 from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService
 from submission.models import Submission
@@ -894,12 +894,11 @@ class KnowledgePointProblemsAPI(APIView):
         except Exception as e:
             return self.error(str(e))
         
-
 class AIProblemGenerationAPI(APIView):
     """
     AI驱动的题目生成API
     """
-    @validate_serializer(serializers.Serializer)
+    @validate_serializer(AIProblemGenerationSerializer)
     def post(self, request):
         # 获取请求参数
         knowledge_point = request.data.get("knowledge_point")
@@ -908,15 +907,18 @@ class AIProblemGenerationAPI(APIView):
         generate_test_cases = request.data.get("generate_test_cases", True)
         test_case_count = request.data.get("test_case_count", 5)
         
+        
         # 更严格的验证逻辑
         if not knowledge_point or not isinstance(knowledge_point, str) or len(knowledge_point.strip()) == 0:
+            logger.warning(f"Knowledge point validation failed - knowledge_point: {knowledge_point}, "
+                          f"type: {type(knowledge_point)}, length: {len(knowledge_point) if knowledge_point else 0}")
             return self.error("知识点不能为空")
         
         try:
             # 检查是否有激活的AI模型
             active_model_exists = AIModel.objects.filter(is_active=True).exists()
             if not active_model_exists:
-                return self.error("没有激活的AI模型，请先配置AI模型")
+                return self.error("没有激活的AI模型，请先在AI模型管理中配置并激活一个AI模型")
             
             # 生成题目
             problem_data = AIProblemGenerationService.generate_problem_by_knowledge_point(

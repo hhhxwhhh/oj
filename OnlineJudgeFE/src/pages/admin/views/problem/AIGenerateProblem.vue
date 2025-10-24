@@ -254,12 +254,46 @@ export default {
                 console.log('Debug - Request data:', requestData);
 
                 const res = await api.generateAIProblem(requestData)
+                console.log('Debug - API response:', res);
 
-                this.generatedProblem = res.data.data
-                this.successMessage = this.$t('m.Problem_Generated_Successfully')
+                // 检查响应中是否有错误
+                if (res.data && res.data.error !== null) {
+                    // 后端返回了错误
+                    this.error = res.data.data || this.$t('m.Failed_to_Generate_Problem');
+                    // 特殊处理AI模型未配置的情况
+                    if (this.error.includes("没有激活的AI模型")) {
+                        this.error += "，请在AI模型管理中配置并激活一个AI模型后再试";
+                    }
+                } else {
+                    // 成功响应
+                    this.generatedProblem = res.data.data
+                    this.successMessage = this.$t('m.Problem_Generated_Successfully')
+                }
             } catch (err) {
                 console.error('Debug - Error generating problem:', err);
-                this.error = err.message || this.$t('m.Failed_to_Generate_Problem')
+                // 网络错误或其他异常
+                if (err.response) {
+                    // 服务器返回了错误状态码
+                    console.log('Debug - Error response:', err.response);
+                    if (err.response.data) {
+                        console.log('Debug - Error response data:', err.response.data);
+                        if (err.response.data.data) {
+                            this.error = err.response.data.data;
+                        } else if (err.response.data.error) {
+                            this.error = err.response.data.error;
+                        } else {
+                            this.error = `${err.response.status}: ${err.response.statusText}`;
+                        }
+                    } else {
+                        this.error = `${err.response.status}: ${err.response.statusText}`;
+                    }
+                } else if (err.request) {
+                    // 请求已发出但没有收到响应
+                    this.error = "网络错误或服务器无响应";
+                } else {
+                    // 其他错误
+                    this.error = err.message || this.$t('m.Failed_to_Generate_Problem');
+                }
             } finally {
                 this.generating = false
             }
