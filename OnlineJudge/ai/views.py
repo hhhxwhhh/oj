@@ -827,10 +827,10 @@ class KnowledgePointGraphAPI(APIView):
             
             # 构建边数据（前置知识点关系）
             for kp in knowledge_points:
-                source_id = node_id_map[kp.id]
+                target_id = node_id_map[kp.id]
                 for parent_point in kp.parent_points.all():
                     if parent_point.id in node_id_map:
-                        target_id = node_id_map[parent_point.id]
+                        source_id = node_id_map[parent_point.id]
                         edges.append({
                             'source': source_id,
                             'target': target_id,
