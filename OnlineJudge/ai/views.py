@@ -5,7 +5,7 @@ import requests
 from django.db import transaction,models
 # Create your views here.
 from utils.api import APIView,validate_serializer
-from account.decorators import login_required
+from account.decorators import login_required,super_admin_required,admin_role_required
 from .models import AIModel,AIConversation,AIMessage,AICodeReview,AIFeedback,KnowledgePoint,AIUserLearningPath
 from .serializers import (
     AIModelSerializer, CreateAIModelSerializer,
@@ -570,8 +570,21 @@ class KnowledgePointAPI(APIView):
     @login_required
     def get(self, request):
         """
-        获取用户知识点掌握情况
+        获取用户知识点掌握情况或单个知识点信息
         """
+        # 检查是否提供了id参数，如果有则返回单个知识点信息
+        knowledge_point_id = request.GET.get("id")
+        if knowledge_point_id:
+            try:
+                knowledge_point = KnowledgePoint.objects.get(id=knowledge_point_id)
+                from .serializers import KnowledgePointSerializer
+                return self.success(KnowledgePointSerializer(knowledge_point).data)
+            except KnowledgePoint.DoesNotExist:
+                return self.error("知识点不存在")
+            except Exception as e:
+                return self.error(str(e))
+        
+        # 否则返回用户知识点掌握情况
         try:
             user = request.user
             knowledge_states = KnowledgePointService.get_user_knowledge_state(user.id)
@@ -1064,3 +1077,28 @@ class AIAbilityComparisonAPI(APIView):
         except Exception as e:
             logger.error(f"Failed to compare abilities: {str(e)}")
             return self.error("能力对比失败")
+        
+
+class KnowledgePointInitializationAPI(APIView):
+    def post(self, request):
+        """
+        初始化知识点数据
+        """
+        try:
+            # 创建知识点数据
+            result = KnowledgePointService.create_knowledge_points_from_tags_detailed()
+            
+            # 建立知识点依赖关系
+            dependencies_result = KnowledgePointService.build_knowledge_point_dependencies()
+            
+            # 关联题目与知识点
+            association_result = KnowledgePointService.associate_problems_with_knowledge_points()
+            
+            return self.success({
+                "knowledge_points": result,
+                "dependencies": dependencies_result,
+                "associations": association_result
+            })
+        except Exception as e:
+            logger.error(f"Failed to initialize knowledge points: {str(e)}")
+            return self.error("知识点初始化失败: " + str(e))

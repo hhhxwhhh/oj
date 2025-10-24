@@ -337,6 +337,9 @@ export default {
       }
     });
   },
+  initializeKnowledgePoints() {
+    return ajax("ai/knowledge_point/initialize", "post");
+  },
   getContestAnalytics(contestId) {
     return ajax("admin/contest/analytics", "get", {
       params: {
@@ -371,10 +374,6 @@ function ajax(url, method, options) {
         if (res.data && res.data.error !== null) {
           Vue.prototype.$error(res.data.data);
           reject(res);
-          // // 若后端返回为登录，则为session失效，应退出当前登录用户
-          if (res.data.data && res.data.data.startsWith("Please login")) {
-            router.push({ name: "login" });
-          }
         } else {
           resolve(res);
           if (method !== "get") {

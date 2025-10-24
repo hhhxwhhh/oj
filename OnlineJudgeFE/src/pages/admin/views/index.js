@@ -13,6 +13,7 @@ import Home from "./Home.vue";
 import ProblemImportOrExport from "./problem/ImportAndExport.vue";
 import AIModel from "./general/AIModel.vue";
 import AIGenerateProblem from "./problem/AIGenerateProblem.vue";
+import Init_knowledge from "./ai/Init_knowledge.vue";
 const GenerateTags = () => import("./problem/GenerateTags.vue");
 export {
   Announcement,
@@ -30,5 +31,6 @@ export {
   ProblemImportOrExport,
   AIModel,
   GenerateTags,
-  AIGenerateProblem
+  AIGenerateProblem,
+  Init_knowledge
 };

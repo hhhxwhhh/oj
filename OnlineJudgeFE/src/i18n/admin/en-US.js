@@ -183,5 +183,8 @@ export const m = {
   Failed_to_Save_Problem: "Failed to save problem",
   Sample: "Sample",
   Delete: "Delete",
-  Reset: "Reset"
+  Reset: "Reset",
+  AI_Model: "AI Model Management",
+  Init_Knowledge: "Initialize Knowledge Points",
+  Generate_Problem_Tags: "Generate Problem Tags"
 };

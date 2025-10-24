@@ -182,5 +182,8 @@ export const m = {
   Failed_to_Save_Problem: "题目保存失败",
   Sample: "样例",
   Delete: "删除",
-  Reset: "重置"
+  Reset: "重置",
+  AI_Model: "AI 模型管理",
+  Init_Knowledge: "初始化知识点",
+  Generate_Problem_Tags: "生成题目标签"
 };

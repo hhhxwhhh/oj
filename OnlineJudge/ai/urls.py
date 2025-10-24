@@ -15,6 +15,8 @@ urlpatterns = [
     url(r"^ai/knowledge_point/manage/?$", views.KnowledgePointManagementAPI.as_view(), name="knowledge_point_manage_api"),
     url(r"^ai/knowledge_point/graph/?$", views.KnowledgePointGraphAPI.as_view(), name="knowledge_point_graph_api"),  
     url(r"^ai/knowledge_point/problems/?$", views.KnowledgePointProblemsAPI.as_view(), name="knowledge_point_problems_api"),
+    url(r"^ai/knowledge_point/initialize/?$", views.KnowledgePointInitializationAPI.as_view(), name="knowledge_point_initialize_api"),
+        
     url(r"^ai/singleknowledge_point/?$", views.SingleKnowledgePointAPI.as_view(), name="single_knowledge_point_api"),
 
     url(r"^ai/conversation/?$", views.AIConversationAPI.as_view(), name="ai_conversation_api"),
@@ -40,5 +42,7 @@ urlpatterns = [
 
     url(r"^ai/feedback/?$", views.AIFeedbackAPI.as_view(), name="ai_feedback_api"),
     url(r"^ai/problem/generate/?$", views.AIProblemGenerationAPI.as_view(), name="ai_problem_generation_api"),
+
+
 
 ]

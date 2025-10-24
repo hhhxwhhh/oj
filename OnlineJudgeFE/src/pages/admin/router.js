@@ -19,6 +19,7 @@ import {
 } from "./views";
 Vue.use(VueRouter);
 import ContestAnalytics from "./views/contest/ContestAnalytics.vue";
+import Init_knowledge from "./views/ai/Init_knowledge.vue";
 const GenerateTags = () => import("./views/problem/GenerateTags.vue");
 export default new VueRouter({
   mode: "history",
@@ -29,6 +30,11 @@ export default new VueRouter({
       path: "/login",
       name: "login",
       component: Login
+    },
+    {
+      path: "/init_knowledge",
+      name: "init_knowledge",
+      component: Init_knowledge
     },
     {
       path: "/",
