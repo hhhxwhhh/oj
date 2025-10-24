@@ -4,59 +4,50 @@
     <Panel shadow>
       <div slot="title">{{ $t('m.Problem_List') }}</div>
       <div slot="extra">
-        <ul class="filter">
-          <li>
-            <Dropdown @on-click="filterByDifficulty">
-              <span>{{ query.difficulty === '' ? this.$i18n.t('m.Difficulty') : this.$i18n.t('m.' + query.difficulty) }}
-                <Icon type="arrow-down-b"></Icon>
-              </span>
-              <Dropdown-menu slot="list">
-                <Dropdown-item name="">{{ $t('m.All') }}</Dropdown-item>
-                <Dropdown-item name="Low">{{ $t('m.Low') }}</Dropdown-item>
-                <Dropdown-item name="Mid">{{ $t('m.Mid') }}</Dropdown-item>
-                <Dropdown-item name="High">{{ $t('m.High') }}</Dropdown-item>
-              </Dropdown-menu>
-            </Dropdown>
-          </li>
-          <li>
-            <i-switch size="large" :value="tagsVisible" @on-change="handleTagsVisible">
-              <span slot="open">{{ $t('m.Tags') }}</span>
-              <span slot="close">{{ $t('m.Tags') }}</span>
-            </i-switch>
-          </li>
-          <li>
-            <Input v-model="query.keyword" @on-enter="filterByKeyword" @on-click="filterByKeyword" placeholder="keyword"
-              icon="ios-search-strong" />
-          </li>
-          <li>
-            <Button type="info" @click="onReset">
-              <Icon type="refresh"></Icon>
-              {{ $t('m.Reset') }}
-            </Button>
-          </li>
-          <li>
-            <Button :type="showRecommended ? 'primary' : 'default'" @click="toggleRecommended"
-              :loading="loadings.recommendation">
-              <Icon :type="showRecommended ? 'md-star' : 'md-star-outline'"></Icon>
-              {{ showRecommended ? $t('m.Show_All_Problems') : $t('m.Recommended_Problems') }}
-            </Button>
-          </li>
-        </ul>
+        <div class="filter">
+          <ul>
+            <li>
+              <Button @click="onReset">{{ $t('m.Reset') }}</Button>
+            </li>
+            <li>
+              <Button @click="toggleRecommended">
+                <Icon :type="showRecommended ? 'md-star' : 'md-star-outline'"></Icon>
+                {{ showRecommended ? $t('m.Show_All_Problems') : $t('m.Recommended_Problems') }}
+              </Button>
+            </li>
+            <li>
+              <Button @click="handleTagsVisible(!tagsVisible)">
+                <Icon :type="tagsVisible ? 'md-eye-off' : 'md-eye'"></Icon>
+                {{ tagsVisible ? $t('m.Hide_Tags') : $t('m.Show_Tags') }}
+              </Button>
+            </li>
+          </ul>
+        </div>
       </div>
       <Table style="width: 100%; font-size: 16px;" :columns="problemTableColumns" :data="problemList"
-        :loading="loadings.table" disabled-hover></Table>
+        :loading="loadings.table" disabled-hover ref="problemTable"></Table>
     </Panel>
+
     <Pagination :total="total" :page-size.sync="query.limit" @on-change="pushRouter" @on-page-size-change="pushRouter"
       :current.sync="query.page" :show-sizer="true"></Pagination>
-
     </Col>
 
     <Col :span="5">
     <Panel :padding="10">
       <div slot="title" class="taglist-title">{{ $t('m.Tags') }}</div>
-      <Button v-for="tag in tagList" :key="tag.name" @click="filterByTag(tag.name)" type="ghost"
-        :disabled="query.tag === tag.name" shape="circle" class="tag-btn">{{ tag.name }}
-      </Button>
+      <div class="tags-carousel-container" ref="tagsCarousel" :style="{ height: carouselHeight + 'px' }">
+        <div class="tags-carousel" :style="{ transform: `translateY(-${currentScrollPosition}px)` }">
+          <Button v-for="tag in tagList" :key="tag.name" @click="filterByTag(tag.name)" type="ghost"
+            :disabled="query.tag === tag.name" shape="circle" class="tag-btn">{{ tag.name }}
+          </Button>
+        </div>
+      </div>
+      <div class="carousel-controls">
+        <Button size="small" @click="toggleCarousel">
+          <Icon :type="carouselActive ? 'md-pause' : 'md-play'"></Icon>
+          {{ carouselActive ? $t('m.Pause') : $t('m.Play') }}
+        </Button>
+      </div>
 
       <Button long id="pick-one" @click="pickone">
         <Icon type="shuffle"></Icon>
@@ -174,10 +165,26 @@ export default {
       showRecommended: false,
       recommendedProblemList: [], // 存储推荐题目列表
       tagsVisible: true,// 跟踪tags显示状态
+      carouselActive: true, // 轮播是否激活
+      currentScrollPosition: 0, // 当前滚动位置
+      carouselInterval: null, // 轮播定时器
+      carouselSpeed: 30, // 轮播速度（像素/秒）
+      carouselHeight: 200, // 轮播容器高度
+      resizeTimer: null, // 防抖定时器
     }
   },
   mounted() {
     this.init()
+    this.startCarousel()
+    this.updateCarouselHeight()
+    this.setupResizeObserver()
+  },
+  beforeDestroy() {
+    this.stopCarousel()
+    if (this.resizeTimer) {
+      clearTimeout(this.resizeTimer)
+    }
+    window.removeEventListener('resize', this.handleResize)
   },
   methods: {
     init(simulate = false) {
@@ -371,7 +378,79 @@ export default {
     getACRate(acceptedCount, submissionCount) {
       if (submissionCount === 0) return '0%'
       return Math.round(acceptedCount / submissionCount * 100) + '%'
-    }
+    },
+    updateCarouselHeight() {
+      this.$nextTick(() => {
+        if (this.$refs.problemTable && this.$refs.tagsCarousel) {
+          // 获取问题列表表格的高度
+          const tableElement = this.$refs.problemTable.$el
+          if (tableElement) {
+            // 计算表格的实际高度
+            const tableHeight = tableElement.clientHeight
+
+            // 设置轮播容器高度与表格高度一致
+            // 减去一些边距和控件高度，确保视觉平衡
+            this.carouselHeight = Math.max(tableHeight - 40, 150) // 最小高度150px
+          }
+        }
+      })
+    },
+
+    setupResizeObserver() {
+      // 监听窗口大小变化，动态调整轮播高度
+      window.addEventListener('resize', this.handleResize)
+    },
+
+    handleResize() {
+      // 防抖处理，避免频繁更新
+      clearTimeout(this.resizeTimer)
+      this.resizeTimer = setTimeout(() => {
+        this.updateCarouselHeight()
+      }, 200)
+    },
+
+    startCarousel() {
+      this.stopCarousel() // 先停止现有的轮播
+      if (this.carouselActive && this.tagList.length > 0) {
+        this.carouselInterval = setInterval(() => {
+          if (this.$refs.tagsCarousel) {
+            const containerHeight = this.carouselHeight
+            const contentElement = this.$refs.tagsCarousel.querySelector('.tags-carousel')
+
+            if (contentElement) {
+              const contentHeight = contentElement.scrollHeight
+
+              // 只有当内容高度大于容器高度时才需要滚动
+              if (contentHeight > containerHeight) {
+                this.currentScrollPosition += 1 // 每次滚动1像素
+
+                // 如果滚动到底部，回到顶部
+                if (this.currentScrollPosition >= contentHeight - containerHeight) {
+                  this.currentScrollPosition = 0
+                }
+              } else {
+                // 如果内容高度小于容器高度，不需要滚动
+                this.currentScrollPosition = 0
+              }
+            }
+          }
+        }, 1000 / this.carouselSpeed) // 根据速度计算间隔时间
+      }
+    },
+    stopCarousel() {
+      if (this.carouselInterval) {
+        clearInterval(this.carouselInterval)
+        this.carouselInterval = null
+      }
+    },
+    toggleCarousel() {
+      this.carouselActive = !this.carouselActive
+      if (this.carouselActive) {
+        this.startCarousel()
+      } else {
+        this.stopCarousel()
+      }
+    },
   },
   computed: {
     ...mapGetters(['isAuthenticated'])
@@ -386,7 +465,37 @@ export default {
       if (newVal === true) {
         this.init()
       }
-    }
+    },
+    tagList(newVal) {
+      // 当tagList更新时，重置轮播位置并重新开始
+      this.currentScrollPosition = 0
+      if (this.carouselActive) {
+        this.$nextTick(() => {
+          this.startCarousel()
+        })
+      }
+    },
+
+    // 监听问题列表数据变化，更新轮播高度
+    problemList() {
+      this.$nextTick(() => {
+        this.updateCarouselHeight()
+      })
+    },
+
+    // 监听分页变化，更新轮播高度
+    'query.limit'() {
+      this.$nextTick(() => {
+        this.updateCarouselHeight()
+      })
+    },
+
+    // 监听推荐题目开关，更新轮播高度
+    showRecommended() {
+      this.$nextTick(() => {
+        this.updateCarouselHeight()
+      })
+    },
   }
 }
 </script>
@@ -411,5 +520,32 @@ export default {
     display: inline-block;
     margin-right: 10px;
   }
+}
+
+.tags-carousel-container {
+  min-height: 150px;
+  /* 最小高度 */
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+  border: 1px solid #e8eaec;
+  border-radius: 4px;
+  background-color: #f8f8f9;
+  transition: height 0.3s ease-in-out;
+  /* 高度变化过渡效果 */
+}
+
+.tags-carousel {
+  transition: transform 0.3s ease-in-out;
+  padding: 10px;
+}
+
+.carousel-controls {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.carousel-controls button {
+  margin: 0 5px;
 }
 </style>

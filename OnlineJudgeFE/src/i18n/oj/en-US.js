@@ -453,5 +453,15 @@ export const m = {
   Generate_Problem_Placeholder:
     "Generate a problem based on the knowledge point",
   Continue_Learning: "Continue Learning",
-  View_All_Learning_Paths: "View All Learning Path"
+  View_All_Learning_Paths: "View All Learning Path",
+  Pause: "Pause",
+  Play: "Play",
+  Hide_Tags: "Hide Tags",
+  Show_Tags: "Show Tags",
+  Hide_Description: "Hide Description",
+  Show_Description: "Show Description",
+  Hide_Prerequisite_Knowledge: "Hide Prerequisite Knowledge",
+  Show_Prerequisite_Knowledge: "Show Prerequisite Knowledge",
+  Hide_Subsequent_Knowledge: "Hide Subsequent Knowledge",
+  Show_Subsequent_Knowledge: "Show Subsequent Knowledge"
 };
