@@ -186,7 +186,6 @@
         </div>
     </div>
 </template>
-
 <script>
 import api from '@admin/api'
 import Panel from '@admin/components/Panel.vue'
@@ -218,15 +217,6 @@ export default {
     },
     methods: {
         async generateProblem() {
-            // 更严格的验证逻辑，确保正确检查知识点输入
-            console.log('Debug - Form data:', this.form);
-            console.log('Debug - Knowledge point value:', this.form.knowledgePoint);
-            console.log('Debug - Knowledge point type:', typeof this.form.knowledgePoint);
-            console.log('Debug - Knowledge point length:', this.form.knowledgePoint ? this.form.knowledgePoint.length : 0);
-            console.log('Debug - Knowledge point truthy:', !!this.form.knowledgePoint);
-            console.log('Debug - Knowledge point trimmed:', this.form.knowledgePoint.trim());
-            console.log('Debug - Knowledge point trimmed length:', this.form.knowledgePoint.trim().length);
-
             // 更严格的验证逻辑
             if (!this.form.knowledgePoint ||
                 typeof this.form.knowledgePoint !== 'string' ||
@@ -319,8 +309,12 @@ export default {
             this.error = '';
 
             try {
+                // 生成一个随机的题目ID
+                const randomId = 'AI-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
                 // 准备题目数据
                 const problemData = {
+                    _id: randomId,
                     title: this.generatedProblem.title,
                     description: this.generatedProblem.description,
                     input_description: this.generatedProblem.input_description,
@@ -340,7 +334,10 @@ export default {
                     spj: false,
                     spj_language: null,
                     spj_code: null,
-                    testcase: ""
+                    testcase: "",
+                    test_case_id: "test-case" + randomId.toLowerCase(),
+                    test_case_score: [],
+                    template: {}
                 };
 
                 // 调用API创建题目
@@ -348,13 +345,29 @@ export default {
 
                 if (res.status === 200 || res.status === 201) {
                     this.successMessage = this.$t('m.Problem_Saved_Successfully');
-                    // 可以考虑重置表单或跳转到题目列表
-                    // this.resetForm();
                 } else {
                     this.error = this.$t('m.Failed_to_Save_Problem');
                 }
             } catch (err) {
-                this.error = err.message || this.$t('m.Failed_to_Save_Problem');
+                // 更详细地处理错误信息
+                if (err.response) {
+                    // 服务器返回了错误状态码
+                    if (err.response.data) {
+                        if (err.response.data.data) {
+                            this.error = err.response.data.data;
+                        } else {
+                            this.error = `${err.response.status}: ${err.response.statusText}`;
+                        }
+                    } else {
+                        this.error = `${err.response.status}: ${err.response.statusText}`;
+                    }
+                } else if (err.request) {
+                    // 请求已发出但没有收到响应
+                    this.error = "网络错误或服务器无响应";
+                } else {
+                    // 其他错误
+                    this.error = err.message || this.$t('m.Failed_to_Save_Problem');
+                }
             } finally {
                 this.saving = false;
             }
