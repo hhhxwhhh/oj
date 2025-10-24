@@ -17,6 +17,7 @@
       <template slot="title"><i class="el-icon-fa-bars"></i>{{ $t('m.Problem') }}</template>
       <el-menu-item index="/problems">{{ $t('m.Problem_List') }}</el-menu-item>
       <el-menu-item index="/problem/create">{{ $t('m.Create_Problem') }}</el-menu-item>
+      <el-menu-item index="/admin/ai/generate-problem">{{ $t('m.AI_Generate_Problem') }}</el-menu-item>
       <el-menu-item index="/problem/batch_ops">{{ $t('m.Export_Import_Problem') }}</el-menu-item>
       <el-menu-item index="admin/generate-tags">{{ $t('m.Generate_Problem_Tags') }}</el-menu-item>
     </el-submenu>

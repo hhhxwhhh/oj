@@ -311,6 +311,11 @@ export default {
       data
     });
   },
+  generateAIProblem(data) {
+    return ajax("ai/problem/generate", "post", {
+      data
+    });
+  },
   // AI Models
   getAIModels() {
     return ajax("admin/ai_model/list", "get");

@@ -162,5 +162,26 @@ export const m = {
   Tags_Generation_Completed: "Tags Generation Completed",
   Tags_Generation_Failed: "Tags Generation Failed",
   Task_Output: "Task Output",
-  Tags_Generation_Started: "Tags Generation Started"
+  Tags_Generation_Started: "Tags Generation Started",
+  AI_Generate_Problem: "AI Generate Problem",
+  Export_Import_Problem: "Export or Import Problem",
+  Generate_Problem_Tags: "Generate Problem Tags",
+  Knowledge_Point: "Knowledge Point",
+  Knowledge_Point_Placeholder:
+    "Enter the knowledge point name to generate the problem, e.g., Dynamic Programming, Binary Search",
+  Auto_Adjust_Difficulty: "Auto Adjust Difficulty",
+  Auto_Generate_Test_Cases: "Auto Generate Test Cases",
+  Test_Case_Count: "Test Case Count",
+  Generate_Problem: "Generate Problem",
+  Generating: "Generating...",
+  Generated_Problem: "Generated Problem",
+  Knowledge_Point_Required: "Knowledge Point is required",
+  Failed_to_Generate_Problem: "Failed to generate problem",
+  Problem_Generated_Successfully: "Problem generated successfully!",
+  Save_Problem: "Save Problem",
+  Problem_Saved_Successfully: "Problem saved successfully!",
+  Failed_to_Save_Problem: "Failed to save problem",
+  Sample: "Sample",
+  Delete: "Delete",
+  Reset: "Reset"
 };

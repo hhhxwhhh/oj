@@ -161,5 +161,26 @@ export const m = {
   Tags_Generation_Completed: "标签生成完成",
   Tags_Generation_Failed: "标签生成失败",
   Task_Output: "任务输出",
-  Tags_Generation_Started: "标签生成任务已启动"
+  Tags_Generation_Started: "标签生成任务已启动",
+  AI_Generate_Problem: "AI生成问题",
+  Export_Import_Problem: "导出或导入问题",
+  Generate_Problem_Tags: "生成问题标签",
+  Knowledge_Point: "知识点",
+  Knowledge_Point_Placeholder:
+    "请输入要生成题目的知识点名称，如：动态规划、二分查找等",
+  Auto_Adjust_Difficulty: "自动调整难度",
+  Auto_Generate_Test_Cases: "自动生成测试用例",
+  Test_Case_Count: "测试用例数量",
+  Generate_Problem: "生成题目",
+  Generating: "生成中...",
+  Generated_Problem: "生成的题目",
+  Knowledge_Point_Required: "知识点名称不能为空",
+  Failed_to_Generate_Problem: "题目生成失败",
+  Problem_Generated_Successfully: "题目生成成功！",
+  Save_Problem: "保存题目",
+  Problem_Saved_Successfully: "题目保存成功！",
+  Failed_to_Save_Problem: "题目保存失败",
+  Sample: "样例",
+  Delete: "删除",
+  Reset: "重置"
 };

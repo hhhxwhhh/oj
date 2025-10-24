@@ -85,6 +85,13 @@ export default new VueRouter({
           component: Problem
         },
         {
+          path: "/admin/ai/generate-problem",
+          component: resolve =>
+            require(["@admin/views/problem/AIGenerateProblem.vue"], resolve),
+          name: "AIGenerateProblem",
+          meta: { title: "AI Generate Problem", permission: "admin" }
+        },
+        {
           path: "/problem/batch_ops",
           name: "problem_batch_ops",
           component: ProblemImportOrExport

@@ -1770,6 +1770,186 @@ class KnowledgePointService:
             logger.error(f"Failed to update knowledge point weights: {str(e)}")
 
 
+class AIProblemGenerationService:
+    """
+    AI驱动的题目生成服务
+    """
+    
+    @staticmethod
+    def generate_problem_by_knowledge_point(knowledge_point_name, difficulty="Mid"):
+        # 构建提示语
+        difficulty_desc = {
+            "Low": "简单：适合初学者，主要考察基本语法和简单逻辑",
+            "Mid": "中等：适合有一定基础的学习者，需要综合运用多个知识点",
+            "High": "困难：适合高级学习者，需要深入理解和创新思维"
+        }
+        
+        prompt = f"""
+请根据以下知识点生成一道编程题目：
+
+知识点: {knowledge_point_name}
+难度: {difficulty} - {difficulty_desc.get(difficulty, "中等")}
+
+请以JSON格式返回结果，结构如下:
+{{
+    "title": "题目标题",
+    "description": "题目描述，包含问题背景和要求",
+    "input_description": "输入描述",
+    "output_description": "输出描述",
+    "samples": [
+        {{
+            "input": "样例输入1",
+            "output": "样例输出1"
+        }},
+        {{
+            "input": "样例输入2",
+            "output": "样例输出2"
+        }}
+    ],
+    "hint": "提示信息（可选）",
+    "time_limit": 1000,
+    "memory_limit": 256,
+    "difficulty": "{difficulty}"
+}}
+
+要求：
+1. 题目应紧密围绕指定知识点
+2. 难度适中，符合指定等级
+3. 至少包含2个样例，样例应具有代表性
+4. 题目描述清晰，无歧义
+5. 只返回JSON，不要有任何其他内容
+"""
+
+        messages = [
+            {"role": "system", "content": "你是一个专业的编程题目设计师，擅长根据知识点设计合适的编程题目。"},
+            {"role": "user", "content": prompt}
+        ]
+        
+        ai_model = AIService.get_active_ai_model()
+        if not ai_model:
+            raise Exception("No active AI model found")
+        
+        try:
+            response = AIService.call_ai_model(messages, ai_model)
+            # 清理响应内容，确保是有效的JSON
+            import json
+            import re
+            
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                response = json_match.group()
+            
+            problem_data = json.loads(response)
+            return problem_data
+        except Exception as e:
+            logger.error(f"Failed to generate problem: {str(e)}")
+            logger.error(f"AI response: {response}")
+            raise Exception(f"Failed to generate problem: {str(e)}")
+        
+    @staticmethod
+    def validate_and_adjust_problem(problem_data, knowledge_point_name):
+        # 确保必要字段存在
+        required_fields = ["title", "description", "input_description", "output_description", "samples"]
+        for field in required_fields:
+            if field not in problem_data:
+                problem_data[field] = ""
+        
+        # 设置默认值
+        if "hint" not in problem_data:
+            problem_data["hint"] = ""
+            
+        if "time_limit" not in problem_data:
+            problem_data["time_limit"] = 1000
+            
+        if "memory_limit" not in problem_data:
+            problem_data["memory_limit"] = 256
+            
+        if "difficulty" not in problem_data:
+            problem_data["difficulty"] = "Mid"
+            
+        # 确保samples是列表
+        if not isinstance(problem_data["samples"], list):
+            problem_data["samples"] = []
+            
+        # 添加知识点信息到题目描述中
+        knowledge_info = f"\n\n**涉及知识点**: {knowledge_point_name}"
+        if knowledge_info not in problem_data["description"]:
+            problem_data["description"] += knowledge_info
+            
+        return problem_data
+    @staticmethod
+    def auto_adjust_difficulty(problem_data, target_difficulty):
+        # 这里可以实现更复杂的难度调整逻辑
+        problem_data["difficulty"] = target_difficulty
+        return problem_data
+    
+    @staticmethod
+    def generate_test_cases(problem_data, test_case_count=5):
+        """
+        为生成的题目自动生成测试用例
+        :param problem_data: 题目数据
+        :param test_case_count: 测试用例数量
+        :return: 测试用例列表
+        """
+        prompt = f"""
+根据以下题目信息生成{test_case_count}个测试用例：
+
+题目标题: {problem_data.get('title', '未知')}
+题目描述: {problem_data.get('description', '无描述')}
+输入描述: {problem_data.get('input_description', '无描述')}
+输出描述: {problem_data.get('output_description', '无描述')}
+
+请以JSON格式返回结果，结构如下:
+[
+    {{
+        "input": "测试输入1",
+        "output": "测试输出1"
+    }},
+    {{
+        "input": "测试输入2", 
+        "output": "测试输出2"
+    }}
+]
+
+要求：
+1. 包含边界条件测试用例
+2. 包含正常情况测试用例
+3. 至少有一个复杂测试用例
+4. 确保输出结果正确
+5. 只返回JSON数组，不要有任何其他内容
+"""
+
+        messages = [
+            {"role": "system", "content": "你是一个专业的编程题目测试用例设计专家。"},
+            {"role": "user", "content": prompt}
+        ]
+        
+        ai_model = AIService.get_active_ai_model()
+        if not ai_model:
+            raise Exception("No active AI model found")
+        
+        try:
+            response = AIService.call_ai_model(messages, ai_model)
+            # 清理响应内容，确保是有效的JSON
+            import json
+            import re
+            
+            # 尝试提取JSON内容
+            json_match = re.search(r'\[.*\]', response, re.DOTALL)
+            if json_match:
+                response = json_match.group()
+            
+            test_cases = json.loads(response)
+            return test_cases
+        except Exception as e:
+            logger.error(f"Failed to generate test cases: {str(e)}")
+            logger.error(f"AI response: {response}")
+            # 返回默认测试用例
+            return [
+                {"input": "1 2", "output": "3"},
+                {"input": "0 0", "output": "0"}
+            ]
 
     
 

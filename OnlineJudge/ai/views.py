@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from utils.api import serializers
 import openai 
 import requests
 from django.db import transaction
@@ -14,7 +15,7 @@ from .serializers import (
     AIFeedbackSerializer, CreateAIFeedbackSerializer,
     CreateAIRecommendationFeedbackSerializer,AIRecommendationFeedbackSerializer
 )
-from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService,KnowledgePointService   
+from .service import AIService,AIRecommendationService,AILearningPathService,AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService
 from submission.models import Submission
 from problem.models import Problem
 import logging
@@ -892,3 +893,56 @@ class KnowledgePointProblemsAPI(APIView):
             return self.error("知识点不存在")
         except Exception as e:
             return self.error(str(e))
+        
+
+class AIProblemGenerationAPI(APIView):
+    """
+    AI驱动的题目生成API
+    """
+    @validate_serializer(serializers.Serializer)
+    def post(self, request):
+        # 获取请求参数
+        knowledge_point = request.data.get("knowledge_point")
+        difficulty = request.data.get("difficulty", "Mid")
+        auto_adjust = request.data.get("auto_adjust", True)
+        generate_test_cases = request.data.get("generate_test_cases", True)
+        test_case_count = request.data.get("test_case_count", 5)
+        
+        # 更严格的验证逻辑
+        if not knowledge_point or not isinstance(knowledge_point, str) or len(knowledge_point.strip()) == 0:
+            return self.error("知识点不能为空")
+        
+        try:
+            # 检查是否有激活的AI模型
+            active_model_exists = AIModel.objects.filter(is_active=True).exists()
+            if not active_model_exists:
+                return self.error("没有激活的AI模型，请先配置AI模型")
+            
+            # 生成题目
+            problem_data = AIProblemGenerationService.generate_problem_by_knowledge_point(
+                knowledge_point_name=knowledge_point.strip(),
+                difficulty=difficulty
+            )
+            
+            # 验证并调整题目
+            problem_data = AIProblemGenerationService.validate_and_adjust_problem(
+                problem_data, knowledge_point
+            )
+            
+            # 如果需要自动调整难度
+            if auto_adjust:
+                problem_data = AIProblemGenerationService.auto_adjust_difficulty(
+                    problem_data, difficulty
+                )
+            
+            # 如果需要生成测试用例
+            if generate_test_cases:
+                test_cases = AIProblemGenerationService.generate_test_cases(
+                    problem_data, test_case_count
+                )
+                problem_data["test_cases"] = test_cases
+            
+            return self.success(problem_data)
+        except Exception as e:
+            logger.error(f"Generate problem failed: {str(e)}")
+            return self.error(f"题目生成失败: {str(e)}")

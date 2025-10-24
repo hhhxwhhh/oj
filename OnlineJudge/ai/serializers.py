@@ -132,3 +132,14 @@ class KnowledgePointSerializer(serializers.ModelSerializer):
     class Meta:
         model = KnowledgePoint
         fields = "__all__"
+
+class AIProblemGenerationSerializer(serializers.Serializer):
+    knowledge_point = serializers.CharField(max_length=128, help_text="知识点名称")
+    difficulty = serializers.ChoiceField(
+        choices=[("Low", "简单"), ("Mid", "中等"), ("High", "困难")],
+        default="Mid",
+        help_text="题目难度"
+    )
+    auto_adjust = serializers.BooleanField(default=True, help_text="是否自动调整难度")
+    generate_test_cases = serializers.BooleanField(default=True, help_text="是否生成测试用例")
+    test_case_count = serializers.IntegerField(default=5, min_value=1, max_value=20, help_text="测试用例数量")
