@@ -449,5 +449,7 @@ export const m = {
   Prerequisite_Knowledge: "Prerequisite Knowledge",
   Subsequent_Knowledge: "Subsequent Knowledge",
   View_Related_Problems: "View Related Problems",
-  Add_to_Learning_Path: "Add to Learning Path"
+  Add_to_Learning_Path: "Add to Learning Path",
+  Generate_Problem_Placeholder:
+    "Generate a problem based on the knowledge point"
 };

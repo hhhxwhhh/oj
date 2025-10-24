@@ -1,191 +1,190 @@
 <template>
     <div class="problem">
-        <Panel>
-            <span slot="title">{{ $t('m.AI_Generate_Problem') }}</span>
-            <el-form ref="form" :model="form" label-position="top" label-width="120px">
-                <el-row :gutter="20">
-                    <el-col :span="18">
-                        <el-form-item :label="$t('m.Knowledge_Point')" required>
-                            <el-input v-model="form.knowledgePoint" :placeholder="$t('m.Knowledge_Point_Placeholder')"
-                                required>
-                            </el-input>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-
-                <el-row :gutter="20">
-                    <el-col :span="18">
-                        <el-form-item :label="$t('m.Difficulty')">
-                            <el-select class="difficulty-select" size="small" :placeholder="$t('m.Difficulty')"
-                                v-model="form.difficulty">
-                                <el-option :label="$t('m.Low')" value="Low"></el-option>
-                                <el-option :label="$t('m.Mid')" value="Mid"></el-option>
-                                <el-option :label="$t('m.High')" value="High"></el-option>
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-
-                <el-row :gutter="20">
-                    <el-col :span="18">
-                        <el-checkbox v-model="form.autoAdjust">{{ $t('m.Auto_Adjust_Difficulty') }}</el-checkbox>
-                    </el-col>
-                </el-row>
-
-                <el-row :gutter="20">
-                    <el-col :span="18">
-                        <el-checkbox v-model="form.generateTestCases">{{ $t('m.Auto_Generate_Test_Cases')
-                            }}</el-checkbox>
-                    </el-col>
-                </el-row>
-
-                <el-row :gutter="20" v-if="form.generateTestCases">
-                    <el-col :span="18">
-                        <el-form-item :label="$t('m.Test_Case_Count')">
-                            <el-input-number v-model="form.testCaseCount" :min="1" :max="20" size="small">
-                            </el-input-number>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-
-                <el-row :gutter="20">
-                    <el-col :span="18">
-                        <el-button type="primary" :loading="generating" @click="generateProblem"
-                            icon="el-icon-magic-stick">
-                            {{ generating ? $t('m.Generating') : $t('m.Generate_Problem') }}
-                        </el-button>
-                    </el-col>
-                </el-row>
-            </el-form>
-        </Panel>
-
-        <div v-if="generatedProblem">
-            <Panel>
-                <span slot="title">{{ $t('m.Generated_Problem') }}</span>
-                <el-alert v-if="error" :title="error" type="error" show-icon :closable="false">
-                </el-alert>
-
-                <el-alert v-if="successMessage" :title="successMessage" type="success" show-icon :closable="false">
-                </el-alert>
-
-                <div v-if="!error">
-                    <el-form ref="problemForm" :model="generatedProblem" label-position="top" label-width="120px">
-                        <el-row :gutter="20">
-                            <el-col :span="18">
-                                <el-form-item :label="$t('m.Title')" required>
-                                    <el-input v-model="generatedProblem.title"></el-input>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-
-                        <el-row :gutter="20">
-                            <el-col :span="24">
-                                <el-form-item :label="$t('m.Description')" required>
-                                    <MarkdownEditor v-model="generatedProblem.description"></MarkdownEditor>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-
-                        <el-row :gutter="20">
-                            <el-col :span="24">
-                                <el-form-item :label="$t('m.Input_Description')" required>
-                                    <MarkdownEditor v-model="generatedProblem.input_description"></MarkdownEditor>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-
-                        <el-row :gutter="20">
-                            <el-col :span="24">
-                                <el-form-item :label="$t('m.Output_Description')" required>
-                                    <MarkdownEditor v-model="generatedProblem.output_description"></MarkdownEditor>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-
-                        <el-row :gutter="20">
-                            <el-col :span="8">
-                                <el-form-item :label="$t('m.Time_Limit') + ' (ms)'" required>
-                                    <el-input-number v-model="generatedProblem.time_limit" :min="100"
-                                        :step="100"></el-input-number>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :span="8">
-                                <el-form-item :label="$t('m.Memory_limit') + ' (MB)'" required>
-                                    <el-input-number v-model="generatedProblem.memory_limit" :min="4"
-                                        :step="4"></el-input-number>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :span="8">
-                                <el-form-item :label="$t('m.Difficulty')">
-                                    <el-select class="difficulty-select" size="small"
-                                        v-model="generatedProblem.difficulty">
-                                        <el-option :label="$t('m.Low')" value="Low"></el-option>
-                                        <el-option :label="$t('m.Mid')" value="Mid"></el-option>
-                                        <el-option :label="$t('m.High')" value="High"></el-option>
-                                    </el-select>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-
-                        <div>
-                            <el-form-item v-for="(sample, index) in generatedProblem.samples" :key="'sample' + index">
-                                <Accordion :title="$t('m.Sample') + (index + 1)">
-                                    <el-button type="warning" size="small" icon="el-icon-delete" slot="header"
-                                        @click="removeSample(index)">
-                                        {{ $t('m.Delete') }}
-                                    </el-button>
-                                    <el-row :gutter="20">
-                                        <el-col :span="12">
-                                            <el-form-item :label="$t('m.Input_Samples')" required>
-                                                <el-input :rows="5" type="textarea" :placeholder="$t('m.Input_Samples')"
-                                                    v-model="sample.input">
-                                                </el-input>
-                                            </el-form-item>
-                                        </el-col>
-                                        <el-col :span="12">
-                                            <el-form-item :label="$t('m.Output_Samples')" required>
-                                                <el-input :rows="5" type="textarea"
-                                                    :placeholder="$t('m.Output_Samples')" v-model="sample.output">
-                                                </el-input>
-                                            </el-form-item>
-                                        </el-col>
-                                    </el-row>
-                                </Accordion>
+        <el-row :gutter="20">
+            <!-- 左侧配置面板 -->
+            <el-col :span="12">
+                <Panel class="config-panel">
+                    <div slot="title">{{ $t('m.AI_Generate_Problem') }}</div>
+                    <div class="config-content">
+                        <el-form ref="form" :model="form" label-position="top" label-width="120px">
+                            <el-form-item :label="$t('m.Knowledge_Point')" required>
+                                <el-input v-model="form.knowledgePoint"
+                                    :placeholder="$t('m.Knowledge_Point_Placeholder')" required>
+                                </el-input>
                             </el-form-item>
-                        </div>
 
-                        <div class="add-sample-btn">
-                            <button type="button" class="add-samples" @click="addSample()">
-                                <i class="el-icon-plus"></i>{{ $t('m.Add_Sample') }}
-                            </button>
-                        </div>
+                            <el-form-item :label="$t('m.Difficulty')">
+                                <el-select class="difficulty-select" size="small" :placeholder="$t('m.Difficulty')"
+                                    v-model="form.difficulty" style="width: 100%;">
+                                    <el-option :label="$t('m.Low')" value="Low"></el-option>
+                                    <el-option :label="$t('m.Mid')" value="Mid"></el-option>
+                                    <el-option :label="$t('m.High')" value="High"></el-option>
+                                </el-select>
+                            </el-form-item>
 
-                        <el-row :gutter="20">
-                            <el-col :span="24">
-                                <el-form-item :label="$t('m.Hint')">
-                                    <MarkdownEditor v-model="generatedProblem.hint"></MarkdownEditor>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
+                            <el-row :gutter="15">
+                                <el-col :span="12">
+                                    <el-checkbox v-model="form.autoAdjust">{{ $t('m.Auto_Adjust_Difficulty')
+                                    }}</el-checkbox>
+                                </el-col>
+                                <el-col :span="12">
+                                    <el-checkbox v-model="form.generateTestCases">{{ $t('m.Auto_Generate_Test_Cases')
+                                    }}</el-checkbox>
+                                </el-col>
+                            </el-row>
 
-                        <el-row :gutter="20">
-                            <el-col :span="24">
-                                <div class="button-group">
-                                    <el-button type="success" @click="saveProblem" icon="el-icon-check">
-                                        {{ $t('m.Save_Problem') }}
-                                    </el-button>
-                                    <el-button @click="resetForm" icon="el-icon-refresh">
-                                        {{ $t('m.Reset') }}
-                                    </el-button>
+                            <el-form-item v-if="form.generateTestCases" :label="$t('m.Test_Case_Count')">
+                                <el-input-number v-model="form.testCaseCount" :min="1" :max="20" size="small">
+                                </el-input-number>
+                            </el-form-item>
+
+                            <el-form-item>
+                                <el-button type="primary" :loading="generating" @click="generateProblem"
+                                    icon="el-icon-magic-stick" style="width: 100%;">
+                                    {{ generating ? $t('m.Generating') : $t('m.Generate_Problem') }}
+                                </el-button>
+                            </el-form-item>
+                        </el-form>
+                    </div>
+                </Panel>
+            </el-col>
+
+            <!-- 右侧结果面板 -->
+            <el-col :span="12">
+                <div v-if="generatedProblem" class="result-container">
+                    <Panel class="result-panel">
+                        <div slot="title">{{ $t('m.Generated_Problem') }}</div>
+
+                        <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" class="alert">
+                        </el-alert>
+
+                        <el-alert v-if="successMessage" :title="successMessage" type="success" show-icon
+                            :closable="false" class="alert">
+                        </el-alert>
+
+                        <div v-if="!error" class="result-content">
+                            <el-scrollbar style="height: 100%;">
+                                <div class="scroll-content">
+                                    <el-form ref="problemForm" :model="generatedProblem" label-position="top"
+                                        label-width="120px">
+                                        <el-form-item :label="$t('m.Title')" required>
+                                            <el-input v-model="generatedProblem.title"></el-input>
+                                        </el-form-item>
+
+                                        <el-form-item :label="$t('m.Description')" required>
+                                            <MarkdownEditor v-model="generatedProblem.description" :height="200">
+                                            </MarkdownEditor>
+                                        </el-form-item>
+
+                                        <el-form-item :label="$t('m.Input_Description')" required>
+                                            <MarkdownEditor v-model="generatedProblem.input_description" :height="150">
+                                            </MarkdownEditor>
+                                        </el-form-item>
+
+                                        <el-form-item :label="$t('m.Output_Description')" required>
+                                            <MarkdownEditor v-model="generatedProblem.output_description" :height="150">
+                                            </MarkdownEditor>
+                                        </el-form-item>
+
+                                        <el-row :gutter="15">
+                                            <el-col :span="8">
+                                                <el-form-item :label="$t('m.Time_Limit') + ' (ms)'" required>
+                                                    <el-input-number v-model="generatedProblem.time_limit" :min="100"
+                                                        :step="100" style="width: 100%;"></el-input-number>
+                                                </el-form-item>
+                                            </el-col>
+                                            <el-col :span="8">
+                                                <el-form-item :label="$t('m.Memory_limit') + ' (MB)'" required>
+                                                    <el-input-number v-model="generatedProblem.memory_limit" :min="4"
+                                                        :step="4" style="width: 100%;"></el-input-number>
+                                                </el-form-item>
+                                            </el-col>
+                                            <el-col :span="8">
+                                                <el-form-item :label="$t('m.Difficulty')">
+                                                    <el-select class="difficulty-select" size="small"
+                                                        v-model="generatedProblem.difficulty" style="width: 100%;">
+                                                        <el-option :label="$t('m.Low')" value="Low"></el-option>
+                                                        <el-option :label="$t('m.Mid')" value="Mid"></el-option>
+                                                        <el-option :label="$t('m.High')" value="High"></el-option>
+                                                    </el-select>
+                                                </el-form-item>
+                                            </el-col>
+                                        </el-row>
+
+                                        <div class="samples-section">
+                                            <h4>{{ $t('m.Samples') }}</h4>
+                                            <el-form-item v-for="(sample, index) in generatedProblem.samples"
+                                                :key="'sample' + index">
+                                                <Accordion :title="$t('m.Sample') + (index + 1)">
+                                                    <el-button type="warning" size="small" icon="el-icon-delete"
+                                                        slot="header" @click="removeSample(index)">
+                                                        {{ $t('m.Delete') }}
+                                                    </el-button>
+                                                    <el-row :gutter="15">
+                                                        <el-col :span="12">
+                                                            <el-form-item :label="$t('m.Input_Samples')" required>
+                                                                <el-input :rows="4" type="textarea"
+                                                                    :placeholder="$t('m.Input_Samples')"
+                                                                    v-model="sample.input">
+                                                                </el-input>
+                                                            </el-form-item>
+                                                        </el-col>
+                                                        <el-col :span="12">
+                                                            <el-form-item :label="$t('m.Output_Samples')" required>
+                                                                <el-input :rows="4" type="textarea"
+                                                                    :placeholder="$t('m.Output_Samples')"
+                                                                    v-model="sample.output">
+                                                                </el-input>
+                                                            </el-form-item>
+                                                        </el-col>
+                                                    </el-row>
+                                                </Accordion>
+                                            </el-form-item>
+                                        </div>
+
+                                        <div class="add-sample-btn">
+                                            <el-button type="primary" icon="el-icon-plus" @click="addSample()"
+                                                size="small">
+                                                {{ $t('m.Add_Sample') }}
+                                            </el-button>
+                                        </div>
+
+                                        <el-form-item :label="$t('m.Hint')">
+                                            <MarkdownEditor v-model="generatedProblem.hint" :height="150">
+                                            </MarkdownEditor>
+                                        </el-form-item>
+
+                                        <div class="button-group">
+                                            <el-button type="success" @click="saveProblem" icon="el-icon-check"
+                                                :loading="saving">
+                                                {{ saving ? $t('m.Saving') : $t('m.Save_Problem') }}
+                                            </el-button>
+                                            <el-button @click="resetForm" icon="el-icon-refresh">
+                                                {{ $t('m.Reset') }}
+                                            </el-button>
+                                        </div>
+                                    </el-form>
                                 </div>
-                            </el-col>
-                        </el-row>
-                    </el-form>
+                            </el-scrollbar>
+                        </div>
+                    </Panel>
                 </div>
-            </Panel>
-        </div>
+
+                <!-- 空状态占位 -->
+                <div v-else class="empty-placeholder">
+                    <Panel>
+                        <div slot="title">{{ $t('m.Generated_Problem') }}</div>
+                        <div class="placeholder-content">
+                            <i class="el-icon-document"></i>
+                            <p>{{ $t('m.Generate_Problem_Placeholder') }}</p>
+                        </div>
+                    </Panel>
+                </div>
+            </el-col>
+        </el-row>
     </div>
 </template>
+
 <script>
 import api from '@admin/api'
 import Panel from '@admin/components/Panel.vue'
@@ -392,22 +391,139 @@ export default {
 </script>
 
 <style scoped lang="less">
-.button-group {
-    margin-top: 20px;
-}
+.problem {
+    height: 100%;
 
-.add-sample-btn {
-    margin-bottom: 10px;
+    .config-panel,
+    .result-panel,
+    .info-panel {
+        height: 100%;
 
-    .add-samples {
-        border: none;
-        background-color: #fff;
-        color: #495060;
-        padding: 0;
+        /deep/ .panel-body {
+            height: calc(100% - 50px);
+        }
+    }
 
-        &:hover {
-            color: #2d8cf0;
-            background-color: #fff;
+    .config-content {
+        padding: 20px;
+    }
+
+    .info-content {
+        padding: 20px;
+
+        p {
+            margin-bottom: 10px;
+            color: #606266;
+
+            i {
+                color: #409eff;
+                margin-right: 5px;
+            }
+        }
+    }
+
+    .result-container {
+        height: 100%;
+
+        /deep/ .panel-body {
+            height: calc(100% - 50px);
+            padding: 0;
+        }
+
+        .result-content {
+            height: 100%;
+            padding: 20px;
+
+            .el-scrollbar {
+                height: calc(100% - 50px);
+
+                .scroll-content {
+                    padding-right: 15px;
+                }
+            }
+        }
+    }
+
+    .alert {
+        margin-bottom: 20px;
+    }
+
+    .samples-section {
+        margin: 20px 0;
+
+        h4 {
+            margin-bottom: 15px;
+            color: #606266;
+            font-weight: bold;
+        }
+
+        /deep/ .accordion {
+            margin-bottom: 15px;
+
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 15px;
+                background-color: #f5f5f5;
+                border-radius: 4px;
+
+                .title {
+                    font-weight: bold;
+                }
+            }
+
+            .content {
+                padding: 15px;
+                border: 1px solid #ebeef5;
+                border-top: none;
+                border-radius: 0 0 4px 4px;
+            }
+        }
+    }
+
+    .add-sample-btn {
+        margin: 15px 0;
+    }
+
+    .button-group {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+    }
+
+    /deep/ .el-form-item {
+        margin-bottom: 20px;
+    }
+
+    /deep/ .el-form-item__label {
+        font-weight: bold;
+        color: #606266;
+    }
+
+    .empty-placeholder {
+        height: 100%;
+
+        /deep/ .panel-body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: calc(100% - 50px);
+        }
+
+        .placeholder-content {
+            text-align: center;
+            color: #909399;
+
+            i {
+                font-size: 48px;
+                margin-bottom: 15px;
+                color: #c0c4cc;
+            }
+
+            p {
+                font-size: 14px;
+            }
         }
     }
 }
