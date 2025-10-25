@@ -1009,7 +1009,16 @@ class AIProgrammingAbilityAPI(APIView):
         """
         try:
             user_id = request.user.id
-            ability_record = AIProgrammingAbilityService.assess_user_ability(user_id)
+            
+            # 检查是否要使用增强版评估
+            use_ml = request.data.get('use_ml', False)
+            
+            if use_ml:
+                # 使用机器学习增强版评估
+                ability_record = AIProgrammingAbilityService.assess_user_ability_enhanced(user_id)
+            else:
+                # 使用原有评估方法
+                ability_record = AIProgrammingAbilityService.assess_user_ability(user_id)
             
             # 序列化返回结果
             result = {

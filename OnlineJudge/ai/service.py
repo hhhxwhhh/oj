@@ -12,6 +12,10 @@ import logging
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import StandardScaler
+import joblib
+import os
 from collections import defaultdict
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -722,9 +726,232 @@ class AIRecommendationService:
         except Exception as e:
             logger.error(f"Failed to get user behavior weights: {str(e)}")
             return {}
+
+    @staticmethod
+    def ml_hybrid_recommendations(user_id, count=10):
+        """
+        基于机器学习的混合推荐算法
+        """
+        try:
+            # 获取协同过滤和内容推荐的结果
+            cf_recommendations = AIRecommendationService.collaborative_filtering_recommendations(user_id, count*2)
+            cb_recommendations = AIRecommendationService.content_based_recommendations(user_id, count*2)
+            
+            # 构建训练数据用于学习最佳组合权重
+            train_data = []
+            for problem_id, score, reason in cf_recommendations:
+                train_data.append((problem_id, score, 'cf', reason))
+            for problem_id, score, reason in cb_recommendations:
+                train_data.append((problem_id, score, 'cb', reason))
+            
+            problem_scores = defaultdict(list)
+            for problem_id, score, method, reason in train_data:
+                problem_scores[problem_id].append((score, method, reason))
+            
+            # 计算综合得分
+            final_recommendations = []
+            for problem_id, scores_reasons in problem_scores.items():
+                # 简单平均
+                avg_score = sum(score for score, _, _ in scores_reasons) / len(scores_reasons)
+                
+                # 收集推荐理由
+                reasons = list(set(reason for _, _, reason in scores_reasons))
+                combined_reason = ", ".join(reasons)
+                
+                final_recommendations.append((problem_id, avg_score, combined_reason))
+            
+            # 按分数排序
+            final_recommendations.sort(key=lambda x: x[1], reverse=True)
+            return final_recommendations[:count]
+            
+        except Exception as e:
+            logger.error(f"ML hybrid recommendation failed: {str(e)}")
+            # 回退到传统的混合推荐
+            return AIRecommendationService.hybrid_recommendations(user_id, count)
+    @staticmethod
+    def _extract_user_problem_features(user_id, problem_id):
+        """
+        提取用户-题目的特征用于机器学习推荐
+        """
+        try:
+            # 获取用户特征
+            user_features = AIRecommendationService._build_user_features(user_id)
+            
+            # 获取题目
+            problem = Problem.objects.get(id=problem_id)
+            problem_features = AIRecommendationService._build_problem_features(problem)
+            
+            # 构建交互特征
+            # 用户整体通过率与题目通过率的匹配度
+            user_acc_rate = user_features.get('acceptance_rate', 0)
+            problem_acc_rate = problem_features.get('acceptance_rate', 0)
+            acc_rate_diff = abs(user_acc_rate - problem_acc_rate)
+            
+            # 用户擅长的标签与题目标签的匹配度
+            user_tags = set(user_features.get('top_tags', {}).keys())
+            problem_tags = set(problem_features.get('tags', []))
+            tag_overlap = len(user_tags.intersection(problem_tags))
+            tag_union = len(user_tags.union(problem_tags))
+            tag_similarity = tag_overlap / tag_union if tag_union > 0 else 0
+            
+            # 难度匹配度
+            user_high_count = user_features.get('high_difficulty_count', 0)
+            user_mid_count = user_features.get('mid_difficulty_count', 0)
+            user_low_count = user_features.get('low_difficulty_count', 0)
+            total_solved = user_high_count + user_mid_count + user_low_count
+            
+            if total_solved > 0:
+                user_pref_difficulty = (
+                    1 * user_low_count + 
+                    2 * user_mid_count + 
+                    3 * user_high_count
+                ) / total_solved
+            else:
+                user_pref_difficulty = 2  # 默认中等难度
+            
+            problem_difficulty = problem_features.get('difficulty', 2)
+            difficulty_match = 1 - abs(user_pref_difficulty - problem_difficulty) / 2  # 归一化到0-1
+            
+            # 构建特征向量
+            features = [
+                user_acc_rate,
+                problem_acc_rate,
+                acc_rate_diff,
+                tag_similarity,
+                user_pref_difficulty,
+                problem_difficulty,
+                difficulty_match,
+                problem_features.get('submission_number', 0),
+                problem_features.get('accepted_number', 0),
+                tag_overlap,
+                len(user_tags),
+                len(problem_tags)
+            ]
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error extracting user-problem features for user {user_id}, problem {problem_id}: {str(e)}")
+            return [0] * 12
+    @staticmethod
+    def train_recommendation_model():
+        """
+        训练推荐模型
+        """
+        try:
+            from sklearn.linear_model import LogisticRegression
+            from sklearn.model_selection import train_test_split
+            
+            # 准备训练数据
+            X = []  # 特征
+            y = []  # 标签（用户是否解决了题目）
+            
+            # 获取所有提交记录作为训练数据
+            submissions = Submission.objects.all()[:10000]  # 限制数据量以避免内存问题
+            
+            for submission in submissions:
+                features = AIRecommendationService._extract_user_problem_features(
+                    submission.user_id, submission.problem_id
+                )
+                label = 1 if submission.result == 0 else 0  # 0表示正确解决
+                
+                X.append(features)
+                y.append(label)
+            
+            if len(X) < 100:  # 数据太少不训练
+                return None
+            
+            # 转换为numpy数组
+            import numpy as np
+            X = np.array(X)
+            y = np.array(y)
+            
+            # 划分训练集和测试集
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            
+            # 训练逻辑回归模型
+            model = LogisticRegression(random_state=42, max_iter=1000)
+            model.fit(X_train, y_train)
+            
+            # 评估模型
+            train_score = model.score(X_train, y_train)
+            test_score = model.score(X_test, y_test)
+            
+            logger.info(f"Recommendation model trained. Train accuracy: {train_score:.4f}, Test accuracy: {test_score:.4f}")
+            
+            # 保存模型
+            model_dir = 'ai/models/ml_models'
+            if not os.path.exists(model_dir):
+                os.makedirs(model_dir)
+            joblib.dump(model, f'{model_dir}/recommendation_model.pkl')
+            
+            return model
+            
+        except Exception as e:
+            logger.error(f"Error training recommendation model: {str(e)}")
+            return None
+        
+    @staticmethod
+    def ml_enhanced_recommendations(user_id, count=10):
+        """
+        使用机器学习增强的推荐算法
+        """
+        try:
+            # 检查推荐模型是否存在
+            model_path = 'ai/models/ml_models/recommendation_model.pkl'
+            if not os.path.exists(model_path):
+                # 如果模型不存在，训练模型
+                AIRecommendationService.train_recommendation_model()
+            
+            # 加载模型
+            if os.path.exists(model_path):
+                model = joblib.load(model_path)
+            else:
+                # 如果无法加载模型，回退到混合推荐
+                return AIRecommendationService.ml_hybrid_recommendations(user_id, count)
+            
+            # 获取用户提交记录
+            submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
+            solved_problem_ids = set(sub.problem.problem.id for sub in submissions if sub.result == 0)
+            
+            # 获取所有可见题目
+            all_problems = Problem.objects.filter(visible=True)
+            
+            # 为每个题目计算推荐分数
+            problem_scores = []
+            for problem in all_problems:
+                # 跳过已解决的题目
+                if problem.id in solved_problem_ids:
+                    continue
+                
+                # 提取特征
+                features = AIRecommendationService._extract_user_problem_features(user_id, problem.id)
+                
+                # 使用模型预测
+                import numpy as np
+                try:
+                    score = model.predict_proba([features])[0][1]  # 获取正类概率
+                except Exception as e:
+                    logger.error(f"Error predicting for user {user_id}, problem {problem.id}: {str(e)}")
+                    # 如果预测失败，使用简单的启发式方法
+                    user_features = AIRecommendationService._build_user_features(user_id)
+                    problem_features = AIRecommendationService._build_problem_features(problem)
+                    similarity = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
+                    score = similarity
+                
+                problem_scores.append((problem.id, score, "基于机器学习推荐"))
+            
+            # 按分数排序并返回前count个
+            problem_scores.sort(key=lambda x: x[1], reverse=True)
+            return problem_scores[:count]
+            
+        except Exception as e:
+            logger.error(f"ML enhanced recommendation failed: {str(e)}")
+            # 回退到混合推荐
+            return AIRecommendationService.ml_hybrid_recommendations(user_id, count)
     
     @staticmethod
-    def recommend_problems(user_id,count=10,algorithm='hybrid'):
+    def recommend_problems(user_id, count=10, algorithm='hybrid'):
         """推荐题目的对外接口"""
         try:
             if algorithm == 'collaborative':
@@ -735,6 +962,10 @@ class AIRecommendationService:
                     user_id=user_id, count=count)
             elif algorithm == 'deep_learning':
                 recommendations = AIRecommendationService.deep_learning_recommendations(
+                    user_id=user_id, count=count)
+            elif algorithm == 'ml_enhanced':
+                # 使用机器学习增强的推荐算法
+                recommendations = AIRecommendationService.ml_enhanced_recommendations(
                     user_id=user_id, count=count)
             else:  # 默认使用混合推荐
                 recommendations = AIRecommendationService.hybrid_recommendations(
@@ -2490,7 +2721,281 @@ class AIProgrammingAbilityService:
         except AIProgrammingAbility.DoesNotExist:
             # 如果还没有评估记录，则进行评估
             return AIProgrammingAbilityService.assess_user_ability(user_id)
-
+        
+    @staticmethod
+    def _extract_ml_features(user_id):
+        """
+        提取用于机器学习模型的特征
+        """
+        try:
+            # 获取用户提交记录
+            submissions = Submission.objects.filter(user_id=user_id)
+            
+            if not submissions.exists():
+                # 返回默认特征
+                return [0] * 20
+            
+            # 基础统计特征
+            total_submissions = submissions.count()
+            accepted_submissions = submissions.filter(result=0).count()
+            acceptance_rate = accepted_submissions / total_submissions if total_submissions > 0 else 0
+            
+            # 难度分布特征
+            low_count = submissions.filter(problem__difficulty='Low', result=0).count()
+            mid_count = submissions.filter(problem__difficulty='Mid', result=0).count()
+            high_count = submissions.filter(problem__difficulty='High', result=0).count()
+            
+            total_accepted = low_count + mid_count + high_count
+            low_ratio = low_count / (total_accepted + 1e-8)
+            mid_ratio = mid_count / (total_accepted + 1e-8)
+            high_ratio = high_count / (total_accepted + 1e-8)
+            
+            # 时间特征
+            first_submission = submissions.earliest('create_time')
+            last_submission = submissions.latest('create_time')
+            active_days = (last_submission.create_time - first_submission.create_time).days
+            
+            # 平均每天提交次数
+            avg_submissions_per_day = total_submissions / (active_days + 1)
+            
+            # 错误尝试特征
+            failed_submissions = submissions.exclude(result=0).count()
+            avg_attempts_per_problem = total_submissions / (total_accepted + 1e-8)
+            
+            # 知识点掌握特征
+            knowledge_states = AIUserKnowledgeState.objects.filter(user_id=user_id)
+            avg_proficiency = 0
+            high_proficiency_count = 0
+            low_proficiency_count = 0
+            
+            if knowledge_states.exists():
+                total_proficiency = sum(state.proficiency_level for state in knowledge_states)
+                avg_proficiency = total_proficiency / knowledge_states.count()
+                high_proficiency_count = sum(1 for state in knowledge_states if state.proficiency_level > 0.7)
+                low_proficiency_count = sum(1 for state in knowledge_states if state.proficiency_level < 0.3)
+            
+            # 标签特征
+            tags = ProblemTag.objects.filter(problem__submission__user_id=user_id).distinct().count()
+            
+            # 构建特征向量
+            features = [
+                total_submissions,
+                accepted_submissions,
+                acceptance_rate,
+                low_ratio,
+                mid_ratio,
+                high_ratio,
+                active_days,
+                avg_submissions_per_day,
+                failed_submissions,
+                avg_attempts_per_problem,
+                avg_proficiency,
+                high_proficiency_count,
+                low_proficiency_count,
+                tags,
+                low_count,
+                mid_count,
+                high_count,
+                acceptance_rate * high_ratio,  # 高难度通过率
+                avg_proficiency * tags,        # 知识面广度与深度的结合
+                active_days / (total_submissions + 1e-8)  # 活跃度
+            ]
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error extracting ML features for user {user_id}: {str(e)}")
+            # 返回默认特征
+            return [0] * 20
+    @staticmethod
+    def _train_ability_assessment_model():
+        """
+        训练能力评估模型
+        """
+        try:
+            # 获取所有用户
+            users = User.objects.all()
+            
+            if users.count() < 10:  # 数据量太少不训练
+                return None
+            
+            # 准备训练数据
+            X = []  # 特征
+            y = []  # 目标值（各个维度的得分）
+            
+            for user in users:
+                # 提取特征
+                features = AIProgrammingAbilityService._extract_ml_features(user.id)
+                
+                # 获取现有的评估结果作为训练标签
+                try:
+                    ability_record = AIProgrammingAbility.objects.get(user=user)
+                    # 使用现有的评估结果作为标签
+                    y_basic = ability_record.basic_programming_score
+                    y_ds = ability_record.data_structure_score
+                    y_algo = ability_record.algorithm_design_score
+                    y_ps = ability_record.problem_solving_score
+                    y_overall = ability_record.overall_score
+                    
+                    X.append(features)
+                    y.append([y_basic, y_ds, y_algo, y_ps, y_overall])
+                except AIProgrammingAbility.DoesNotExist:
+                    # 如果没有评估记录，跳过该用户
+                    continue
+            
+            if len(X) < 10:  # 数据量太少
+                return None
+            
+            # 转换为numpy数组
+            import numpy as np
+            X = np.array(X)
+            y = np.array(y)
+            
+            # 标准化特征
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            
+            # 训练随机森林模型
+            models = []
+            for i in range(5):  # 为5个目标分别训练模型
+                model = RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10)
+                model.fit(X_scaled, y[:, i])
+                models.append(model)
+            
+            # 保存模型和标准化器
+            model_dir = 'ai/models/ml_models'
+            if not os.path.exists(model_dir):
+                os.makedirs(model_dir)
+                
+            for i, model in enumerate(models):
+                joblib.dump(model, f'{model_dir}/ability_model_{i}.pkl')
+            joblib.dump(scaler, f'{model_dir}/feature_scaler.pkl')
+            
+            logger.info("Ability assessment model trained and saved")
+            return models, scaler
+            
+        except Exception as e:
+            logger.error(f"Error training ability assessment model: {str(e)}")
+            return None
+    @staticmethod
+    def _predict_ability_with_ml(user_id):
+        """
+        使用机器学习模型预测用户能力
+        """
+        try:
+            # 检查模型是否存在
+            model_dir = 'ai/models/ml_models'
+            if not os.path.exists(f'{model_dir}/ability_model_0.pkl'):
+                # 如果模型不存在，训练模型
+                result = AIProgrammingAbilityService._train_ability_assessment_model()
+                if result is None:
+                    return None
+            
+            # 加载模型
+            models = []
+            for i in range(5):
+                model = joblib.load(f'{model_dir}/ability_model_{i}.pkl')
+                models.append(model)
+            scaler = joblib.load(f'{model_dir}/feature_scaler.pkl')
+            
+            # 提取用户特征
+            features = AIProgrammingAbilityService._extract_ml_features(user_id)
+            
+            # 标准化特征
+            import numpy as np
+            features_scaled = scaler.transform([features])
+            
+            # 进行预测
+            predictions = []
+            for model in models:
+                pred = model.predict(features_scaled)[0]
+                predictions.append(max(0, min(40, pred)))  # 限制在合理范围内
+            
+            # 解析预测结果
+            basic_score, ds_score, algo_score, ps_score, overall_score = predictions
+            
+            # 确保总分计算正确
+            if overall_score == predictions[4]:  # 如果总分是预测的
+                overall_score = basic_score * 0.2 + ds_score * 0.25 + algo_score * 0.3 + ps_score * 0.25
+            else:  # 否则重新计算
+                overall_score = basic_score * 0.2 + ds_score * 0.25 + algo_score * 0.3 + ps_score * 0.25
+            
+            return {
+                'basic_programming_score': basic_score,
+                'data_structure_score': ds_score,
+                'algorithm_design_score': algo_score,
+                'problem_solving_score': ps_score,
+                'overall_score': overall_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Error predicting ability with ML for user {user_id}: {str(e)}")
+            return None
+        
+    @staticmethod
+    def assess_user_ability_enhanced(user_id):
+        """
+        增强版用户能力评估（结合机器学习）
+        """
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise Exception("User not found")
+        
+        # 初始化能力维度
+        AIProgrammingAbilityService.initialize_ability_dimensions()
+        
+        # 尝试使用机器学习模型进行预测
+        ml_predictions = AIProgrammingAbilityService._predict_ability_with_ml(user_id)
+        
+        if ml_predictions:
+            # 使用机器学习预测结果
+            basic_score = ml_predictions['basic_programming_score']
+            ds_score = ml_predictions['data_structure_score']
+            algo_score = ml_predictions['algorithm_design_score']
+            ps_score = ml_predictions['problem_solving_score']
+            overall_score = ml_predictions['overall_score']
+        else:
+            # 回退到原有的评估方法
+            basic_score = AIProgrammingAbilityService._assess_basic_programming(user_id)
+            ds_score = AIProgrammingAbilityService._assess_data_structures(user_id)
+            algo_score = AIProgrammingAbilityService._assess_algorithm_design(user_id)
+            ps_score = AIProgrammingAbilityService._assess_problem_solving(user_id)
+            overall_score = (
+                basic_score * 0.2 +
+                ds_score * 0.25 +
+                algo_score * 0.3 +
+                ps_score * 0.25
+            )
+        
+        # 确定能力等级
+        level = AIProgrammingAbilityService._determine_level(overall_score)
+        
+        # 生成分析报告
+        analysis_report = AIProgrammingAbilityService._generate_analysis_report(
+            user_id, basic_score, ds_score, algo_score, ps_score
+        )
+        
+        # 更新或创建能力评估记录
+        ability_record, created = AIProgrammingAbility.objects.update_or_create(
+            user=user,
+            defaults={
+                'overall_score': overall_score,
+                'basic_programming_score': basic_score,
+                'data_structure_score': ds_score,
+                'algorithm_design_score': algo_score,
+                'problem_solving_score': ps_score,
+                'level': level,
+                'analysis_report': analysis_report
+            }
+        )
+        
+        # 更新详细能力记录
+        AIProgrammingAbilityService._update_ability_details(
+            user_id, basic_score, ds_score, algo_score, ps_score
+        )
+        
+        return ability_record
 
 
 
