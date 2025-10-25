@@ -1111,11 +1111,23 @@ class AIAbilityComparisonAPI(APIView):
                 }
             }
             
-            return self.success(comparison)
+            # 将对比数据添加到用户能力数据中
+            result = {
+                'overall_score': user_ability.overall_score,
+                'level': user_ability.get_level_display(),
+                'basic_programming_score': user_ability.basic_programming_score,
+                'data_structure_score': user_ability.data_structure_score,
+                'algorithm_design_score': user_ability.algorithm_design_score,
+                'problem_solving_score': user_ability.problem_solving_score,
+                'analysis_report': user_ability.analysis_report,
+                'last_assessed': user_ability.last_assessed,
+                'comparison': comparison
+            }
+            
+            return self.success(result)
         except Exception as e:
             logger.error(f"Failed to compare abilities: {str(e)}")
             return self.error("能力对比失败")
-        
 
 class KnowledgePointInitializationAPI(APIView):
     def post(self, request):

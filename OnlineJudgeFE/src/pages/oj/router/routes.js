@@ -4,6 +4,7 @@ import CodeDiagnosis from "../views/problem/CodeDiagnosis.vue";
 import KnowledgePoints from "../views/ai/KnowledgePoints.vue";
 import KnowledgeGraph from "../views/ai/KnowledgeGraph.vue";
 import KnowledgePointProblems from "../views/ai/KnowledgePointProblems.vue";
+import AbilityDashboard from "../views/user/AbilityDashboard.vue";
 import {
   About,
   ACMRank,
@@ -50,6 +51,12 @@ export default [
     path: "/reset-password/:token",
     meta: { title: "Reset Password" },
     component: ResetPassword
+  },
+  {
+    name: "ability-dashboard",
+    path: "/ability-dashboard",
+    meta: { title: "Ability Dashboard" },
+    component: AbilityDashboard
   },
   {
     name: "problem-list",

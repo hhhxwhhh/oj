@@ -30,19 +30,38 @@
         </div>
       </div>
     </Card>
-    <Card :padding="20" class="stats-card" v-if="abilityData">
+    <Card :padding="20" class="stats-card ability-card" v-if="abilityData">
       <div class="flex-container">
         <div class="stat-item">
-          <p class="stat-label">编程能力评分</p>
-          <p class="stat-value">{{ abilityData.overall_score.toFixed(0) }}</p>
+          <Icon type="md-speedometer" size="24" class="ability-icon" />
+          <div class="ability-info">
+            <p class="stat-label">编程能力评分</p>
+            <p class="stat-value ability-score">{{ abilityData.overall_score.toFixed(0) }}</p>
+          </div>
         </div>
         <div class="stat-item">
-          <p class="stat-label">能力等级</p>
-          <p class="stat-value">{{ getLevelDisplay(abilityData.level) }}</p>
+          <Icon type="md-medal" size="24" class="ability-icon" />
+          <div class="ability-info">
+            <p class="stat-label">能力等级</p>
+            <p class="stat-value">
+              <Tag :color="getLevelColor(abilityData.level)" class="level-tag">
+                {{ getLevelDisplay(abilityData.level) }}
+              </Tag>
+            </p>
+          </div>
         </div>
         <div class="stat-item">
-          <p class="stat-label">建议关注</p>
-          <p class="stat-value">{{ getMainRecommendation() }}</p>
+          <Icon type="md-bulb" size="24" class="ability-icon" />
+          <div class="ability-info">
+            <p class="stat-label">建议关注</p>
+            <p class="stat-value recommendation-text">{{ getMainRecommendation() }}</p>
+          </div>
+        </div>
+        <div class="stat-item action-item">
+          <Button type="primary" size="small" @click="goToAbilityDashboard" class="detail-report-btn" long>
+            <Icon type="md-document" /> 详细报告
+          </Button>
+          <p class="action-description">查看完整能力分析</p>
         </div>
       </div>
     </Card>
@@ -189,6 +208,15 @@ export default {
         this.getAbilityData()
       })
     },
+    getLevelColor(level) {
+      const levelMap = {
+        'beginner': '#ed4014',
+        'intermediate': '#2d8cf0',
+        'advanced': '#ff9900',
+        'expert': '#19be6b'
+      };
+      return levelMap[level] || '#2d8cf0';
+    },
     getSolvedProblems() {
       let ACMProblems = this.profile.acm_problems_status.problems || {}
       let OIProblems = this.profile.oi_problems_status.problems || {}
@@ -202,6 +230,9 @@ export default {
       }
       ACProblems.sort()
       this.problems = ACProblems
+    },
+    goToAbilityDashboard() {
+      this.$router.push({ name: 'ability-dashboard' })
     },
     getAbilityData() {
       api.getProgrammingAbilityReport().then(res => {
@@ -555,6 +586,152 @@ export default {
         border-bottom: 1px solid #e8eaec;
       }
     }
+  }
+}
+
+.ability-card {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4edf9 100%);
+  border: 1px solid #d0dfff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(45, 140, 240, 0.1);
+
+  .flex-container {
+    display: flex;
+    align-items: center;
+
+    .stat-item {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      border-right: 1px solid rgba(197, 200, 206, 0.3);
+
+      &:last-child {
+        border-right: none;
+      }
+
+      .ability-icon {
+        color: #2d8cf0;
+        margin-right: 15px;
+        flex-shrink: 0;
+      }
+
+      .ability-info {
+        .stat-label {
+          margin: 0 0 5px 0;
+          font-size: 13px;
+          color: #808695;
+          font-weight: normal;
+        }
+
+        .stat-value {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: #495060;
+
+          &.ability-score {
+            font-size: 22px;
+            color: #2d8cf0;
+          }
+
+          .level-tag {
+            font-size: 14px;
+            padding: 3px 10px;
+          }
+        }
+
+        .recommendation-text {
+          font-size: 14px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+
+    .action-item {
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-right: none;
+
+      .detail-report-btn {
+        width: 120px;
+        height: 36px;
+        font-size: 14px;
+        font-weight: 500;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #2d8cf0 0%, #5cadff 100%);
+        border: none;
+        box-shadow: 0 4px 8px rgba(45, 140, 240, 0.3);
+        transition: all 0.3s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 12px rgba(45, 140, 240, 0.4);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
+
+        i {
+          margin-right: 5px;
+        }
+      }
+
+      .action-description {
+        margin: 8px 0 0 0;
+        font-size: 12px;
+        color: #808695;
+        text-align: center;
+      }
+    }
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .ability-card .flex-container {
+    flex-wrap: wrap;
+
+    .stat-item {
+      flex: 0 0 50%;
+      border-right: none;
+      border-bottom: 1px solid rgba(197, 200, 206, 0.3);
+
+      &:nth-child(2) {
+        border-bottom: none;
+      }
+
+      &:last-child {
+        flex: 0 0 100%;
+        border-bottom: none;
+        padding-top: 20px;
+      }
+    }
+
+    .action-item {
+      align-items: center;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .ability-card .flex-container .stat-item {
+    flex: 0 0 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(197, 200, 206, 0.3);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .detail-report-btn {
+    width: 100% !important;
+    max-width: 200px;
   }
 }
 </style>

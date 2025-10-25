@@ -415,7 +415,7 @@ export default {
     return ajax("ai/ability/assess", "post");
   },
   getProgrammingAbilityReport() {
-    return ajax("ai/ability/report", "get");
+    return ajax("ai/ability/compare", "get");
   },
   getAbilityComparison() {
     return ajax("ai/ability/compare", "get");
