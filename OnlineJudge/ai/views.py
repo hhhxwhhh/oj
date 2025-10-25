@@ -1193,3 +1193,30 @@ class KnowledgePointInitializationAPI(APIView):
         except Exception as e:
             logger.error(f"Failed to initialize knowledge points: {str(e)}")
             return self.error("知识点初始化失败: " + str(e))
+        
+class DLModelTrainingAPI(APIView):
+    """
+    深度学习模型训练API
+    """
+    
+    def post(self, request):
+        """
+        触发深度学习模型训练
+        """
+        try:
+            # 训练能力评估模型
+            from .service import AIProgrammingAbilityService
+            ability_model = AIProgrammingAbilityService._train_dl_ability_model()
+            
+            # 训练推荐模型
+            from .service import AIRecommendationService
+            recommendation_model = AIRecommendationService._train_dl_recommendation_model()
+            
+            return self.success({
+                "message": "深度学习模型训练完成",
+                "ability_model_trained": ability_model is not None,
+                "recommendation_model_trained": recommendation_model is not None
+            })
+        except Exception as e:
+            logger.error(f"Deep learning model training failed: {str(e)}")
+            return self.error("模型训练失败")

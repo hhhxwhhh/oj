@@ -21,7 +21,9 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import hashlib
 from account.models import User
-
+import torch
+from .models.deep_learning import DeepLearningAbilityAssessor,ProblemRecommendationNet
+from .models.recommendation_model import DeepLearningRecommender
 logger=logging.getLogger(__name__)
 
 class AIService:
@@ -768,6 +770,7 @@ class AIRecommendationService:
             logger.error(f"ML hybrid recommendation failed: {str(e)}")
             # 回退到传统的混合推荐
             return AIRecommendationService.hybrid_recommendations(user_id, count)
+    
     @staticmethod
     def _extract_user_problem_features(user_id, problem_id):
         """
@@ -949,6 +952,129 @@ class AIRecommendationService:
             logger.error(f"ML enhanced recommendation failed: {str(e)}")
             # 回退到混合推荐
             return AIRecommendationService.ml_hybrid_recommendations(user_id, count)
+
+    @staticmethod
+    def _train_dl_recommendation_model():
+        """
+        训练深度学习推荐模型
+        """
+        try:
+            # 准备训练数据
+            # 这里需要构建用户-题目交互数据
+            user_features = []
+            problem_features = []
+            labels = []  # 1表示解决，0表示未解决或失败
+            
+            # 获取所有提交记录
+            submissions = Submission.objects.select_related('user', 'problem')
+            
+            for submission in submissions:
+                user_id = submission.user_id
+                problem_id = submission.problem_id
+                
+                # 提取用户特征
+                user_feature = AIProgrammingAbilityService._extract_ml_features(user_id)
+                
+                # 提取题目特征
+                problem_feature = AIRecommendationService._extract_problem_features(problem_id)
+                
+                # 标签：0表示通过，1表示未通过
+                label = 1 if submission.result == 0 else 0
+                
+                user_features.append(user_feature)
+                problem_features.append(problem_feature)
+                labels.append(label)
+            
+            if len(user_features) < 20:
+                return None
+            
+            # 训练模型
+            recommender = DeepLearningRecommender()
+            recommender.train(user_features, problem_features, labels, epochs=50)
+            
+            return recommender
+            
+        except Exception as e:
+            logger.error(f"Error training deep learning recommendation model: {str(e)}")
+            return None
+    @staticmethod
+    def _extract_problem_features(problem_id):
+        """
+        提取题目特征向量
+        """
+        try:
+            problem = Problem.objects.get(id=problem_id)
+            
+            # 题目难度特征
+            difficulty_map = {'Low': [1, 0, 0], 'Mid': [0, 1, 0], 'High': [0, 0, 1]}
+            difficulty_features = difficulty_map.get(problem.difficulty, [0, 0, 1])
+            
+            # 通过率特征
+            acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+            
+            # 标签特征（简化为标签数量）
+            tag_count = problem.tags.count()
+            
+            # 组合特征
+            features = difficulty_features + [acceptance_rate, tag_count, problem.submission_number]
+            
+            return features
+        except Exception as e:
+            logger.error(f"Error extracting problem features for problem {problem_id}: {str(e)}")
+            return [0, 0, 1, 0, 0, 0]  
+    @staticmethod
+    def deep_learning_recommendations(user_id, count=10):
+        """
+        基于深度学习的题目推荐
+        """
+        try:
+            # 检查模型是否存在
+            model_path = 'ai/models/deep_learning/recommendation_model.pth'
+            import os
+            if not os.path.exists(model_path):
+                # 训练模型
+                recommender = AIRecommendationService._train_dl_recommendation_model()
+                if recommender is None:
+                    # 回退到原有方法
+                    return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
+            else:
+                # 加载模型
+                recommender = DeepLearningRecommender(model_path)
+            
+            # 获取用户特征
+            user_features = AIProgrammingAbilityService._extract_ml_features(user_id)
+            
+            # 获取用户已解决的题目
+            solved_problems = set(
+                Submission.objects.filter(user_id=user_id, result=0)
+                .values_list('problem_id', flat=True)
+            )
+            
+            # 获取所有可见题目
+            all_problems = Problem.objects.filter(visible=True)
+            
+            # 计算每个题目的推荐分数
+            problem_scores = []
+            for problem in all_problems:
+                if problem.id in solved_problems:
+                    continue  # 跳过已解决的题目
+                
+                # 提取题目特征
+                problem_features = AIRecommendationService._extract_problem_features(problem.id)
+                
+                # 预测分数
+                score = recommender.predict_score(user_features, problem_features)[0][0]
+                
+                problem_scores.append((problem.id, float(score), "深度学习推荐"))
+            
+            # 按分数排序
+            problem_scores.sort(key=lambda x: x[1], reverse=True)
+            return problem_scores[:count]
+            
+        except Exception as e:
+            logger.error(f"Deep learning recommendation failed: {str(e)}")
+            # 出错时回退到混合推荐
+            return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
     
     @staticmethod
     def recommend_problems(user_id, count=10, algorithm='hybrid'):
@@ -2955,6 +3081,171 @@ class AIProgrammingAbilityService:
             algo_score = ml_predictions['algorithm_design_score']
             ps_score = ml_predictions['problem_solving_score']
             overall_score = ml_predictions['overall_score']
+        else:
+            # 回退到原有的评估方法
+            basic_score = AIProgrammingAbilityService._assess_basic_programming(user_id)
+            ds_score = AIProgrammingAbilityService._assess_data_structures(user_id)
+            algo_score = AIProgrammingAbilityService._assess_algorithm_design(user_id)
+            ps_score = AIProgrammingAbilityService._assess_problem_solving(user_id)
+            overall_score = (
+                basic_score * 0.2 +
+                ds_score * 0.25 +
+                algo_score * 0.3 +
+                ps_score * 0.25
+            )
+        
+        # 确定能力等级
+        level = AIProgrammingAbilityService._determine_level(overall_score)
+        
+        # 生成分析报告
+        analysis_report = AIProgrammingAbilityService._generate_analysis_report(
+            user_id, basic_score, ds_score, algo_score, ps_score
+        )
+        
+        # 更新或创建能力评估记录
+        ability_record, created = AIProgrammingAbility.objects.update_or_create(
+            user=user,
+            defaults={
+                'overall_score': overall_score,
+                'basic_programming_score': basic_score,
+                'data_structure_score': ds_score,
+                'algorithm_design_score': algo_score,
+                'problem_solving_score': ps_score,
+                'level': level,
+                'analysis_report': analysis_report
+            }
+        )
+        
+        # 更新详细能力记录
+        AIProgrammingAbilityService._update_ability_details(
+            user_id, basic_score, ds_score, algo_score, ps_score
+        )
+        
+        return ability_record
+    
+    @staticmethod
+    def _train_dl_ability_model():
+        """
+        训练深度学习能力评估模型
+        """
+        try:
+            # 获取所有用户
+            users = User.objects.all()
+            
+            if users.count() < 20:  # 数据量太少不训练
+                return None
+            
+            # 准备训练数据
+            X = []  # 特征
+            y = []  # 目标值（各个维度的得分）
+            
+            for user in users:
+                # 提取特征
+                features = AIProgrammingAbilityService._extract_ml_features(user.id)
+                
+                # 获取现有的评估结果作为训练标签
+                try:
+                    ability_record = AIProgrammingAbility.objects.get(user=user)
+                    # 使用现有的评估结果作为标签
+                    y_basic = ability_record.basic_programming_score
+                    y_ds = ability_record.data_structure_score
+                    y_algo = ability_record.algorithm_design_score
+                    y_ps = ability_record.problem_solving_score
+                    y_overall = ability_record.overall_score
+                    
+                    X.append(features)
+                    y.append([y_basic, y_ds, y_algo, y_ps, y_overall])
+                except AIProgrammingAbility.DoesNotExist:
+                    # 如果没有评估记录，跳过该用户
+                    continue
+            
+            if len(X) < 20:  # 数据量太少
+                return None
+            
+            # 转换为numpy数组
+            import numpy as np
+            X = np.array(X)
+            y = np.array(y)
+            
+            # 划分训练集和验证集
+            from sklearn.model_selection import train_test_split
+            X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+            
+            # 创建并训练深度学习模型
+            dl_assessor = DeepLearningAbilityAssessor()
+            dl_assessor.train(X_train, y_train, X_val, y_val, epochs=100)
+            
+            logger.info("Deep learning ability assessment model trained and saved")
+            return dl_assessor
+            
+        except Exception as e:
+            logger.error(f"Error training deep learning ability assessment model: {str(e)}")
+            return None
+
+    @staticmethod
+    def _predict_ability_with_dl(user_id):
+        """
+        使用深度学习模型预测用户能力
+        """
+        try:
+            # 检查模型是否存在
+            model_path = 'ai/models/deep_learning/final_ability_model.pth'
+            import os
+            if not os.path.exists(model_path):
+                # 如果模型不存在，训练模型
+                dl_assessor = AIProgrammingAbilityService._train_dl_ability_model()
+                if dl_assessor is None:
+                    return None
+            else:
+                # 加载模型
+                dl_assessor = DeepLearningAbilityAssessor(model_path)
+            
+            # 提取用户特征
+            features = AIProgrammingAbilityService._extract_ml_features(user_id)
+            
+            # 进行预测
+            predictions = dl_assessor.predict(features)[0]
+            
+            # 解析预测结果
+            basic_score, ds_score, algo_score, ps_score, overall_score = predictions
+            
+            # 确保总分计算正确
+            overall_score = basic_score * 0.2 + ds_score * 0.25 + algo_score * 0.3 + ps_score * 0.25
+            
+            return {
+                'basic_programming_score': basic_score,
+                'data_structure_score': ds_score,
+                'algorithm_design_score': algo_score,
+                'problem_solving_score': ps_score,
+                'overall_score': overall_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Error predicting ability with DL for user {user_id}: {str(e)}")
+            return None
+    @staticmethod
+    def assess_user_ability_enhanced(user_id):
+        """
+        增强版用户能力评估（结合深度学习）
+        """
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise Exception("User not found")
+        
+        # 初始化能力维度
+        AIProgrammingAbilityService.initialize_ability_dimensions()
+        
+        # 尝试使用深度学习模型进行预测
+        dl_predictions = AIProgrammingAbilityService._predict_ability_with_dl(user_id)
+        
+        if dl_predictions:
+            # 使用深度学习预测结果
+            basic_score = dl_predictions['basic_programming_score']
+            ds_score = dl_predictions['data_structure_score']
+            algo_score = dl_predictions['algorithm_design_score']
+            ps_score = dl_predictions['problem_solving_score']
+            overall_score = dl_predictions['overall_score']
         else:
             # 回退到原有的评估方法
             basic_score = AIProgrammingAbilityService._assess_basic_programming(user_id)

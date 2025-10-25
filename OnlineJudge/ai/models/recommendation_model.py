@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import logging
+logger = logging.getLogger(__name__)
 
 class ProblemRecommendationNet(nn.Module):
     """题目推荐神经网络"""
