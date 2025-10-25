@@ -22,6 +22,7 @@ from .service import(
     AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService,
     AIProgrammingAbilityService,AIProgrammingAbility)
 from submission.models import Submission
+from account.models import User,UserProfile
 from problem.models import Problem
 import logging
 logger = logging.getLogger(__name__)
@@ -1001,7 +1002,6 @@ class AIProgrammingAbilityAPI(APIView):
     """
     编程能力评估API
     """
-    
     @login_required
     def post(self, request):
         """
@@ -1044,22 +1044,40 @@ class AIProgrammingAbilityAPI(APIView):
         """
         try:
             user_id = request.user.id
-            ability_record = AIProgrammingAbilityService.get_user_ability_report(user_id)
+            logger.info(f"Getting programming ability report for user {user_id}")
+            
+            try:
+                ability_record = AIProgrammingAbilityService.get_user_ability_report(user_id)
+                logger.info(f"Successfully retrieved ability report for user {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to get ability report for user {user_id}: {str(e)}")
+                # 返回默认值
+                ability_record = type('obj', (object,), {
+                    'overall_score': 0,
+                    'basic_programming_score': 0,
+                    'data_structure_score': 0,
+                    'algorithm_design_score': 0,
+                    'problem_solving_score': 0,
+                    'get_level_display': lambda: 'beginner',
+                    'analysis_report': {},
+                    'last_assessed': None
+                })()
             
             result = {
-                'overall_score': ability_record.overall_score,
-                'level': ability_record.get_level_display(),
-                'basic_programming_score': ability_record.basic_programming_score,
-                'data_structure_score': ability_record.data_structure_score,
-                'algorithm_design_score': ability_record.algorithm_design_score,
-                'problem_solving_score': ability_record.problem_solving_score,
-                'analysis_report': ability_record.analysis_report,
-                'last_assessed': ability_record.last_assessed
+                'overall_score': getattr(ability_record, 'overall_score', 0),
+                'level': getattr(ability_record, 'get_level_display', lambda: 'beginner')(),
+                'basic_programming_score': getattr(ability_record, 'basic_programming_score', 0),
+                'data_structure_score': getattr(ability_record, 'data_structure_score', 0),
+                'algorithm_design_score': getattr(ability_record, 'algorithm_design_score', 0),
+                'problem_solving_score': getattr(ability_record, 'problem_solving_score', 0),
+                'analysis_report': getattr(ability_record, 'analysis_report', {}),
+                'last_assessed': getattr(ability_record, 'last_assessed', None)
             }
             
+            logger.info(f"Successfully returned ability report for user {user_id}")
             return self.success(result)
         except Exception as e:
-            logger.error(f"Failed to get programming ability report: {str(e)}")
+            logger.error(f"Failed to get programming ability report for user {getattr(request, 'user', 'unknown').id if hasattr(request, 'user') else 'unknown'}: {str(e)}", exc_info=True)
             return self.error("获取能力评估报告失败")
 class AIAbilityComparisonAPI(APIView):
     """
@@ -1073,9 +1091,28 @@ class AIAbilityComparisonAPI(APIView):
         """
         try:
             user_id = request.user.id
-            
             # 获取当前用户能力
             user_ability = AIProgrammingAbilityService.get_user_ability_report(user_id)
+            
+            # 获取用户信息（包含提交统计数据）
+            try:
+                user = User.objects.get(id=user_id)
+                try:
+                    user_profile = UserProfile.objects.get(user=user)
+                    user_stats = {
+                        'accepted_number': getattr(user_profile, 'accepted_number', 0),
+                        'submission_number': getattr(user_profile, 'submission_number', 0)
+                    }
+                except UserProfile.DoesNotExist:
+                    user_stats = {
+                        'accepted_number': 0,
+                        'submission_number': 0
+                    }
+            except User.DoesNotExist:
+                user_stats = {
+                    'accepted_number': 0,
+                    'submission_number': 0
+                }
             
             # 计算所有用户的平均能力
             avg_scores = AIProgrammingAbility.objects.aggregate(
@@ -1086,15 +1123,17 @@ class AIAbilityComparisonAPI(APIView):
                 avg_ps=models.Avg('problem_solving_score')
             )
             
+            # 确保user_ability属性存在
+            user_scores = {
+                'overall_score': getattr(user_ability, 'overall_score', 0),
+                'basic_programming_score': getattr(user_ability, 'basic_programming_score', 0),
+                'data_structure_score': getattr(user_ability, 'data_structure_score', 0),
+                'algorithm_design_score': getattr(user_ability, 'algorithm_design_score', 0),
+                'problem_solving_score': getattr(user_ability, 'problem_solving_score', 0)
+            }
+            
             comparison = {
-                'user': {
-                    'overall_score': user_ability.overall_score,
-                    'level': user_ability.get_level_display(),
-                    'basic_programming_score': user_ability.basic_programming_score,
-                    'data_structure_score': user_ability.data_structure_score,
-                    'algorithm_design_score': user_ability.algorithm_design_score,
-                    'problem_solving_score': user_ability.problem_solving_score
-                },
+                'user': user_scores,
                 'average': {
                     'overall_score': avg_scores['avg_overall'] or 0,
                     'basic_programming_score': avg_scores['avg_basic'] or 0,
@@ -1103,31 +1142,33 @@ class AIAbilityComparisonAPI(APIView):
                     'problem_solving_score': avg_scores['avg_ps'] or 0
                 },
                 'comparison': {
-                    'overall_diff': user_ability.overall_score - (avg_scores['avg_overall'] or 0),
-                    'basic_diff': user_ability.basic_programming_score - (avg_scores['avg_basic'] or 0),
-                    'ds_diff': user_ability.data_structure_score - (avg_scores['avg_ds'] or 0),
-                    'algo_diff': user_ability.algorithm_design_score - (avg_scores['avg_algo'] or 0),
-                    'ps_diff': user_ability.problem_solving_score - (avg_scores['avg_ps'] or 0)
+                    'overall_diff': user_scores['overall_score'] - (avg_scores['avg_overall'] or 0),
+                    'basic_diff': user_scores['basic_programming_score'] - (avg_scores['avg_basic'] or 0),
+                    'ds_diff': user_scores['data_structure_score'] - (avg_scores['avg_ds'] or 0),
+                    'algo_diff': user_scores['algorithm_design_score'] - (avg_scores['avg_algo'] or 0),
+                    'ps_diff': user_scores['problem_solving_score'] - (avg_scores['avg_ps'] or 0)
                 }
             }
             
             # 将对比数据添加到用户能力数据中
             result = {
-                'overall_score': user_ability.overall_score,
-                'level': user_ability.get_level_display(),
-                'basic_programming_score': user_ability.basic_programming_score,
-                'data_structure_score': user_ability.data_structure_score,
-                'algorithm_design_score': user_ability.algorithm_design_score,
-                'problem_solving_score': user_ability.problem_solving_score,
-                'analysis_report': user_ability.analysis_report,
-                'last_assessed': user_ability.last_assessed,
-                'comparison': comparison
+                'overall_score': user_scores['overall_score'],
+                'level': getattr(user_ability, 'get_level_display', lambda: 'beginner')(),
+                'basic_programming_score': user_scores['basic_programming_score'],
+                'data_structure_score': user_scores['data_structure_score'],
+                'algorithm_design_score': user_scores['algorithm_design_score'],
+                'problem_solving_score': user_scores['problem_solving_score'],
+                'analysis_report': getattr(user_ability, 'analysis_report', {}),
+                'last_assessed': getattr(user_ability, 'last_assessed', None),
+                'comparison': comparison,
+                'user_stats': user_stats
             }
             
             return self.success(result)
         except Exception as e:
-            logger.error(f"Failed to compare abilities: {str(e)}")
+            logger.error(f"Failed to compare abilities: {str(e)}", exc_info=True)
             return self.error("能力对比失败")
+
 
 class KnowledgePointInitializationAPI(APIView):
     def post(self, request):

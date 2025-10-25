@@ -117,7 +117,6 @@
         </Card>
     </div>
 </template>
-
 <script>
 import api from '@oj/api'
 
@@ -215,30 +214,38 @@ export default {
             try {
                 this.loading = true
                 const res = await api.getProgrammingAbilityReport()
+
+                // 检查响应数据
+                if (!res || !res.data || !res.data.data) {
+                    throw new Error('无效的响应数据')
+                }
+
                 this.abilityData = res.data.data
 
                 // 更新雷达图数据
-                this.radarChartOptions.series[0].data[0].value = [
-                    this.abilityData.basic_programming_score,
-                    this.abilityData.data_structure_score,
-                    this.abilityData.algorithm_design_score,
-                    this.abilityData.problem_solving_score
-                ]
+                if (this.abilityData.basic_programming_score !== undefined) {
+                    this.radarChartOptions.series[0].data[0].value = [
+                        this.abilityData.basic_programming_score || 0,
+                        this.abilityData.data_structure_score || 0,
+                        this.abilityData.algorithm_design_score || 0,
+                        this.abilityData.problem_solving_score || 0
+                    ]
+                }
 
                 // 更新对比图数据
                 if (this.abilityData.comparison) {
                     this.comparisonChartOptions.series[0].data = [
-                        this.abilityData.basic_programming_score,
-                        this.abilityData.data_structure_score,
-                        this.abilityData.algorithm_design_score,
-                        this.abilityData.problem_solving_score
+                        this.abilityData.basic_programming_score || 0,
+                        this.abilityData.data_structure_score || 0,
+                        this.abilityData.algorithm_design_score || 0,
+                        this.abilityData.problem_solving_score || 0
                     ]
 
                     this.comparisonChartOptions.series[1].data = [
-                        this.abilityData.comparison.average.basic_programming_score,
-                        this.abilityData.comparison.average.data_structure_score,
-                        this.abilityData.comparison.average.algorithm_design_score,
-                        this.abilityData.comparison.average.problem_solving_score
+                        this.abilityData.comparison.average.basic_programming_score || 0,
+                        this.abilityData.comparison.average.data_structure_score || 0,
+                        this.abilityData.comparison.average.algorithm_design_score || 0,
+                        this.abilityData.comparison.average.problem_solving_score || 0
                     ]
                 }
 
@@ -246,22 +253,22 @@ export default {
                 this.abilityDetails = {
                     basic_programming: {
                         name: '基础编程能力',
-                        score: this.abilityData.basic_programming_score,
+                        score: this.abilityData.basic_programming_score || 0,
                         description: '包括语法掌握、基本控制结构等'
                     },
                     data_structures: {
                         name: '数据结构能力',
-                        score: this.abilityData.data_structure_score,
+                        score: this.abilityData.data_structure_score || 0,
                         description: '如数组、链表、树、图等数据结构的运用'
                     },
                     algorithm_design: {
                         name: '算法设计能力',
-                        score: this.abilityData.algorithm_design_score,
+                        score: this.abilityData.algorithm_design_score || 0,
                         description: '包括复杂度分析、算法设计与优化等'
                     },
                     problem_solving: {
                         name: '问题解决能力',
-                        score: this.abilityData.problem_solving_score,
+                        score: this.abilityData.problem_solving_score || 0,
                         description: '包括问题建模、解决方案设计等'
                     }
                 }
@@ -269,9 +276,44 @@ export default {
                 // 处理推荐建议
                 if (this.abilityData.analysis_report && this.abilityData.analysis_report.recommendations) {
                     this.recommendations = this.abilityData.analysis_report.recommendations
+                } else if (this.abilityData.analysis_report && Array.isArray(this.abilityData.analysis_report)) {
+                    this.recommendations = this.abilityData.analysis_report
+                } else {
+                    this.recommendations = []
+                }
+
+                // 获取用户提交统计数据
+                if (this.abilityData.user_stats) {
+                    this.submissionStats = {
+                        accepted: this.abilityData.user_stats.accepted_number || 0,
+                        total: this.abilityData.user_stats.submission_number || 0
+                    }
+                } else {
+                    // 如果没有user_stats，尝试其他方式获取
+                    this.submissionStats = {
+                        accepted: 0,
+                        total: 0
+                    }
                 }
             } catch (err) {
-                this.$error('获取能力评估数据失败')
+                console.error('获取能力评估数据失败:', err)
+                this.$error('获取能力评估数据失败: ' + (err.message || err))
+                // 设置默认值以避免页面完全空白
+                this.abilityData = {
+                    overall_score: 0,
+                    level: 'beginner',
+                    basic_programming_score: 0,
+                    data_structure_score: 0,
+                    algorithm_design_score: 0,
+                    problem_solving_score: 0,
+                    analysis_report: {
+                        recommendations: []
+                    }
+                }
+                this.submissionStats = {
+                    accepted: 0,
+                    total: 0
+                }
             } finally {
                 this.loading = false
             }
@@ -281,10 +323,15 @@ export default {
             try {
                 this.loading = true
                 const res = await api.assessProgrammingAbility()
-                await this.loadAbilityData()
-                this.$success('能力评估已完成')
+                if (res && res.data && res.data.data) {
+                    await this.loadAbilityData()
+                    this.$success('能力评估已完成')
+                } else {
+                    throw new Error('评估响应无效')
+                }
             } catch (err) {
-                this.$error('能力评估失败')
+                console.error('能力评估失败:', err)
+                this.$error('能力评估失败: ' + (err.message || err))
             } finally {
                 this.loading = false
             }
@@ -339,19 +386,10 @@ export default {
                 'low': '低优先级'
             }
             return displays[priority] || priority
-        },
-
-        getMainRecommendation() {
-            if (this.recommendations && this.recommendations.length > 0) {
-                const highPriority = this.recommendations.find(r => r.priority === 'high')
-                return highPriority ? highPriority.content : this.recommendations[0].content
-            }
-            return '暂无建议'
         }
     }
 }
 </script>
-
 <style scoped>
 .page-header {
     display: flex;
