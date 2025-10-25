@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-              }}: {{
+          }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -81,59 +81,9 @@
           <div v-if="contestEnded">
             <Alert type="warning" show-icon>{{ $t('m.Contest_has_ended') }}</Alert>
           </div>
-          <!-- 实时建议和诊断结果显示 -->
-          <div v-if="showAIPanel" class="ai-assistant-panel">
-            <Tabs value="diagnosis" @on-click="handleAIPanelTabChange">
-              <TabPane :label="$t('m.Real_Time_Diagnosis')" name="diagnosis">
-                <div v-if="diagnosisIssues.length > 0" class="real-time-diagnosis">
-                  <div class="diagnosis-content">
-                    <div v-for="(group, type) in groupedDiagnosisIssues" :key="type" class="diagnosis-group">
-                      <div class="group-header">
-                        <Icon :type="getIssueIcon(type)" :style="{ color: getIssueColor(type) }"></Icon>
-                        <span class="group-title">{{ getIssueTypeName(type) }}</span>
-                        <Tag :color="getIssueColor(type)">{{ group.length }}</Tag>
-                      </div>
-                      <ul class="issue-list">
-                        <li v-for="(issue, index) in group" :key="index" class="issue-item">
-                          {{ issue.message }}
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div class="panel-footer">
-                    <Button size="small" @click="refreshDiagnosis" type="ghost">
-                      <Icon type="refresh"></Icon>
-                      {{ $t('m.Refresh') }}
-                    </Button>
-                  </div>
-                </div>
-                <div v-else class="no-issues">
-                  <Icon type="ios-checkmark-circle" size="30" color="#19be6b"></Icon>
-                  <p>{{ $t('m.No_issues_found') }}</p>
-                </div>
-              </TabPane>
-              <TabPane :label="$t('m.Real_Time_Suggestions')" name="suggestions">
-                <div v-if="suggestions.length > 0" class="real-time-suggestions">
-                  <div class="suggestions-content">
-                    <div v-for="(suggestion, index) in suggestions" :key="index" class="suggestion-item">
-                      <Icon type="ios-information-circle" color="#2d8cf0"></Icon>
-                      <span>{{ suggestion }}</span>
-                    </div>
-                  </div>
-                  <div class="panel-footer">
-                    <Button size="small" @click="refreshSuggestions" type="ghost">
-                      <Icon type="refresh"></Icon>
-                      {{ $t('m.Refresh') }}
-                    </Button>
-                  </div>
-                </div>
-                <div v-else class="no-issues">
-                  <Icon type="ios-checkmark-circle" size="30" color="#19be6b"></Icon>
-                  <p>{{ $t('m.No_suggestions_available') }}</p>
-                </div>
-              </TabPane>
-            </Tabs>
-          </div>
+          <CodeDiagnostic :diagnosis-issues="diagnosisIssues" :suggestions="suggestions"
+            @refresh-diagnosis="refreshDiagnosis" @refresh-suggestions="refreshSuggestions">
+          </CodeDiagnostic>
 
           </Col>
 
@@ -324,7 +274,7 @@ import { buildProblemCodeKey, JUDGE_STATUS, CONTEST_STATUS } from '@/utils/const
 import VerticalMenu from '../../components/verticalMenu/verticalMenu.vue'
 import VerticalMenuItem from '../../components/verticalMenu/verticalMenu-item.vue'
 import NextProblemRecommendation from './NextProblemRecommendation.vue'
-
+import CodeDiagnostic from '../../components/CodeDiagnostic.vue'
 // 只显示这些状态的图形占用
 const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
 
@@ -338,7 +288,8 @@ export default {
     AIAssistant,
     VerticalMenu,
     VerticalMenuItem,
-    NextProblemRecommendation
+    NextProblemRecommendation,
+    CodeDiagnostic
   },
 
   data() {

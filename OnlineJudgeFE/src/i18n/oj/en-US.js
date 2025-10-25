@@ -463,5 +463,8 @@ export const m = {
   Hide_Prerequisite_Knowledge: "Hide Prerequisite Knowledge",
   Show_Prerequisite_Knowledge: "Show Prerequisite Knowledge",
   Hide_Subsequent_Knowledge: "Hide Subsequent Knowledge",
-  Show_Subsequent_Knowledge: "Show Subsequent Knowledge"
+  Show_Subsequent_Knowledge: "Show Subsequent Knowledge",
+  Real_Time_Diagnostic_Suggestions: "Real-Time Diagnostic Suggestions",
+  Diagnostics: "Dignostics",
+  Real_Time_Diagnostic: "Real-Time Diagnostic"
 };
