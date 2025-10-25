@@ -22,8 +22,8 @@ from urllib3.util.retry import Retry
 import hashlib
 from account.models import User
 import torch
-from .models.deep_learning import DeepLearningAbilityAssessor,ProblemRecommendationNet
-from .models.recommendation_model import DeepLearningRecommender
+from .dl_models.deep_learning import DeepLearningAbilityAssessor
+from .dl_models.recommendation_model import DeepLearningRecommender
 logger=logging.getLogger(__name__)
 
 class AIService:
