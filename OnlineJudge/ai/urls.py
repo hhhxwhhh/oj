@@ -42,7 +42,7 @@ urlpatterns = [
 
     url(r"^ai/feedback/?$", views.AIFeedbackAPI.as_view(), name="ai_feedback_api"),
     url(r"^ai/problem/generate/?$", views.AIProblemGenerationAPI.as_view(), name="ai_problem_generation_api"),
-
+    url(r"^ai/nlp_analysis/?$", views.AINLPAnalysisAPI.as_view(), name="ai_nlp_analysis_api"),
 
 
 ]

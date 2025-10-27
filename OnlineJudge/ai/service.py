@@ -24,6 +24,18 @@ from account.models import User
 import torch
 from .dl_models.deep_learning import DeepLearningAbilityAssessor
 from .dl_models.recommendation_model import DeepLearningRecommender
+import jieba
+import jieba.analyse
+import nltk
+from nltk.tokenize import word_tokenize, sent_tokenize
+from nltk.corpus import stopwords
+from nltk.corpus.reader.wordnet import flesch_kincaid_grade, flesch_reading_ease
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+except:
+    pass
+
 logger=logging.getLogger(__name__)
 
 class AIService:
@@ -3290,8 +3302,152 @@ class AIProgrammingAbilityService:
 
 
 
+class NLPProblemAnalyzer:
+    """
+    使用NLP技术分析题目描述复杂度
+    """
     
+    @staticmethod
+    def analyze_problem_complexity(problem_id):
+        """
+        分析题目的复杂度
+        """
+        try:
+            problem = Problem.objects.get(id=problem_id)
+            description = problem.description
+            
+            # 中文文本分析
+            if NLPProblemAnalyzer._is_chinese(description):
+                metrics = NLPProblemAnalyzer._analyze_chinese_text(description)
+            else:
+                # 英文文本分析
+                metrics = NLPProblemAnalyzer._analyze_english_text(description)
+            
+            # 更新题目模型
+            problem.description_word_count = metrics['word_count']
+            problem.description_sentence_count = metrics['sentence_count']
+            problem.description_complexity_score = metrics['complexity_score']
+            problem.description_keywords = metrics['keywords']
+            problem.last_nlp_analysis_time = timezone.now()
+            problem.save(update_fields=[
+                'description_word_count', 
+                'description_sentence_count', 
+                'description_complexity_score', 
+                'description_keywords', 
+                'last_nlp_analysis_time'
+            ])
+            
+            return metrics
+            
+        except Problem.DoesNotExist:
+            raise Exception("Problem not found")
+        except Exception as e:
+            logger.error(f"Error analyzing problem complexity: {str(e)}")
+            raise Exception(f"Failed to analyze problem complexity: {str(e)}")
+        
+    @staticmethod
+    def _is_chinese(text):
+        """
+        判断文本是否为中文
+        """
+        chinese_chars = re.findall(r'[\u4e00-\u9fff]', text)
+        return len(chinese_chars) > len(text) * 0.3
+    @staticmethod
+    def _analyze_chinese_text(text):
+        """
+        分析中文文本复杂度
+        """
+        clean_text = re.sub(r'<[^>]+>', '', text)
+        words = list(jieba.cut(clean_text))
+        words = [word.strip() for word in words if word.strip()]
+        sentences = re.split(r'[。！？；]', clean_text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        keywords = jieba.analyse.extract_tags(clean_text, topK=10)
+        word_count = len(words)
+        sentence_count = len(sentences)
+        complexity_score = 0.0
+        if word_count > 0:
+            avg_words_per_sentence = word_count / max(1, sentence_count)
+            # 复杂度基于平均句长、关键词数量等
+            complexity_score = min(100, (
+                avg_words_per_sentence * 2 +
+                len(keywords) * 5 +
+                min(word_count / 10, 20)
+            ))
+        
+        return {
+            'word_count': word_count,
+            'sentence_count': sentence_count,
+            'complexity_score': round(complexity_score, 2),
+            'keywords': list(keywords),
+            'language': 'zh'
+        }
+    @staticmethod
+    def _analyze_english_text(text):
+        """
+        分析英文文本复杂度
+        """
+        clean_text = re.sub(r'<[^>]+>', '', text)
+        # 分词和句子分割
+        try:
+            words = word_tokenize(clean_text.lower())
+            sentences = sent_tokenize(clean_text)
+        except:
+            words = re.findall(r'\b\w+\b', clean_text.lower())
+            sentences = re.split(r'[.!?]+', clean_text)
+            sentences = [s.strip() for s in sentences if s.strip()]
+        try:
+            stop_words = set(stopwords.words('english'))
+            words = [word for word in words if word not in stop_words]
+        except:
+            pass
+        
+        try:
+            vectorizer = TfidfVectorizer(max_features=10, stop_words='english')
+            tfidf_matrix = vectorizer.fit_transform([clean_text])
+            feature_names = vectorizer.get_feature_names_out()
+            keywords = list(feature_names)
+        except:
+            word_freq = defaultdict(int)
+            for word in words:
+                if len(word) > 3:  # 只考虑较长的词
+                    word_freq[word] += 1
+            keywords = [word for word, freq in sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:10]]
+        
+        # 计算可读性分数
+        try:
+            readability_score = flesch_reading_ease(clean_text)
+            grade_level = flesch_kincaid_grade(clean_text)
+        except:
+            readability_score = 50
+            grade_level = 8
+        
+        word_count = len(words)
+        sentence_count = len(sentences)
+        
+        # 计算复杂度分数
+        complexity_score = 0.0
+        if sentence_count > 0:
+            avg_words_per_sentence = word_count / sentence_count
+            # 复杂度基于平均句长、可读性分数等
+            complexity_score = min(100, (
+                avg_words_per_sentence * 1.5 +
+                (100 - readability_score) * 0.5 +
+                grade_level * 2 +
+                min(word_count / 5, 30)
+            ))
+        
+        return {
+            'word_count': word_count,
+            'sentence_count': sentence_count,
+            'complexity_score': round(complexity_score, 2),
+            'keywords': keywords,
+            'language': 'en',
+            'readability_score': readability_score,
+            'grade_level': grade_level
+        }
 
+    
 
 
 

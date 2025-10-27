@@ -20,7 +20,7 @@ from .serializers import (
 from .service import( 
     AIService,AIRecommendationService,AILearningPathService,
     AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService,
-    AIProgrammingAbilityService,AIProgrammingAbility)
+    AIProgrammingAbilityService,AIProgrammingAbility,NLPProblemAnalyzer)
 from submission.models import Submission
 from account.models import User,UserProfile
 from problem.models import Problem
@@ -1220,3 +1220,41 @@ class DLModelTrainingAPI(APIView):
         except Exception as e:
             logger.error(f"Deep learning model training failed: {str(e)}")
             return self.error("模型训练失败")
+        
+
+class AINLPAnalysisAPI(APIView):
+    """
+    NLP题目分析API
+    """
+    @admin_role_required
+    def post(self, request):
+        problem_id = request.data.get("problem_id")
+        if not problem_id:
+            return self.error("Parameter error")
+        
+        try:
+            metrics = NLPProblemAnalyzer.analyze_problem_complexity(problem_id)
+            return self.success(metrics)
+        except Exception as e:
+            return self.error(str(e))
+    
+    @login_required
+    def get(self, request):
+        problem_id = request.GET.get("problem_id")
+        if not problem_id:
+            return self.error("Parameter error")
+        
+        try:
+            problem = Problem.objects.get(id=problem_id)
+            metrics = {
+                'word_count': problem.description_word_count,
+                'sentence_count': problem.description_sentence_count,
+                'complexity_score': problem.description_complexity_score,
+                'keywords': problem.description_keywords,
+                'last_analysis_time': problem.last_nlp_analysis_time
+            }
+            return self.success(metrics)
+        except Problem.DoesNotExist:
+            return self.error("Problem not found")
+        except Exception as e:
+            return self.error(str(e))

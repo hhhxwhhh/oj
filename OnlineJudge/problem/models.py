@@ -82,6 +82,12 @@ class Problem(models.Model):
     statistic_info = JSONField(default=dict)
     share_submission = models.BooleanField(default=False)
 
+    description_word_count = models.IntegerField(default=0)
+    description_sentence_count = models.IntegerField(default=0)
+    description_complexity_score = models.FloatField(default=0.0)
+    description_keywords = JSONField(default=list)
+    last_nlp_analysis_time = models.DateTimeField(null=True)
+
     class Meta:
         db_table = "problem"
         unique_together = (("_id", "contest"),)
