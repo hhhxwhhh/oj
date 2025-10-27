@@ -136,7 +136,12 @@ export default {
       ],
       suggestions: [],
       suggestionTimer: null,
-      lastCursorPosition: null
+      completionTimer: null, // 用于代码补全的定时器
+      lastCursorPosition: null,
+      // 添加一个状态来控制是否启用自动补全
+      autoCompletionEnabled: true,
+      // 设置自动补全的延迟时间（毫秒）
+      autoCompletionDelay: 800
     }
   },
   mounted() {
@@ -159,10 +164,16 @@ export default {
       }
     })
 
-    // 添加代码更改事件监听器，用于触发实时建议
+    // 添加代码更改事件监听器
     this.editor.on('change', () => {
-      this.scheduleSuggestions()
+      this.onCodeChange()
     })
+
+    // 监听光标活动
+    this.editor.on('cursorActivity', (cm) => {
+      this.onCursorActivity(cm)
+    })
+
     if (this.useOllama) {
       this.checkOllamaAvailability();
     }
@@ -198,6 +209,13 @@ export default {
       }
       fileReader.readAsText(f, 'UTF-8')
     },
+    onCodeChange() {
+      // 当代码发生变化时，重置自动补全定时器
+      this.resetAutoCompletionTimer()
+
+      // 同时触发实时建议（如果需要）
+      this.scheduleSuggestions()
+    },
     onCursorActivity(cm) {
       const cursor = cm.getCursor()
       // 只有当光标位置发生变化时才触发
@@ -208,20 +226,61 @@ export default {
         this.scheduleSuggestions(cm)
       }
     },
+    resetAutoCompletionTimer() {
+      // 清除现有的自动补全定时器
+      if (this.completionTimer) {
+        clearTimeout(this.completionTimer)
+      }
+
+      // 如果启用了自动补全，则设置新的定时器
+      if (this.autoCompletionEnabled) {
+        this.completionTimer = setTimeout(() => {
+          this.triggerAutoCompletion()
+        }, this.autoCompletionDelay)
+      }
+    },
     triggerAutoCompletion() {
+      // 只有在启用自动补全时才执行
+      if (!this.autoCompletionEnabled) return
+
       // 触发自动补全
       const code = this.editor.getValue()
       const cursor = this.editor.getCursor()
       const line = this.editor.getLine(cursor.line)
+
+      // 改进前缀提取逻辑
       let start = cursor.ch
       let end = start
-      while (end < line.length && /[\w$]/.test(line.charAt(end))) ++end
-      while (start && /[\w$]/.test(line.charAt(start - 1))) --start
+
+      // 向前查找单词边界（支持更多字符类型）
+      while (start > 0 && /[\w$.]/.test(line.charAt(start - 1))) {
+        start--
+      }
+
+      // 向后查找单词边界
+      while (end < line.length && /[\w$.]/.test(line.charAt(end))) {
+        end++
+      }
+
       const prefix = line.slice(start, end)
+
+      // 特殊处理：如果光标前是点号，我们也应该触发补全
+      let triggerCompletion = prefix.length > 0
+
+      // 如果没有前缀但光标前是点号，也触发补全
+      if (!triggerCompletion && cursor.ch > 0 && line.charAt(cursor.ch - 1) === '.') {
+        triggerCompletion = true
+      }
+
+      // 如果没有前缀但在行首或空格后，也触发补全
+      if (!triggerCompletion && (cursor.ch === 0 || /\s/.test(line.charAt(cursor.ch - 1)))) {
+        triggerCompletion = true
+      }
 
       console.log('触发自动补全，前缀:', prefix);
 
-      if (prefix.length > 0) {
+      // 触发补全（即使前缀为空）
+      if (triggerCompletion) {
         // 根据配置决定使用哪种补全方式
         if (this.useOllama && this.ollamaAvailable) {
           this.fetchOllamaAutoCompletion(code, prefix)
@@ -314,7 +373,15 @@ export default {
 
         // 移动光标到前缀的开始位置
         const cursor = this.editor.getCursor();
-        const from = { line: cursor.line, ch: cursor.ch - prefix.length };
+        const line = this.editor.getLine(cursor.line)
+        let start = cursor.ch
+
+        // 计算前缀的起始位置
+        while (start > 0 && /[\w$.]/.test(line.charAt(start - 1))) {
+          start--
+        }
+
+        const from = { line: cursor.line, ch: start };
         const to = { line: cursor.line, ch: cursor.ch };
         hints.from = from;
         hints.to = to;
@@ -371,31 +438,6 @@ export default {
         console.error('获取实时建议失败:', err)
         // 出错时也通知父组件
         this.$emit('suggestions', [])
-      }
-    },
-    async fetchAutoCompletion(code, prefix) {
-      try {
-        const res = await api.getCodeAutoCompletion({
-          code: code,
-          language: this.language,
-          prefix: prefix,
-          problem_id: this.problemId
-        })
-
-        if (res.data && res.data.data && res.data.data.completions) {
-          const completions = res.data.data.completions
-          // 使用CodeMirror的hint功能显示补全建议
-          const hints = completions.map(item => item.text)
-          this.showCompletions(hints)
-        }
-      } catch (err) {
-        console.error('Failed to fetch auto completion:', err)
-      }
-    },
-    showCompletions(completions) {
-      if (completions.length > 0) {
-        // 简单实现：将补全建议显示在建议面板中
-        this.suggestions = completions
       }
     }
   },

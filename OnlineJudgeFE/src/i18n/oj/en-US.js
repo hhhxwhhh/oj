@@ -488,5 +488,8 @@ export const m = {
   Regular_User: "Regular User",
   Code_Completions: "Code Completions",
   Inprovement_suggestions: "Inprovement suggestions",
-  Potential_Issues: "Potential Issues"
+  Potential_Issues: "Potential Issues",
+  Improvement_Suggestions: "Improvement Suggestions",
+  Auto_Completion_Enabled: "Auto Completion Enabled",
+  Toggle_Auto_Completion: "Toggle Auto Completion"
 };
