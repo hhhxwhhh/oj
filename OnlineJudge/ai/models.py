@@ -9,6 +9,7 @@ class AIModel(models.Model):
         ('azure', 'Azure OpenAI'),
         ('openkey', 'OpenKey'),
         ('deepseek', 'DeepSeek'),
+        ('ollama', 'Ollama'),
     ]
     name=models.TextField()
     provider=models.TextField(choices=PROVIDER_CHOICES)
