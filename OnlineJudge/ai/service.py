@@ -66,19 +66,6 @@ def check_nltk_availability():
         return False
 
 NLTK_AVAILABLE = check_nltk_availability()
-
-
-
-
-
-
-
-
-
-
-
-
-
 class AIService:
     @staticmethod
     def get_active_ai_model():
@@ -823,6 +810,253 @@ class AIRecommendationService:
             logger.error(f"ML hybrid recommendation failed: {str(e)}")
             # 回退到传统的混合推荐
             return AIRecommendationService.hybrid_recommendations(user_id, count)
+
+    @staticmethod
+    def intelligent_hybrid_recommendations(user_id, count=10):
+        """
+        智能混合推荐算法，综合运用多种推荐策略
+        根据用户特征和上下文动态调整推荐策略
+        """
+        try:
+            # 获取用户提交记录
+            submissions = Submission.objects.filter(user_id=user_id)
+            if not submissions.exists():
+                return AIRecommendationService._new_user_recommendations(user_id, count)
+            
+            # 计算用户活跃度
+            total_submissions = submissions.count()
+            accepted_submissions = submissions.filter(result=0).count()
+            acceptance_rate = accepted_submissions / total_submissions if total_submissions > 0 else 0
+            
+            # 根据用户不同阶段采用不同策略
+            if total_submissions < 5:
+                recommendations = AIRecommendationService._beginner_user_recommendations(user_id, count)
+            elif acceptance_rate < 0.3:
+                recommendations = AIRecommendationService._struggling_user_recommendations(user_id, count)
+            elif acceptance_rate > 0.8 and total_submissions > 20:
+                recommendations = AIRecommendationService._advanced_user_recommendations(user_id, count)
+            else:
+                recommendations = AIRecommendationService._adaptive_hybrid_recommendations(user_id, count)
+            
+            return recommendations[:count]
+            
+        except Exception as e:
+            logger.error(f"Intelligent hybrid recommendation failed: {str(e)}")
+            # 回退到基础混合推荐
+            return AIRecommendationService.hybrid_recommendations(user_id, count)
+        
+
+    @staticmethod
+    def _new_user_recommendations(user_id, count):
+        """
+        新用户推荐策略
+        """
+        try:
+            # 获取热门题目
+            popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+            
+            # 获取基础知识点
+            basic_knowledge_points = ['数组', '字符串', '循环', '条件语句']
+            knowledge_problems = Problem.objects.filter(
+                visible=True,
+                tags__name__in=basic_knowledge_points
+            ).distinct().order_by("-accepted_number")[:count]
+            
+            # 合并并去重
+            all_problems = list(set(list(popular_problems) + list(knowledge_problems)))[:count]
+            
+            return [(problem.id, 1.0, "新用户推荐") for problem in all_problems]
+        except Exception as e:
+            logger.error(f"New user recommendation failed: {str(e)}")
+            popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
+            return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
+    @staticmethod
+    def _beginner_user_recommendations(user_id, count):
+        """
+        初级用户推荐策略
+        """
+        try:
+            cf_recs = AIRecommendationService.collaborative_filtering_recommendations(user_id, count)
+            cb_recs = AIRecommendationService.content_based_recommendations(user_id, count)
+            
+            combined_scores = defaultdict(float)
+            reason_tracker = {}
+            
+            for problem_id, score, reason in cb_recs:
+                combined_scores[problem_id] += score * 0.7
+                reason_tracker[problem_id] = reason
+            for problem_id, score, reason in cf_recs:
+                combined_scores[problem_id] += score * 0.3
+                if problem_id not in reason_tracker:
+                    reason_tracker[problem_id] = reason
+            
+            # 转换为推荐列表
+            recommendations = [
+                (problem_id, score, reason_tracker[problem_id]) 
+                for problem_id, score in combined_scores.items()
+            ]
+            
+            # 按分数排序
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+            return recommendations[:count]
+            
+        except Exception as e:
+            logger.error(f"Beginner user recommendation failed: {str(e)}")
+            return AIRecommendationService.content_based_recommendations(user_id, count)
+        
+    @staticmethod
+    def _struggling_user_recommendations(user_id, count):
+        """
+        困难用户推荐策略（通过率低）
+        """
+        try:
+            # 基于知识点掌握情况推荐
+            knowledge_recommendations = KnowledgePointService.get_knowledge_recommendations(user_id, count)
+            
+            # 获取用户频繁错误的知识点相关题目
+            recommended_problems = []
+            for rec in knowledge_recommendations:
+                knowledge_point = rec['knowledge_point']
+                problems = rec['recommended_problems']
+                score = rec['score']
+                
+                for problem in problems:
+                    recommended_problems.append((problem['id'], score, f"知识点强化: {knowledge_point}"))
+            
+            if recommended_problems:
+                recommended_problems.sort(key=lambda x: x[1], reverse=True)
+                return recommended_problems[:count]
+            else:
+                # 回退到内容推荐
+                return AIRecommendationService.content_based_recommendations(user_id, count)
+                
+        except Exception as e:
+            logger.error(f"Struggling user recommendation failed: {str(e)}")
+            return AIRecommendationService.content_based_recommendations(user_id, count)
+        
+    @staticmethod
+    def _advanced_user_recommendations(user_id, count):
+        """
+        高级用户推荐策略
+        """
+        try:
+            # 获取用户已经解决的难题
+            hard_solved_problems = Submission.objects.filter(
+                user_id=user_id,
+                result=0,
+                problem__difficulty='High'
+            ).select_related('problem')
+            
+            # 获取用户擅长的标签
+            from django.db.models import Count
+            user_tags = ProblemTag.objects.filter(
+                problem__submission__user_id=user_id,
+                problem__submission__result=0
+            ).annotate(
+                solve_count=Count('problem__submission')
+            ).order_by('-solve_count')[:10]
+            
+            tag_names = [tag.name for tag in user_tags]
+            
+            # 推荐用户未解决但相关标签的高难度题目
+            advanced_problems = Problem.objects.filter(
+                visible=True,
+                difficulty='High',
+                tags__name__in=tag_names
+            ).exclude(
+                submission__user_id=user_id,
+                submission__result=0
+            ).distinct().order_by('-accepted_number')[:count*2]
+            
+            # 也推荐一些全新的领域题目以扩展知识面
+            new_field_problems = Problem.objects.filter(
+                visible=True,
+                difficulty='High'
+            ).exclude(
+                tags__name__in=tag_names
+            ).exclude(
+                submission__user_id=user_id,
+                submission__result=0
+            ).distinct().order_by('-accepted_number')[:count]
+            
+            # 合并推荐
+            all_recommendations = []
+            for problem in list(advanced_problems) + list(new_field_problems):
+                # 计算相关性分数
+                problem_tags = problem.tags.values_list('name', flat=True)
+                tag_overlap = len(set(tag_names).intersection(set(problem_tags)))
+                score = 0.5 + (tag_overlap / len(tag_names) if tag_names else 0) * 0.5
+                all_recommendations.append((problem.id, score, "高级用户挑战题"))
+            
+            # 去重并排序
+            all_recommendations.sort(key=lambda x: x[1], reverse=True)
+            unique_recommendations = []
+            seen_problem_ids = set()
+            
+            for problem_id, score, reason in all_recommendations:
+                if problem_id not in seen_problem_ids:
+                    unique_recommendations.append((problem_id, score, reason))
+                    seen_problem_ids.add(problem_id)
+                    
+                if len(unique_recommendations) >= count:
+                    break
+            
+            return unique_recommendations
+            
+        except Exception as e:
+            logger.error(f"Advanced user recommendation failed: {str(e)}")
+            # 回退到混合推荐
+            return AIRecommendationService.hybrid_recommendations(user_id, count)
+        
+    @staticmethod
+    def _adaptive_hybrid_recommendations(user_id, count):
+        """
+        自适应混合推荐策略
+        """
+        try:
+            # 获取多种推荐结果
+            cf_recs = AIRecommendationService.collaborative_filtering_recommendations(user_id, count*2)
+            cb_recs = AIRecommendationService.content_based_recommendations(user_id, count*2)
+            ml_recs = AIRecommendationService.ml_enhanced_recommendations(user_id, count*2)
+            
+            # 获取用户行为权重
+            behavior_weights = AIRecommendationService._get_user_behavior_weights(user_id)
+            
+            # 综合评分
+            combined_scores = defaultdict(list)
+            reason_tracker = {}
+            
+            # 收集所有推荐结果
+            all_recs = [
+                (cf_recs, 0.4),  # 协同过滤权重
+                (cb_recs, 0.3),  # 内容推荐权重
+                (ml_recs, 0.3)   # 机器学习推荐权重
+            ]
+            
+            for recs, weight in all_recs:
+                for problem_id, score, reason in recs:
+                    combined_scores[problem_id].append(score * weight)
+                    if problem_id not in reason_tracker:
+                        reason_tracker[problem_id] = reason
+            
+            # 计算加权平均分数
+            final_recommendations = []
+            for problem_id, scores in combined_scores.items():
+                avg_score = sum(scores) / len(scores)
+                
+                # 应用行为权重调整
+                behavior_weight = behavior_weights.get(problem_id, 1.0)
+                final_score = avg_score * behavior_weight
+                
+                final_recommendations.append((problem_id, final_score, reason_tracker[problem_id]))
+            
+            # 按最终分数排序
+            final_recommendations.sort(key=lambda x: x[1], reverse=True)
+            return final_recommendations[:count]
+            
+        except Exception as e:
+            logger.error(f"Adaptive hybrid recommendation failed: {str(e)}")
+            return AIRecommendationService.hybrid_recommendations(user_id, count)
     
     @staticmethod
     def _extract_user_problem_features(user_id, problem_id):
@@ -1012,8 +1246,6 @@ class AIRecommendationService:
         训练深度学习推荐模型
         """
         try:
-            # 准备训练数据
-            # 这里需要构建用户-题目交互数据
             user_features = []
             problem_features = []
             labels = []  # 1表示解决，0表示未解决或失败
@@ -1130,7 +1362,7 @@ class AIRecommendationService:
             return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
     
     @staticmethod
-    def recommend_problems(user_id, count=10, algorithm='hybrid'):
+    def recommend_problems(user_id, count=10, algorithm='intelligent'):
         """推荐题目的对外接口"""
         try:
             if algorithm == 'collaborative':
@@ -1143,10 +1375,12 @@ class AIRecommendationService:
                 recommendations = AIRecommendationService.deep_learning_recommendations(
                     user_id=user_id, count=count)
             elif algorithm == 'ml_enhanced':
-                # 使用机器学习增强的推荐算法
                 recommendations = AIRecommendationService.ml_enhanced_recommendations(
                     user_id=user_id, count=count)
-            else:  # 默认使用混合推荐
+            elif algorithm == 'intelligent':
+                recommendations = AIRecommendationService.intelligent_hybrid_recommendations(
+                    user_id=user_id, count=count)
+            else:  
                 recommendations = AIRecommendationService.hybrid_recommendations(
                     user_id=user_id, count=count)
             
@@ -1156,7 +1390,7 @@ class AIRecommendationService:
             # 出错时回退到热门题目推荐
             popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
             return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
-        
+
     @staticmethod
     def recommend_next_problem(user_id, problem_id, submission_result):
         """推荐下一题"""
