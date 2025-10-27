@@ -1395,28 +1395,40 @@ class AIRecommendationService:
     def recommend_next_problem(user_id, problem_id, submission_result):
         """推荐下一题"""
         try:
-            # 根据用户提交结果调整推荐策略
             if submission_result == "Accepted":
-                recommendations = AIRecommendationService.hybrid_recommendations(user_id=user_id, count=5)
+                recommendations = AIRecommendationService.intelligent_hybrid_recommendations(user_id=user_id, count=5)
             else:
                 recommendations = AIRecommendationService.content_based_recommendations(user_id=user_id, count=5)
+            if not recommendations:
+                # 基于当前题目的相关推荐
+                try:
+                    current_problem = Problem.objects.get(id=problem_id)
+                    current_tags = current_problem.tags.all()
+                    related_problems = Problem.objects.filter(
+                        tags__in=current_tags,
+                        visible=True
+                    ).exclude(id=problem_id).distinct().order_by('-accepted_number')[:5]
+                    
+                    recommendations = [(p.id, 1.0, "相关题目推荐") for p in related_problems]
+                except Problem.DoesNotExist:
+                    pass
+            if not recommendations:
+                popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:3]
+                recommendations = [(p.id, 1.0, "热门题目推荐") for p in popular_problems]
             
             if recommendations:
-                # 返回第一个推荐结果
-                return recommendations[:3]
+                return recommendations[:10] if len(recommendations) >= 10 else recommendations
             else:
-                popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:1]
-                if popular_problems:
-                    return (popular_problems[0].id, 1.0, "热门题目推荐")
-                else:
-                    return (None, None, None)
+                return (None, None, None)
+                
         except Exception as e:
             logger.error(f"Recommend next problem failed: {str(e)}")
             popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:1]
             if popular_problems:
-                return (popular_problems[0].id, 1.0, "热门题目推荐")
+                return [(popular_problems[0].id, 1.0, "热门题目推荐")]
             else:
                 return (None, None, None)
+
     @staticmethod
     def generate_code_explanation(code,language):
         try:
