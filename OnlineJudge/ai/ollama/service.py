@@ -60,25 +60,25 @@ class OllamaService:
         # 构建专门用于代码补全的提示
         prompt = f"""你是一个专业的编程助手，请为用户提供代码自动补全建议。
 
-                    语言: {language}
-                    {f"题目上下文: {problem_context}" if problem_context else ""}
+语言: {language}
+{f"题目上下文: {problem_context}" if problem_context else ""}
 
-                    当前代码:
-                    {code}
+当前代码:
+{code}
 
-                    需要补全的文本: {prefix}
+需要补全的文本: {prefix}
 
-                    请提供以下信息：
-                    1. 可能的补全选项列表（最多5个）
-                    2. 每个选项的简要说明
+请提供以下信息：
+1. 可能的补全选项列表（最多5个）
+2. 每个选项的简要说明
 
-                    严格按照以下JSON格式返回结果，不要包含任何额外的文字：
-                    {{
-                        "completions": [
-                            {{"text": "补全文本1", "description": "说明1"}},
-                            {{"text": "补全文本2", "description": "说明2"}}
-                        ]
-                    }}"""
+严格按照以下JSON格式返回结果，不要包含任何额外的文字：
+{{
+    "completions": [
+        {{"text": "补全文本1", "description": "说明1"}},
+        {{"text": "补全文本2", "description": "说明2"}}
+    ]
+}}"""
 
         # 设置更适合代码补全的参数
         options = {
@@ -115,7 +115,6 @@ class OllamaService:
                 {"text": prefix + "def ", "description": "函数定义"}
             ]
         }
-
 
 class OllamaModelManager:
     """

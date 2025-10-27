@@ -52,6 +52,14 @@
       </Panel>
       <!--problem main end-->
       <Card :padding="20" id="submit-code" dis-hover>
+        <div style="margin-bottom: 10px;">
+          <i-switch v-model="useOllama" size="large">
+            <span slot="open">Ollama</span>
+            <span slot="close">默认AI</span>
+          </i-switch>
+          <span style="margin-left: 10px;">使用Ollama本地AI模型进行代码补全</span>
+        </div>
+
         <CodeMirror ref="codeMirror" :value.sync="code" :languages="problem.languages" :language="language"
           :theme="theme" @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"
           @suggestions="onSuggestionsReceived"></CodeMirror>
@@ -426,6 +434,8 @@ export default {
       complexityData: null,
       showComplexityModal: false,
       loadingComplexity: false,
+      useOllama: false,
+
 
     }
   },

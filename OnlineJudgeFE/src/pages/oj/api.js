@@ -434,6 +434,20 @@ export default {
         problem_id: problemId
       }
     });
+  },
+  //ollama接口
+  getCodeAutoCompletion(data) {
+    return ajax("ai/code/autocomplete", "post", {
+      data
+    });
+  },
+  getOllamaCodeCompletion(data) {
+    return ajax("ollama/code/complete", "post", {
+      data
+    });
+  },
+  getOllamaModels() {
+    return ajax("ollama/models", "get");
   }
 };
 

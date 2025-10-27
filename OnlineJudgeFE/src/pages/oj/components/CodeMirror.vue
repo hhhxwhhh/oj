@@ -96,7 +96,11 @@ export default {
     problemId: {
       type: [String, Number],
       default: null
-    }
+    },
+    useOllama: {
+      type: Boolean,
+      default: false
+    },
   },
   data() {
     return {
@@ -117,7 +121,10 @@ export default {
         // 自动补全
         hintOptions: {
           completeSingle: false
-        }
+        },
+        ollamaAvailable: false,
+        ollamaModels: [],
+        selectedOllamaModel: null
       },
       mode: {
         'C++': 'text/x-csrc'
@@ -156,6 +163,9 @@ export default {
     this.editor.on('change', () => {
       this.scheduleSuggestions()
     })
+    if (this.useOllama) {
+      this.checkOllamaAvailability();
+    }
   },
   methods: {
     onEditorCodeChange(newCode) {
@@ -212,9 +222,15 @@ export default {
       console.log('触发自动补全，前缀:', prefix);
 
       if (prefix.length > 0) {
-        this.fetchAutoCompletion(code, prefix)
+        // 根据配置决定使用哪种补全方式
+        if (this.useOllama && this.ollamaAvailable) {
+          this.fetchOllamaAutoCompletion(code, prefix)
+        } else {
+          this.fetchAutoCompletion(code, prefix)
+        }
       }
     },
+
     async fetchAutoCompletion(code, prefix) {
       console.log('获取代码自动补全');
       console.log('代码:', code);
@@ -239,6 +255,50 @@ export default {
         console.error('获取代码自动补全失败:', err);
       }
     },
+    async fetchOllamaAutoCompletion(code, prefix) {
+      console.log('使用Ollama获取代码自动补全');
+      console.log('代码:', code);
+      console.log('前缀:', prefix);
+
+      try {
+        const res = await api.getOllamaCodeCompletion({
+          code: code,
+          language: this.language,
+          prefix: prefix,
+          problem_id: this.problemId
+        });
+
+        console.log('Ollama自动补全响应:', res);
+
+        if (res.data && res.data.data && res.data.data.completions) {
+          const completions = res.data.data.completions;
+          // 使用CodeMirror内置的hint功能显示补全建议
+          this.showAutoCompletionHints(completions, prefix);
+        }
+      } catch (err) {
+        console.error('获取Ollama代码自动补全失败:', err);
+        // 如果Ollama失败，回退到默认补全
+        this.fetchAutoCompletion(code, prefix);
+      }
+    },
+    async checkOllamaAvailability() {
+      try {
+        const res = await api.getOllamaModels();
+        if (res.data && res.data.data && res.data.data.length > 0) {
+          this.ollamaAvailable = true;
+          this.ollamaModels = res.data.data;
+          // 选择第一个激活的模型，或者默认第一个模型
+          this.selectedOllamaModel = res.data.data.find(m => m.is_active) || res.data.data[0];
+        } else {
+          this.ollamaAvailable = false;
+        }
+      } catch (err) {
+        console.error('检查Ollama可用性失败:', err);
+        this.ollamaAvailable = false;
+      }
+    },
+
+
     showAutoCompletionHints(completions, prefix) {
       if (completions.length > 0) {
         // 构造CodeMirror hint格式的数据
@@ -348,6 +408,11 @@ export default {
   watch: {
     'theme'(newVal, oldVal) {
       this.editor.setOption('theme', newVal)
+    },
+    'useOllama'(newVal) {
+      if (newVal) {
+        this.checkOllamaAvailability();
+      }
     }
   }
 }
