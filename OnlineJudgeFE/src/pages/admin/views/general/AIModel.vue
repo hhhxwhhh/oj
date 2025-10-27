@@ -82,14 +82,18 @@
                         <el-option value="azure" label="Azure OpenAI"></el-option>
                         <el-option value="deepseek" label="DeepSeek"></el-option>
                         <el-option value="openkey" label="OpenKey"></el-option>
+                        <el-option value="ollama" label="Ollama"></el-option>
                     </el-select>
                     <div class="form-item-description">The AI service provider</div>
                 </el-form-item>
 
                 <el-form-item :label="$t('m.API_Key')" prop="api_key">
                     <el-input v-model="form.api_key" :placeholder="$t('m.API_Key')" type="password"
-                        id="ai-model-api-key" />
-                    <div class="form-item-description">The authentication key for accessing the AI service</div>
+                        id="ai-model-api-key" :disabled="form.provider === 'ollama'" />
+                    <div class="form-item-description">
+                        The authentication key for accessing the AI service
+                        <span v-if="form.provider === 'ollama'">(Not required for Ollama)</span>
+                    </div>
                 </el-form-item>
 
                 <el-form-item :label="$t('m.Model')" prop="model">
@@ -148,7 +152,18 @@ export default {
                     { required: true, message: 'Provider is required', trigger: 'change' }
                 ],
                 api_key: [
-                    { required: true, message: 'API Key is required', trigger: 'blur' }
+                    {
+                        required: true,
+                        message: 'API Key is required',
+                        trigger: 'blur',
+                        validator: (rule, value, callback) => {
+                            if (this.form.provider !== 'ollama' && !value) {
+                                callback(new Error('API Key is required'));
+                            } else {
+                                callback();
+                            }
+                        }
+                    }
                 ],
                 model: [
                     { required: true, message: 'Model is required', trigger: 'blur' }
@@ -213,7 +228,7 @@ export default {
                 const data = {
                     name: this.form.name,
                     provider: this.form.provider,
-                    api_key: this.form.api_key,
+                    api_key: this.form.provider === 'ollama' ? '' : this.form.api_key, // Ollama不需要API Key
                     model: this.form.model,
                     config: config,
                     is_active: this.form.is_active
@@ -239,6 +254,7 @@ export default {
                 }
             })
         },
+
 
         deleteModel(id) {
             this.$confirm('Are you sure you want to delete this AI model?', 'Delete AI Model', {

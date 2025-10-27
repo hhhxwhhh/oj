@@ -12,7 +12,7 @@ class AIModelSerializer(serializers.ModelSerializer):
 class CreateAIModelSerializer(serializers.ModelSerializer):
     name=serializers.CharField(max_length=128)
     provider=serializers.ChoiceField(choices=AIModel.PROVIDER_CHOICES)
-    api_key=serializers.CharField(max_length=128)
+    api_key=serializers.CharField(max_length=128,required=False,allow_blank=True)
     model=serializers.CharField(max_length=128)
     is_active=serializers.BooleanField()
     config=serializers.DictField()
@@ -20,6 +20,16 @@ class CreateAIModelSerializer(serializers.ModelSerializer):
     class Meta:
         model=AIModel
         fields=["name","provider","api_key","model","is_active","config"]
+
+    def validate(self, data):
+        provider = data.get('provider')
+        api_key = data.get('api_key')
+        
+        if provider != 'ollama' and not api_key:
+            raise serializers.ValidationError("API Key is required for this provider")
+            
+        return data
+
 
 
 class AIConversationSerializer(serializers.ModelSerializer):

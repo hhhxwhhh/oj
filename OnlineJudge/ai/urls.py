@@ -44,5 +44,5 @@ urlpatterns = [
     url(r"^ai/problem/generate/?$", views.AIProblemGenerationAPI.as_view(), name="ai_problem_generation_api"),
     url(r"^ai/nlp_analysis/?$", views.AINLPAnalysisAPI.as_view(), name="ai_nlp_analysis_api"),
 
-    url(r"^ollama/", include("ai.ollama_urls")),
+    url(r"^ollama/", include("ai.ollama.urls")),
 ]

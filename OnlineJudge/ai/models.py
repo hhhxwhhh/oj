@@ -13,7 +13,7 @@ class AIModel(models.Model):
     ]
     name=models.TextField()
     provider=models.TextField(choices=PROVIDER_CHOICES)
-    api_key=models.TextField()
+    api_key=models.TextField(blank=True, default='')  
     model=models.TextField()
     is_active=models.BooleanField(default=True)
     config=JSONField(default=dict)
