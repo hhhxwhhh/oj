@@ -479,9 +479,9 @@ export const m = {
   Grade_Level: "Grade Level",
   No_Complexity_Data_Available: "No complexity data available",
   Failed_to_load_complexity_data: "Failed to load complexity data",
-  Very_Complex: "Very Complex",
   Complex: "Complex",
   Moderate: "Moderate",
   Simple: "Simple",
-  Very_Simple: "Very Simple"
+  Very_Simple: "Very Simple",
+  Very_Complex: "Very Complex"
 };

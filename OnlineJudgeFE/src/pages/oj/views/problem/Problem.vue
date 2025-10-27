@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-              }}: {{
+          }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -261,65 +261,58 @@
       </div>
 
       <div v-else-if="complexityData" class="complexity-content">
-        <Row :gutter="16" class="complexity-metrics">
-          <Col :span="8">
-          <Card class="metric-card">
+        <div class="complexity-header">
+          <div class="complexity-level">
+            <Tag :color="getComplexityColor(complexityData.complexity_score)" class="level-tag">
+              {{ getComplexityLevelText(complexityData.complexity_score) }}
+            </Tag>
+            <div class="level-label">{{ $t('m.Complexity_Level') }}</div>
+          </div>
+          <div class="complexity-score">
+            <div class="score-value">{{ complexityData.complexity_score.toFixed(1) }}</div>
+            <div class="score-label">{{ $t('m.Complexity_Score') }}</div>
+          </div>
+        </div>
+
+        <div class="complexity-grid">
+          <div class="metric-item">
+            <Icon type="ios-book" size="24" class="metric-icon" />
             <div class="metric-value">{{ complexityData.word_count }}</div>
             <div class="metric-label">{{ $t('m.Word_Count') }}</div>
-          </Card>
-          </Col>
-          <Col :span="8">
-          <Card class="metric-card">
+          </div>
+          <div class="metric-item">
+            <Icon type="ios-chatbubbles" size="24" class="metric-icon" />
             <div class="metric-value">{{ complexityData.sentence_count }}</div>
             <div class="metric-label">{{ $t('m.Sentence_Count') }}</div>
-          </Card>
-          </Col>
-          <Col :span="8">
-          <Card class="metric-card">
-            <div class="metric-value">{{ complexityData.complexity_score.toFixed(1) }}</div>
-            <div class="metric-label">{{ $t('m.Complexity_Score') }}</div>
-          </Card>
-          </Col>
-        </Row>
-
-        <div class="complexity-details">
-          <div class="detail-section">
-            <h4>{{ $t('m.Complexity_Level') }}</h4>
-            <div style="text-align: center; margin: 10px 0;">
-              <Tag :color="getComplexityColor(complexityData.complexity_score)"
-                style="font-size: 16px; padding: 5px 15px;">
-                {{ getComplexityLevelText(complexityData.complexity_score) }}
-              </Tag>
-            </div>
           </div>
+        </div>
 
-          <div v-if="complexityData.keywords && complexityData.keywords.length" class="detail-section">
-            <h4>{{ $t('m.Keywords') }}</h4>
-            <div class="keywords-container">
-              <Tag v-for="(keyword, index) in complexityData.keywords" :key="index" color="primary"
-                style="margin: 5px;">
-                {{ keyword }}
-              </Tag>
-            </div>
+        <div class="detail-section" v-if="complexityData.keywords && complexityData.keywords.length">
+          <h4>{{ $t('m.Keywords') }}</h4>
+          <div class="keywords-container">
+            <Tag v-for="(keyword, index) in complexityData.keywords" :key="index" color="primary" class="keyword-tag">
+              {{ keyword }}
+            </Tag>
           </div>
+        </div>
 
-          <div v-if="complexityData.readability_score || complexityData.grade_level" class="detail-section">
-            <h4>{{ $t('m.Readability_Analysis') }}</h4>
-            <div class="readability-details">
-              <div v-if="complexityData.readability_score" class="readability-item">
-                <span class="label">{{ $t('m.Readability_Score') }}:</span>
-                <span>{{ complexityData.readability_score.toFixed(1) }}</span>
-              </div>
-              <div v-if="complexityData.grade_level" class="readability-item">
-                <span class="label">{{ $t('m.Grade_Level') }}:</span>
-                <span>{{ complexityData.grade_level }}</span>
-              </div>
+        <div class="detail-section" v-if="complexityData.readability_score || complexityData.grade_level">
+          <h4>{{ $t('m.Readability_Analysis') }}</h4>
+          <div class="readability-grid">
+            <div class="readability-item" v-if="complexityData.readability_score">
+              <div class="readability-value">{{ complexityData.readability_score.toFixed(1) }}</div>
+              <div class="readability-label">{{ $t('m.Readability_Score') }}</div>
+            </div>
+            <div class="readability-item" v-if="complexityData.grade_level">
+              <div class="readability-value">{{ complexityData.grade_level }}</div>
+              <div class="readability-label">{{ $t('m.Grade_Level') }}</div>
             </div>
           </div>
         </div>
       </div>
 
       <div v-else class="no-complexity-data">
+        <Icon type="ios-information-circle-outline" size="48" class="info-icon" />
         <p>{{ $t('m.No_Complexity_Data_Available') }}</p>
       </div>
 
@@ -621,11 +614,11 @@ export default {
       }
     },
     getComplexityLevelText(score) {
-      if (score >= 80) return this.$t('Very_Complex');
-      if (score >= 60) return this.$t('Moderately_Com.Complex');
-      if (score >= 40) return this.$t('Moderate');
-      if (score >= 20) return this.$t('Simple');
-      return this.$t('Very_Simple');
+      if (score >= 80) return this.$t('m.Very_Complex');
+      if (score >= 60) return this.$t('m.Complex');
+      if (score >= 40) return this.$t('m.Moderate');
+      if (score >= 20) return this.$t('m.Simple');
+      return this.$t('m.Very_Simple');
     },
 
     getComplexityColor(score) {
@@ -1723,21 +1716,77 @@ export default {
 }
 
 .complexity-content {
-  .complexity-metrics {
+  padding: 10px 0;
+
+  .complexity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
     margin-bottom: 20px;
 
-    .metric-card {
+    .complexity-level {
       text-align: center;
+
+      .level-tag {
+        font-size: 16px;
+        padding: 6px 20px;
+        margin-bottom: 5px;
+      }
+
+      .level-label {
+        font-size: 13px;
+        color: #808695;
+      }
+    }
+
+    .complexity-score {
+      text-align: center;
+
+      .score-value {
+        font-size: 28px;
+        font-weight: 600;
+        color: #2d8cf0;
+        line-height: 1;
+      }
+
+      .score-label {
+        font-size: 13px;
+        color: #808695;
+        margin-top: 5px;
+      }
+    }
+  }
+
+  .complexity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+
+    .metric-item {
+      text-align: center;
+      padding: 15px;
+      background-color: #fff;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+      .metric-icon {
+        color: #2d8cf0;
+        margin-bottom: 10px;
+      }
 
       .metric-value {
         font-size: 24px;
-        font-weight: bold;
-        color: #2d8cf0;
+        font-weight: 600;
+        color: #515a6e;
         margin-bottom: 5px;
       }
 
       .metric-label {
-        font-size: 14px;
+        font-size: 13px;
         color: #808695;
       }
     }
@@ -1751,40 +1800,54 @@ export default {
     }
 
     h4 {
-      border-bottom: 1px solid #e8eaec;
-      padding-bottom: 5px;
-      margin-bottom: 10px;
+      font-size: 16px;
+      font-weight: 600;
       color: #515a6e;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e8eaec;
     }
 
     .keywords-container {
       display: flex;
       flex-wrap: wrap;
-      justify-content: center;
+      gap: 8px;
+
+      .keyword-tag {
+        margin: 0;
+        font-size: 12px;
+        padding: 4px 10px;
+        background-color: #f0f0f0;
+        color: #515a6e;
+        border: 1px solid #e8eaec;
+      }
     }
 
-    .readability-details {
-      .readability-item {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
+    .readability-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
 
-        &:last-child {
-          margin-bottom: 0;
+      .readability-item {
+        text-align: center;
+        padding: 15px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+        .readability-value {
+          font-size: 20px;
+          font-weight: 600;
+          color: #515a6e;
+          margin-bottom: 5px;
         }
 
-        .label {
-          font-weight: 500;
-          color: #515a6e;
+        .readability-label {
+          font-size: 13px;
+          color: #808695;
         }
       }
     }
   }
-}
-
-.no-complexity-data {
-  text-align: center;
-  padding: 30px 0;
-  color: #808695;
 }
 </style>

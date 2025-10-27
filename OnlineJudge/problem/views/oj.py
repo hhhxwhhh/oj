@@ -7,6 +7,13 @@ from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerialize
 from contest.models import ContestRuleType
 
 
+try:
+    from ai.service import NLPProblemAnalyzer
+    AI_SERVICE_AVAILABLE = True
+except ImportError:
+    AI_SERVICE_AVAILABLE = False
+
+
 class ProblemTagAPI(APIView):
     def get(self, request):
         qs = ProblemTag.objects
@@ -52,6 +59,23 @@ class ProblemAPI(APIView):
             try:
                 problem = Problem.objects.select_related("created_by") \
                     .get(_id=problem_id, contest_id__isnull=True, visible=True)
+                
+                # 如果AI服务可用，进行复杂度分析
+                if AI_SERVICE_AVAILABLE:
+                    try:
+                        # 检查是否需要重新分析（超过24小时未更新）
+                        from django.utils import timezone
+                        from datetime import timedelta
+                        if not problem.last_nlp_analysis_time or \
+                           timezone.now() - problem.last_nlp_analysis_time > timedelta(hours=24):
+                            NLPProblemAnalyzer.analyze_problem_complexity(problem.id)
+                            # 重新获取问题对象以获取更新后的数据
+                            problem.refresh_from_db()
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Failed to analyze problem complexity: {str(e)}")
+                
                 problem_data = ProblemSerializer(problem).data
                 self._add_problem_status(request, problem_data)
                 return self.success(problem_data)

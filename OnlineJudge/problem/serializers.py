@@ -133,7 +133,9 @@ class ProblemSafeSerializer(BaseProblemSerializer):
         model = Problem
         exclude = ("test_case_score", "test_case_id", "visible", "is_public",
                    "spj_code", "spj_version", "spj_compile_ok",
-                   "difficulty", "submission_number", "accepted_number", "statistic_info")
+                   "difficulty", "submission_number", "accepted_number", "statistic_info",
+                   "description_word_count", "description_sentence_count", 
+                   "description_complexity_score", "description_keywords")
 
 
 class ContestProblemMakePublicSerializer(serializers.Serializer):
