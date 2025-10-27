@@ -25,6 +25,14 @@ RUN pip install --only-binary=all scikit-learn==1.3.0
 COPY ./deploy/requirements.txt /app/deploy/
 RUN pip install --no-cache-dir -r /app/deploy/requirements.txt
 
+# 创建 NLTK 数据目录并下载 NLTK 数据
+RUN mkdir -p /usr/share/nltk_data && \
+    python -c "import nltk; nltk.download('punkt', download_dir='/usr/share/nltk_data'); nltk.download('stopwords', download_dir='/usr/share/nltk_data')" || \
+    echo "Warning: Failed to download NLTK data during build" && \
+    chmod -R 777 /usr/share/nltk_data
+# 设置 NLTK_DATA 环境变量
+ENV NLTK_DATA=/usr/share/nltk_data
+
 # 复制代码
 COPY ./ /app/
 

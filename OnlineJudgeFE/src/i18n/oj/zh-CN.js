@@ -220,5 +220,22 @@ export const m = {
   Prerequisite_Knowledge: "前置知识点",
   Subsequent_Knowledge: "后续知识点",
   View_Related_Problems: "查看相关题目",
-  Add_to_Learning_Path: "添加到学习路径"
+  Add_to_Learning_Path: "添加到学习路径",
+  Complexity_Analysis: "复杂度分析",
+  Loading_Complexity_Data: "正在加载复杂度数据...",
+  Complexity_Score: "复杂度评分",
+  Word_Count: "词数",
+  Sentence_Count: "句子数",
+  Complexity_Level: "复杂度等级",
+  Keywords: "关键词",
+  Readability_Analysis: "可读性分析",
+  Readability_Score: "可读性分数",
+  Grade_Level: "年级水平",
+  No_Complexity_Data_Available: "暂无复杂度数据",
+  Failed_to_load_complexity_data: "加载复杂度数据失败",
+  Very_Complex: "非常复杂",
+  Complex: "复杂",
+  Moderate: "中等",
+  Simple: "简单",
+  Very_Simple: "非常简单"
 };

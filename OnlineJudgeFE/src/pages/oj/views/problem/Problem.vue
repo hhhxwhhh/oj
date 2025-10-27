@@ -9,7 +9,7 @@
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-          }}: {{
+              }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -199,6 +199,11 @@
               </Poptip>
             </p>
           </li>
+          <li>
+            <Button type="primary" size="small" @click="showComplexityAnalysis" long>
+              {{ $t('m.Complexity_Analysis') }}
+            </Button>
+          </li>
         </ul>
       </Card>
 
@@ -247,6 +252,82 @@
       </div>
     </Modal>
 
+    <!-- 复杂度分析模态框 -->
+    <Modal v-model="showComplexityModal" :title="$t('m.Complexity_Analysis')" width="600" :loading="loadingComplexity"
+      @on-cancel="closeComplexityModal">
+      <div v-if="loadingComplexity" class="complexity-loading">
+        <Spin size="large" />
+        <p style="text-align: center; margin-top: 10px;">{{ $t('m.Loading_Complexity_Data') }}</p>
+      </div>
+
+      <div v-else-if="complexityData" class="complexity-content">
+        <Row :gutter="16" class="complexity-metrics">
+          <Col :span="8">
+          <Card class="metric-card">
+            <div class="metric-value">{{ complexityData.word_count }}</div>
+            <div class="metric-label">{{ $t('m.Word_Count') }}</div>
+          </Card>
+          </Col>
+          <Col :span="8">
+          <Card class="metric-card">
+            <div class="metric-value">{{ complexityData.sentence_count }}</div>
+            <div class="metric-label">{{ $t('m.Sentence_Count') }}</div>
+          </Card>
+          </Col>
+          <Col :span="8">
+          <Card class="metric-card">
+            <div class="metric-value">{{ complexityData.complexity_score.toFixed(1) }}</div>
+            <div class="metric-label">{{ $t('m.Complexity_Score') }}</div>
+          </Card>
+          </Col>
+        </Row>
+
+        <div class="complexity-details">
+          <div class="detail-section">
+            <h4>{{ $t('m.Complexity_Level') }}</h4>
+            <div style="text-align: center; margin: 10px 0;">
+              <Tag :color="getComplexityColor(complexityData.complexity_score)"
+                style="font-size: 16px; padding: 5px 15px;">
+                {{ getComplexityLevelText(complexityData.complexity_score) }}
+              </Tag>
+            </div>
+          </div>
+
+          <div v-if="complexityData.keywords && complexityData.keywords.length" class="detail-section">
+            <h4>{{ $t('m.Keywords') }}</h4>
+            <div class="keywords-container">
+              <Tag v-for="(keyword, index) in complexityData.keywords" :key="index" color="primary"
+                style="margin: 5px;">
+                {{ keyword }}
+              </Tag>
+            </div>
+          </div>
+
+          <div v-if="complexityData.readability_score || complexityData.grade_level" class="detail-section">
+            <h4>{{ $t('m.Readability_Analysis') }}</h4>
+            <div class="readability-details">
+              <div v-if="complexityData.readability_score" class="readability-item">
+                <span class="label">{{ $t('m.Readability_Score') }}:</span>
+                <span>{{ complexityData.readability_score.toFixed(1) }}</span>
+              </div>
+              <div v-if="complexityData.grade_level" class="readability-item">
+                <span class="label">{{ $t('m.Grade_Level') }}:</span>
+                <span>{{ complexityData.grade_level }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="no-complexity-data">
+        <p>{{ $t('m.No_Complexity_Data_Available') }}</p>
+      </div>
+
+      <div slot="footer">
+        <Button @click="closeComplexityModal">{{ $t('m.Close') }}</Button>
+      </div>
+    </Modal>
+
   </div>
 </template>
 
@@ -275,6 +356,7 @@ import VerticalMenu from '../../components/verticalMenu/verticalMenu.vue'
 import VerticalMenuItem from '../../components/verticalMenu/verticalMenu-item.vue'
 import NextProblemRecommendation from './NextProblemRecommendation.vue'
 import CodeDiagnostic from '../../components/CodeDiagnostic.vue'
+import ProblemComplexity from '../../components/ProblemComplexity.vue'
 // 只显示这些状态的图形占用
 const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
 
@@ -289,7 +371,8 @@ export default {
     VerticalMenu,
     VerticalMenuItem,
     NextProblemRecommendation,
-    CodeDiagnostic
+    CodeDiagnostic,
+    ProblemComplexity
   },
 
   data() {
@@ -346,6 +429,10 @@ export default {
       suggestionTimer: null,
       lastCursorPosition: null,
       activeAIPanelTab: 'diagnosis',
+      problemComplexityMap: {},
+      complexityData: null,
+      showComplexityModal: false,
+      loadingComplexity: false,
 
     }
   },
@@ -383,6 +470,8 @@ export default {
         })
         problem.languages = problem.languages.sort()
         this.problem = problem
+        // 加载题目复杂度信息
+        this.loadProblemComplexity()
         if (problem.statistic_info) {
           this.changePie(problem)
         }
@@ -408,6 +497,12 @@ export default {
           this.performRealTimeDiagnosis()
         }
       }, 30000)
+    },
+    async showComplexityAnalysis() {
+      this.showComplexityModal = true;
+      if (!this.complexityData && !this.loadingComplexity) {
+        await this.loadProblemComplexity();
+      }
     },
     onSuggestionsReceived(suggestionsData) {
       console.log('收到CodeMirror组件的建议:', suggestionsData);
@@ -493,6 +588,55 @@ export default {
         best_practice: 'ios-thumbs-up'
       }
       return icons[type] || 'ios-information-circle'
+    },
+    async getProblemComplexity(problemId) {
+      // 如果已经获取过复杂度信息，直接返回
+      if (this.problemComplexityMap[problemId]) {
+        return this.problemComplexityMap[problemId];
+      }
+
+      try {
+        const res = await api.getProblemComplexity(problemId);
+        this.$set(this.problemComplexityMap, problemId, res.data.data);
+        return res.data.data;
+      } catch (err) {
+        // 获取失败时返回默认值
+        const defaultComplexity = { complexity_score: 0 };
+        this.$set(this.problemComplexityMap, problemId, defaultComplexity);
+        return defaultComplexity;
+      }
+    },
+    async loadProblemComplexity() {
+      if (this.loadingComplexity) return; // 防止重复加载
+
+      this.loadingComplexity = true;
+      try {
+        const res = await api.getProblemComplexity(this.problem.id);
+        this.complexityData = res.data.data;
+      } catch (err) {
+        this.$error(this.$t('m.Failed_to_load_complexity_data'));
+        this.complexityData = null;
+      } finally {
+        this.loadingComplexity = false;
+      }
+    },
+    getComplexityLevelText(score) {
+      if (score >= 80) return this.$t('Very_Complex');
+      if (score >= 60) return this.$t('Moderately_Com.Complex');
+      if (score >= 40) return this.$t('Moderate');
+      if (score >= 20) return this.$t('Simple');
+      return this.$t('Very_Simple');
+    },
+
+    getComplexityColor(score) {
+      if (score >= 80) return '#ed4014'; // 红色
+      if (score >= 60) return '#ff9900'; // 橙色
+      if (score >= 40) return '#2d8cf0'; // 蓝色
+      if (score >= 20) return '#19be6b'; // 绿色
+      return '#515a6e'; // 灰色
+    },
+    closeComplexityModal() {
+      this.showComplexityModal = false;
     },
 
 
@@ -1571,5 +1715,76 @@ export default {
       line-height: 1.4;
     }
   }
+}
+
+.complexity-loading {
+  text-align: center;
+  padding: 30px 0;
+}
+
+.complexity-content {
+  .complexity-metrics {
+    margin-bottom: 20px;
+
+    .metric-card {
+      text-align: center;
+
+      .metric-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2d8cf0;
+        margin-bottom: 5px;
+      }
+
+      .metric-label {
+        font-size: 14px;
+        color: #808695;
+      }
+    }
+  }
+
+  .detail-section {
+    margin-bottom: 20px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    h4 {
+      border-bottom: 1px solid #e8eaec;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+      color: #515a6e;
+    }
+
+    .keywords-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .readability-details {
+      .readability-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .label {
+          font-weight: 500;
+          color: #515a6e;
+        }
+      }
+    }
+  }
+}
+
+.no-complexity-data {
+  text-align: center;
+  padding: 30px 0;
+  color: #808695;
 }
 </style>

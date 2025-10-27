@@ -29,14 +29,55 @@ import jieba.analyse
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.corpus import stopwords
-from nltk.corpus.reader.wordnet import flesch_kincaid_grade, flesch_reading_ease
-try:
-    nltk.download('punkt', quiet=True)
-    nltk.download('stopwords', quiet=True)
-except:
-    pass
+from textstat import flesch_reading_ease,flesch_kincaid_grade
+import logging
+logger = logging.getLogger(__name__)
 
-logger=logging.getLogger(__name__)
+def setup_nltk_environment():
+    """
+    配置NLTK环境以使用本地数据
+    """
+    # 添加当前目录下的nltk_data到搜索路径
+    current_nltk_data = os.path.join(os.getcwd(), "nltk_data")
+    if os.path.exists(current_nltk_data):
+        nltk.data.path.insert(0, current_nltk_data)
+    
+    # 添加项目根目录下的nltk_data到搜索路径
+    project_nltk_data = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "nltk_data")
+    if os.path.exists(project_nltk_data) and project_nltk_data not in nltk.data.path:
+        nltk.data.path.insert(0, project_nltk_data)
+    
+    # 添加用户主目录下的nltk_data到搜索路径
+    home_nltk_data = os.path.expanduser("~/nltk_data")
+    if os.path.exists(home_nltk_data) and home_nltk_data not in nltk.data.path:
+        nltk.data.path.append(home_nltk_data)
+setup_nltk_environment()
+
+def check_nltk_availability():
+    """
+    检查NLTK数据是否可用
+    """
+    try:
+        # 尝试加载必要的数据
+        nltk.data.find('tokenizers/punkt')
+        nltk.data.find('corpora/stopwords')
+        return True
+    except LookupError:
+        return False
+
+NLTK_AVAILABLE = check_nltk_availability()
+
+
+
+
+
+
+
+
+
+
+
+
 
 class AIService:
     @staticmethod
@@ -3446,8 +3487,3 @@ class NLPProblemAnalyzer:
             'readability_score': readability_score,
             'grade_level': grade_level
         }
-
-    
-
-
-

@@ -466,5 +466,22 @@ export const m = {
   Show_Subsequent_Knowledge: "Show Subsequent Knowledge",
   Real_Time_Diagnostic_Suggestions: "Real-Time Diagnostic Suggestions",
   Diagnostics: "Dignostics",
-  Real_Time_Diagnostic: "Real-Time Diagnostic"
+  Real_Time_Diagnostic: "Real-Time Diagnostic",
+  Complexity_Analysis: "Complexity Analysis",
+  Loading_Complexity_Data: "Loading complexity data...",
+  Complexity_Score: "Complexity Score",
+  Word_Count: "Word Count",
+  Sentence_Count: "Sentence Count",
+  Complexity_Level: "Complexity Level",
+  Keywords: "Keywords",
+  Readability_Analysis: "Readability Analysis",
+  Readability_Score: "Readability Score",
+  Grade_Level: "Grade Level",
+  No_Complexity_Data_Available: "No complexity data available",
+  Failed_to_load_complexity_data: "Failed to load complexity data",
+  Very_Complex: "Very Complex",
+  Complex: "Complex",
+  Moderate: "Moderate",
+  Simple: "Simple",
+  Very_Simple: "Very Simple"
 };

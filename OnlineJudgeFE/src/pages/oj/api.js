@@ -419,6 +419,21 @@ export default {
   },
   getAbilityComparison() {
     return ajax("ai/ability/compare", "get");
+  },
+  //引入NLP技术的接口
+  analyzeProblemComplexity(problemId) {
+    return ajax("ai/nlp_analysis", "post", {
+      data: {
+        problem_id: problemId
+      }
+    });
+  },
+  getProblemComplexity(problemId) {
+    return ajax("ai/nlp_analysis", "get", {
+      params: {
+        problem_id: problemId
+      }
+    });
   }
 };
 
