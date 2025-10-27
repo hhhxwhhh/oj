@@ -483,5 +483,6 @@ export const m = {
   Moderate: "Moderate",
   Simple: "Simple",
   Very_Simple: "Very Simple",
-  Very_Complex: "Very Complex"
+  Very_Complex: "Very Complex",
+  General_Suggestions: "General Suggestions"
 };

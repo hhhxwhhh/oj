@@ -51,11 +51,38 @@
                         </div>
                     </TabPane>
                     <TabPane :label="suggestionsTabLabel" name="suggestions">
-                        <div v-if="suggestions.length > 0" class="real-time-suggestions">
+                        <div v-if="organizedSuggestions.length > 0" class="real-time-suggestions">
                             <div class="suggestions-content">
-                                <div v-for="(suggestion, index) in suggestions" :key="index" class="suggestion-item">
-                                    <Icon type="ios-information-circle" color="#2d8cf0"></Icon>
-                                    <span>{{ suggestion }}</span>
+                                <div v-for="(category, index) in organizedSuggestions" :key="index"
+                                    class="suggestion-category">
+                                    <div class="category-header">
+                                        <Icon :type="getCategoryIcon(category.type)"
+                                            :style="{ color: getCategoryColor(category.type) }"></Icon>
+                                        <span class="category-title">{{ getCategoryName(category.type) }}</span>
+                                        <Tag :color="getCategoryColor(category.type)">{{ category.items.length }}</Tag>
+                                    </div>
+                                    <div class="category-items">
+                                        <!-- 使用 Markdown 渲染建议内容 -->
+                                        <div v-if="isSimpleList(category.items)" class="simple-list">
+                                            <div v-for="(item, itemIndex) in category.items" :key="itemIndex"
+                                                class="simple-item">
+                                                <Icon type="ios-checkmark" class="check-icon"></Icon>
+                                                <span v-if="typeof item === 'string'">{{ item }}</span>
+                                                <span v-else>{{ item.text || item.description }}</span>
+                                            </div>
+                                        </div>
+                                        <!-- 对于复杂内容，仍然使用原有格式 -->
+                                        <div v-else>
+                                            <div v-for="(item, itemIndex) in category.items" :key="itemIndex"
+                                                class="suggestion-item">
+                                                <div class="suggestion-content">
+                                                    <div class="suggestion-text">{{ item.text || item }}</div>
+                                                    <div v-if="item.description" class="suggestion-description">{{
+                                                        item.description }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="panel-footer">
@@ -83,7 +110,6 @@
         </div>
     </div>
 </template>
-
 <script>
 export default {
     name: 'CodeDiagnostic',
@@ -172,6 +198,62 @@ export default {
                 left: this.position.left,
                 top: this.position.top
             }
+        },
+        organizedSuggestions() {
+            // 对suggestions进行分类组织
+            if (!this.suggestions || this.suggestions.length === 0) {
+                return [];
+            }
+
+            // 检查suggestions是否是已分类的结构
+            if (this.suggestions.length > 0 &&
+                (typeof this.suggestions[0] === 'object') &&
+                (this.suggestions[0].hasOwnProperty('completions') ||
+                    this.suggestions[0].hasOwnProperty('suggestions') ||
+                    this.suggestions[0].hasOwnProperty('issues') ||
+                    this.suggestions[0].hasOwnProperty('knowledge_points'))) {
+
+                // 已经是分类结构，直接使用
+                const categories = [];
+
+                this.suggestions.forEach(suggestionGroup => {
+                    if (suggestionGroup.completions && suggestionGroup.completions.length) {
+                        categories.push({
+                            type: 'completions',
+                            items: suggestionGroup.completions
+                        });
+                    }
+
+                    if (suggestionGroup.suggestions && suggestionGroup.suggestions.length) {
+                        categories.push({
+                            type: 'suggestions',
+                            items: suggestionGroup.suggestions
+                        });
+                    }
+
+                    if (suggestionGroup.issues && suggestionGroup.issues.length) {
+                        categories.push({
+                            type: 'issues',
+                            items: suggestionGroup.issues
+                        });
+                    }
+
+                    if (suggestionGroup.knowledge_points && suggestionGroup.knowledge_points.length) {
+                        categories.push({
+                            type: 'knowledge_points',
+                            items: suggestionGroup.knowledge_points
+                        });
+                    }
+                });
+
+                return categories;
+            } else {
+                // 简单数组，归类为通用建议
+                return [{
+                    type: 'general',
+                    items: this.suggestions
+                }];
+            }
         }
     },
     methods: {
@@ -219,6 +301,52 @@ export default {
                 'best_practice': this.$t('m.Best_Practices')
             }
             return names[type] || type
+        },
+        // 新增方法：获取建议分类的图标
+        getCategoryIcon(type) {
+            const icons = {
+                'completions': 'ios-code',
+                'suggestions': 'ios-bulb',
+                'issues': 'ios-warning',
+                'knowledge_points': 'ios-book',
+                'general': 'ios-information-circle'
+            }
+            return icons[type] || 'ios-information-circle'
+        },
+        // 新增方法：获取建议分类的颜色
+        getCategoryColor(type) {
+            const colors = {
+                'completions': '#2d8cf0',
+                'suggestions': '#ff9900',
+                'issues': '#ed4014',
+                'knowledge_points': '#19be6b',
+                'general': '#515a6e'
+            }
+            return colors[type] || '#515a6e'
+        },
+        // 新增方法：获取建议分类的名称
+        getCategoryName(type) {
+            const names = {
+                'completions': this.$t('m.Code_Completions'),
+                'suggestions': this.$t('m.Improvement_Suggestions'),
+                'issues': this.$t('m.Potential_Issues'),
+                'knowledge_points': this.$t('m.Knowledge_Points'),
+                'general': this.$t('m.General_Suggestions')
+            }
+            return names[type] || type
+        },
+        // 判断是否为简单列表（用于决定渲染方式）
+        isSimpleList(items) {
+            // 如果所有项目都是简单字符串或只包含text属性且无description，则认为是简单列表
+            return items.every(item => {
+                if (typeof item === 'string') {
+                    return true;
+                }
+                if (typeof item === 'object') {
+                    return item.text && !item.description;
+                }
+                return false;
+            });
         },
         // 拖拽功能实现
         initPanelPosition() {
@@ -320,7 +448,6 @@ export default {
     }
 }
 </script>
-
 <style lang="less" scoped>
 .code-diagnostic {
     .diagnostic-panel {
@@ -486,24 +613,96 @@ export default {
                         }
                     }
 
-                    .suggestion-item {
-                        display: flex;
-                        align-items: flex-start;
-                        margin-bottom: 15px;
-                        line-height: 1.4;
-                        padding: 10px;
+                    .suggestion-category {
+                        margin-bottom: 20px;
                         border: 1px solid #eee;
                         border-radius: 4px;
-                        background-color: #fff;
+                        overflow: hidden;
 
-                        &:hover {
+                        .category-header {
+                            display: flex;
+                            align-items: center;
+                            padding: 10px;
                             background-color: #f8f8f9;
+
+                            i {
+                                margin-right: 8px;
+                                font-size: 16px;
+                            }
+
+                            .category-title {
+                                font-weight: bold;
+                                margin-right: 10px;
+                                flex: 1;
+                            }
+
+                            .ivu-tag {
+                                margin: 0;
+                            }
                         }
 
-                        i {
-                            margin-right: 10px;
-                            margin-top: 3px;
-                            font-size: 16px;
+                        .category-items {
+                            padding: 10px;
+                            background-color: #fff;
+
+                            // 简单列表样式（用于渲染短建议）
+                            .simple-list {
+                                .simple-item {
+                                    display: flex;
+                                    align-items: flex-start;
+                                    margin-bottom: 8px;
+                                    padding: 6px 10px;
+                                    border-radius: 4px;
+                                    background-color: #f9f9f9;
+                                    line-height: 1.4;
+
+                                    &:last-child {
+                                        margin-bottom: 0;
+                                    }
+
+                                    &:hover {
+                                        background-color: #f0f0f0;
+                                    }
+
+                                    .check-icon {
+                                        color: #19be6b;
+                                        margin-right: 8px;
+                                        margin-top: 2px;
+                                        font-size: 14px;
+                                    }
+                                }
+                            }
+
+                            // 复杂建议项样式（保留原有样式）
+                            .suggestion-item {
+                                margin-bottom: 12px;
+                                padding: 12px;
+                                border-left: 3px solid #eee;
+                                border-radius: 4px;
+                                background-color: #fafafa;
+
+                                &:last-child {
+                                    margin-bottom: 0;
+                                }
+
+                                &:hover {
+                                    background-color: #f0f0f0;
+                                }
+
+                                .suggestion-content {
+                                    .suggestion-text {
+                                        font-weight: 500;
+                                        margin-bottom: 5px;
+                                        color: #515a6e;
+                                    }
+
+                                    .suggestion-description {
+                                        font-size: 13px;
+                                        color: #808695;
+                                        line-height: 1.4;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
