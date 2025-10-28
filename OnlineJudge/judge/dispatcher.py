@@ -18,7 +18,7 @@ from utils.cache import cache
 from utils.constants import CacheKey
 
 logger = logging.getLogger(__name__)
-from ai.service import KnowledgePointService
+from ai.service import KnowledgePointService,AbilityAssessmentService
 
 
 # 继续处理在队列中的问题
@@ -200,13 +200,24 @@ class JudgeDispatcher(DispatcherBase):
                 self.update_problem_status()
         try:
             is_correct = (self.submission.result == JudgeStatus.ACCEPTED)
+            score = self.submission.statistic_info.get("score", 0)
+            
+            # 更新知识点掌握情况
             KnowledgePointService.update_user_knowledge_state(
                 self.submission.user_id,
                 self.problem.id,
                 is_correct
             )
+            
+            # 更新编程能力评估
+            AbilityAssessmentService.update_user_ability_assessment(
+                self.submission.user_id,
+                self.problem.id,
+                is_correct,
+                score
+            )
         except Exception as e:
-            logger.error(f"Failed to update knowledge state for submission {self.submission.id}: {str(e)}")
+            logger.error(f"Failed to update user assessment for submission {self.submission.id}: {str(e)}")
 
 
         # 至此判题结束，尝试处理任务队列中剩余的任务

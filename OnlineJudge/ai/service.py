@@ -2063,22 +2063,36 @@ class AICodeDiagnosisService:
 
 class KnowledgePointService:
     @staticmethod
-    def create_knowledge_points_from_tags():
+    def create_knowledge_points_from_tags(problem):
         """
-        从题目标签创建知识点
+        根据题目标签创建知识点并关联题目
         """
-        from problem.models import ProblemTag
-        tags = ProblemTag.objects.all()
-        
-        for tag in tags:
-            KnowledgePoint.objects.get_or_create(
-                name=tag.name,
-                defaults={
-                    'description': f'与{tag.name}相关的知识点',
-                    'category': '算法与数据结构',
-                    'difficulty': 3
-                }
-            )
+        try:
+            from .models import KnowledgePoint
+            from problem.models import ProblemTag
+            
+            # 获取题目的所有标签
+            tags = problem.tags.all()
+            
+            for tag in tags:
+                # 创建或获取知识点
+                kp, created = KnowledgePoint.objects.get_or_create(
+                    name=tag.name,
+                    defaults={
+                        'description': f'与{tag.name}相关的知识点',
+                        'category': '算法与数据结构',
+                        'difficulty': 3
+                    }
+                )
+                
+                # 关联题目到知识点
+                kp.related_problems.add(problem)
+                
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create knowledge points from tags: {str(e)}")
+            return False
+
     
     @staticmethod
     def get_user_knowledge_state(user_id):
@@ -2126,6 +2140,14 @@ class KnowledgePointService:
                 
         except Exception as e:
             logger.error(f"Failed to update user knowledge state: {str(e)}")
+
+        try:
+            problem = Problem.objects.get(id=problem_id)
+            # 如果题目没有关联知识点，根据标签自动创建
+            if not problem.knowledge_points.exists():
+                KnowledgePointService.create_knowledge_points_from_tags(problem)
+        except Exception as e:
+            logger.error(f"Failed to ensure problem-knowledge association: {str(e)}")
     
     @staticmethod
     def get_knowledge_recommendations(user_id, count=5):
@@ -2179,6 +2201,23 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"Failed to get knowledge recommendations: {str(e)}")
             return []
+
+    @staticmethod
+    def _ensure_problem_knowledge_association(problem_id):
+        """
+        确保题目与知识点有关联，如果没有则自动创建
+        """
+        try:
+            problem = Problem.objects.get(id=problem_id)
+            # 修复：通过KnowledgePoint模型检查关联，而不是problem.knowledge_points
+            from .models import KnowledgePoint
+            associated_knowledge_points = KnowledgePoint.objects.filter(related_problems=problem)
+            
+            # 如果题目没有关联知识点，根据标签自动创建
+            if not associated_knowledge_points.exists():
+                KnowledgePointService.create_knowledge_points_from_tags(problem)
+        except Exception as e:
+            logger.error(f"Failed to ensure problem-knowledge association: {str(e)}")
 
     @staticmethod
     def _get_user_feedback_weights(user_id):
@@ -3733,3 +3772,149 @@ class NLPProblemAnalyzer:
             'readability_score': readability_score,
             'grade_level': grade_level
         }
+    
+
+class AbilityAssessmentService:
+    """用户编程能力评估服务"""
+    
+    @staticmethod
+    def update_user_ability_assessment(user_id, problem_id, is_correct, score=0):
+        """
+        根据用户解答题目情况更新编程能力评估
+        """
+        try:
+            from .models import AIProgrammingAbility, AIAbilityDimension, AIUserAbilityDetail
+            
+            # 获取或创建用户编程能力评估记录
+            ability, created = AIProgrammingAbility.objects.get_or_create(
+                user_id=user_id,
+                defaults={
+                    'overall_score': 0.0,
+                    'basic_programming_score': 0.0,
+                    'data_structure_score': 0.0,
+                    'algorithm_design_score': 0.0,
+                    'problem_solving_score': 0.0,
+                    'level': 'beginner',
+                    'analysis_report': {}
+                }
+            )
+            
+            # 获取题目信息用于能力维度分析
+            problem = Problem.objects.get(id=problem_id)
+            
+            # 根据题目标签和难度更新相应能力维度
+            AbilityAssessmentService._update_ability_dimensions(ability, problem, is_correct, score)
+            
+            # 重新计算总体评分
+            AbilityAssessmentService._recalculate_overall_score(ability)
+            
+            # 添加详细维度记录
+            try:
+                # 修复：使用正确的字段结构创建AIUserAbilityDetail记录
+                # 首先获取或创建能力维度记录
+                from .models import AIAbilityDimension
+                
+                # 获取基础编程能力维度
+                basic_dimension, _ = AIAbilityDimension.objects.get_or_create(
+                    name='基础编程能力',
+                    defaults={
+                        'description': '基础编程语法和逻辑能力',
+                        'weight': 0.2
+                    }
+                )
+                
+                # 创建详细记录，使用正确的字段
+                detail = AIUserAbilityDetail.objects.create(
+                    user_id=user_id,
+                    dimension=basic_dimension,
+                    score=ability.basic_programming_score,
+                    proficiency_level=ability.level,
+                    evidence={
+                        'problem_id': problem_id,
+                        'is_correct': is_correct,
+                        'score': score,
+                        'timestamp': str(timezone.now())
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Failed to create ability detail record: {str(e)}")
+            
+            ability.save()
+            
+        except Exception as e:
+            logger.error(f"Failed to update user ability assessment: {str(e)}")
+
+
+    
+    @staticmethod
+    def _update_ability_dimensions(ability, problem, is_correct, score):
+        """更新具体能力维度评分"""
+        # 分析题目标签确定影响的能力维度
+        tags = [tag.name.lower() for tag in problem.tags.all()]
+        
+        # 将字符串难度转换为数值难度
+        difficulty_map = {
+            'low': 3.0,
+            'mid': 6.0, 
+            'medium': 6.0,
+            'high': 9.0,
+            'easy': 3.0,
+            'normal': 6.0,
+            'hard': 9.0
+        }
+        
+        # 默认难度为中等
+        difficulty_value = difficulty_map.get(problem.difficulty.lower(), 6.0)
+        difficulty_factor = difficulty_value / 10.0
+        
+        # 基础编程能力（所有题目都会影响）
+        if is_correct:
+            ability.basic_programming_score = min(100.0, ability.basic_programming_score + score * 0.1)
+        else:
+            ability.basic_programming_score = max(0.0, ability.basic_programming_score - 0.5)
+        
+        # 数据结构能力
+        if any(tag in ['数组', '链表', '栈', '队列', '树', '图', '哈希表'] for tag in tags):
+            if is_correct:
+                ability.data_structure_score = min(100.0, ability.data_structure_score + score * 0.2)
+            else:
+                ability.data_structure_score = max(0.0, ability.data_structure_score - 1.0)
+        
+        # 算法设计能力
+        if any(tag in ['排序', '查找', '递归', '动态规划', '贪心', '分治'] for tag in tags):
+            if is_correct:
+                ability.algorithm_design_score = min(100.0, ability.algorithm_design_score + score * 0.3)
+            else:
+                ability.algorithm_design_score = max(0.0, ability.algorithm_design_score - 1.5)
+        
+        # 解题能力（基于题目难度）
+        if is_correct:
+            ability.problem_solving_score = min(100.0, ability.problem_solving_score + score * difficulty_factor)
+        else:
+            ability.problem_solving_score = max(0.0, ability.problem_solving_score - difficulty_factor * 2)
+    
+    @staticmethod
+    def _recalculate_overall_score(ability):
+        """重新计算总体评分"""
+        weights = {
+            'basic_programming_score': 0.2,
+            'data_structure_score': 0.3,
+            'algorithm_design_score': 0.3,
+            'problem_solving_score': 0.2
+        }
+        
+        overall_score = 0.0
+        for dimension, weight in weights.items():
+            overall_score += getattr(ability, dimension) * weight
+        
+        ability.overall_score = round(overall_score, 2)
+        
+        # 更新能力等级
+        if overall_score >= 80:
+            ability.level = 'expert'
+        elif overall_score >= 60:
+            ability.level = 'advanced'
+        elif overall_score >= 40:
+            ability.level = 'intermediate'
+        else:
+            ability.level = 'beginner'
