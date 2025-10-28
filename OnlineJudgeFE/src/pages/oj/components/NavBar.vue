@@ -56,9 +56,10 @@
       </Submenu>
       <template v-if="!isAuthenticated">
         <div class="btn-menu">
-          <Button type="ghost" ref="loginBtn" shape="circle" @click="handleBtnClick('login')">{{ $t('m.Login') }}
+          <Button type="primary" ghost ref="loginBtn" shape="circle" @click="handleBtnClick('login')">{{ $t('m.Login')
+            }}
           </Button>
-          <Button v-if="website.allow_register" type="ghost" shape="circle" @click="handleBtnClick('register')"
+          <Button v-if="website.allow_register" type="primary" ghost shape="circle" @click="handleBtnClick('register')"
             style="margin-left: 5px;">{{ $t('m.Register') }}
           </Button>
         </div>
@@ -143,50 +144,87 @@ export default {
   position: fixed;
   top: 0;
   left: 0;
-  height: auto;
+  height: 60px;
   width: 100%;
   z-index: 1000;
   background-color: #fff;
-  box-shadow: 0 1px 5px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+  border-bottom: 1px solid #e8f4ff;
 
   .oj-menu {
-    background: #fdfdfd;
+    background: #fff;
     height: 60px;
     display: flex;
     align-items: center;
-    padding: 0 1%;
+    padding: 0 2%;
 
-    // 控制菜单项间距和样式
     /deep/ .ivu-menu-item,
     /deep/ .ivu-menu-submenu-title {
-      margin: 0 5px;
+      margin: 0 2px;
       height: 60px;
       line-height: 60px;
-      padding: 0 12px !important; // 固定内边距
-      white-space: nowrap; // 防止文字换行
+      padding: 0 15px !important;
+      white-space: nowrap;
       font-size: 14px;
+      color: #515a6e;
+      transition: all 0.3s ease;
+      border-bottom: 2px solid transparent;
 
-      // 确保图标和文字在同一行
       display: flex;
       align-items: center;
 
       .ivu-icon {
-        margin-right: 5px;
+        margin-right: 6px;
+        font-size: 16px;
+      }
+
+      &:hover {
+        color: #1890ff;
+        background-color: rgba(24, 144, 255, 0.05);
+      }
+
+      &.ivu-menu-item-active {
+        color: #1890ff;
+        border-bottom: 2px solid #1890ff;
+        background-color: rgba(24, 144, 255, 0.03);
+      }
+    }
+
+    /deep/ .ivu-menu-submenu {
+      &:hover {
+        .ivu-menu-submenu-title {
+          color: #1890ff;
+          background-color: rgba(24, 144, 255, 0.05);
+        }
       }
     }
   }
 
   .logo {
-    margin-right: 15px;
-    font-size: 18px;
+    margin-right: 25px;
+    font-size: 20px;
     font-weight: 600;
     line-height: 60px;
     white-space: nowrap;
+    color: #1890ff;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 0 5px;
+
+    span {
+      display: inline-block;
+      transition: transform 0.3s ease;
+    }
+
+    &:hover span {
+      transform: scale(1.03);
+    }
   }
 
   .drop-menu {
     margin-left: auto;
-    margin-right: 10px;
+    margin-right: 20px;
     position: relative;
     right: 0;
 
@@ -195,7 +233,13 @@ export default {
       display: flex;
       align-items: center;
       height: 60px;
-      padding: 0 10px;
+      padding: 0 15px;
+      border-radius: 4px;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background-color: rgba(24, 144, 255, 0.05);
+      }
 
       .navbar-avatar {
         width: 36px;
@@ -203,24 +247,29 @@ export default {
         border-radius: 50%;
         margin-right: 10px;
         object-fit: cover;
-        border: 2px solid #e8eaec;
+        border: 2px solid #e8f4ff;
         transition: all 0.3s ease;
         vertical-align: middle;
       }
 
       .username {
-        margin-right: 5px;
+        margin-right: 8px;
         font-weight: 500;
         max-width: 120px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        color: #515a6e;
       }
 
       &:hover {
         .navbar-avatar {
-          border-color: #5cadff;
+          border-color: #1890ff;
           transform: scale(1.05);
+        }
+
+        .username {
+          color: #1890ff;
         }
       }
     }
@@ -228,14 +277,24 @@ export default {
 
   .btn-menu {
     margin-left: auto;
-    margin-right: 10px;
+    margin-right: 20px;
     height: 60px;
     display: flex;
     align-items: center;
 
     .ivu-btn {
-      margin-left: 10px;
+      margin-left: 12px;
       white-space: nowrap;
+      border-radius: 20px;
+      transition: all 0.3s ease;
+      border-color: #1890ff;
+      color: #1890ff;
+
+      &:hover {
+        background-color: #e8f4ff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(24, 144, 255, 0.2);
+      }
     }
   }
 }
@@ -244,26 +303,56 @@ export default {
   &-title {
     font-size: 18px;
     font-weight: 600;
+    color: #1890ff;
   }
 }
 
 // 响应式优化 - 在小屏幕上进一步优化
 @media (max-width: 1200px) {
   .oj-menu {
+    padding: 0 1%;
 
     /deep/ .ivu-menu-item,
     /deep/ .ivu-menu-submenu-title {
-      padding: 0 10px !important;
+      padding: 0 12px !important;
       font-size: 13px;
+      margin: 0 1px;
 
       .ivu-icon {
-        margin-right: 3px;
+        margin-right: 4px;
+        font-size: 15px;
       }
     }
 
     .logo {
-      font-size: 16px;
-      margin-right: 10px;
+      font-size: 18px;
+      margin-right: 20px;
+    }
+
+    .btn-menu {
+      margin-right: 15px;
+
+      .ivu-btn {
+        margin-left: 8px;
+        padding: 4px 15px;
+      }
+    }
+
+    .drop-menu {
+      margin-right: 15px;
+
+      &-title {
+        padding: 0 12px;
+
+        .navbar-avatar {
+          width: 32px;
+          height: 32px;
+        }
+
+        .username {
+          max-width: 100px;
+        }
+      }
     }
   }
 }
@@ -273,18 +362,93 @@ export default {
 
     /deep/ .ivu-menu-item,
     /deep/ .ivu-menu-submenu-title {
-      padding: 0 8px !important;
+      padding: 0 10px !important;
       font-size: 12px;
+      margin: 0;
+
+      .ivu-icon {
+        margin-right: 3px;
+        font-size: 14px;
+      }
     }
 
     .logo {
-      font-size: 14px;
-      margin-right: 5px;
+      font-size: 16px;
+      margin-right: 15px;
     }
 
     .drop-menu-title {
       .username {
         max-width: 80px;
+      }
+    }
+
+    .btn-menu {
+      margin-right: 10px;
+
+      .ivu-btn {
+        margin-left: 6px;
+        padding: 2px 12px;
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .oj-menu {
+    .logo {
+      font-size: 15px;
+      margin-right: 10px;
+    }
+
+    /deep/ .ivu-menu-item:not(.ivu-menu-item-active),
+    /deep/ .ivu-menu-submenu:not(.ivu-menu-submenu-active) {
+      span:not(.ivu-icon) {
+        display: none;
+      }
+
+      .ivu-icon {
+        margin-right: 0;
+        font-size: 16px;
+      }
+    }
+
+    .btn-menu {
+      margin-right: 8px;
+
+      .ivu-btn span {
+        display: none;
+      }
+
+      .ivu-btn .ivu-icon {
+        margin-right: 0;
+      }
+
+      .ivu-btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+
+    .drop-menu {
+      margin-right: 8px;
+
+      &-title {
+        padding: 0 10px;
+
+        .username {
+          display: none;
+        }
+
+        .navbar-avatar {
+          margin-right: 0;
+        }
       }
     }
   }
