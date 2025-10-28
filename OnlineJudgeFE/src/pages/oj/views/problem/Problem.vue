@@ -2,14 +2,14 @@
   <div class="flex-container">
     <div id="problem-main">
       <!--problem main-->
-      <Panel :padding="40" shadow>
-        <div slot="title">{{ problem.title }}</div>
+      <Panel :padding="40" shadow class="problem-panel">
+        <div slot="title" class="panel-title">{{ problem.title }}</div>
         <div id="problem-content" class="markdown-body" v-katex>
           <p class="title">{{ $t('m.Description') }}</p>
           <p class="content" v-html=problem.description></p>
           <!-- {{$t('m.music')}} -->
           <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-          }}: {{
+              }}: {{
                 problem.io_mode.input }})</span></p>
           <p class="content" v-html=problem.input_description></p>
 
@@ -38,7 +38,7 @@
 
           <div v-if="problem.hint">
             <p class="title">{{ $t('m.Hint') }}</p>
-            <Card dis-hover>
+            <Card dis-hover class="hint-card">
               <div class="content" v-html=problem.hint></div>
             </Card>
           </div>
@@ -51,7 +51,7 @@
         </div>
       </Panel>
       <!--problem main end-->
-      <Card :padding="20" id="submit-code" dis-hover>
+      <Card :padding="20" id="submit-code" dis-hover class="submit-card">
         <div style="margin-bottom: 10px;">
           <i-switch v-model="useOllama" size="large">
             <span slot="open">Ollama</span>
@@ -130,7 +130,7 @@
     </div>
 
     <div id="right-column">
-      <VerticalMenu @on-click="handleRoute">
+      <VerticalMenu @on-click="handleRoute" class="vertical-menu">
         <template v-if="this.contestID">
           <VerticalMenuItem :route="{ name: 'contest-problem-list', params: { contestID: contestID } }">
             <Icon type="ios-photos"></Icon>
@@ -162,7 +162,7 @@
       </VerticalMenu>
 
 
-      <Card id="info">
+      <Card id="info" class="info-card">
         <div slot="title" class="header">
           <Icon type="information-circled"></Icon>
           <span class="card-title">{{ $t('m.Information') }}</span>
@@ -215,7 +215,7 @@
         </ul>
       </Card>
 
-      <Card id="pieChart" :padding="0" v-if="!this.contestID || OIContestRealTimePermission">
+      <Card id="pieChart" :padding="0" v-if="!this.contestID || OIContestRealTimePermission" class="pie-chart-card">
         <div slot="title">
           <Icon type="ios-analytics"></Icon>
           <span class="card-title">{{ $t('m.Statistic') }}</span>
@@ -229,7 +229,7 @@
 
     </div>
 
-    <Modal v-model="graphVisible">
+    <Modal v-model="graphVisible" class="statistic-modal">
       <div id="pieChart-detail">
         <ECharts :options="largePie" :initOptions="largePieInitOpts"></ECharts>
       </div>
@@ -239,7 +239,7 @@
     </Modal>
 
     <!-- 添加代码解释模态框 -->
-    <Modal v-model="showExplanationModal" :title="$t('m.Code_Explanation')" width="800">
+    <Modal v-model="showExplanationModal" :title="$t('m.Code_Explanation')" width="800" class="explanation-modal">
       <div class="modal-actions" style="text-align: right; margin-bottom: 10px;">
         <Button v-if="codeExplanation && !explaining" @click="exportExplanationToPDF" type="primary" size="small"
           icon="ios-download-outline">
@@ -262,7 +262,7 @@
 
     <!-- 复杂度分析模态框 -->
     <Modal v-model="showComplexityModal" :title="$t('m.Complexity_Analysis')" width="600" :loading="loadingComplexity"
-      @on-cancel="closeComplexityModal">
+      @on-cancel="closeComplexityModal" class="complexity-modal">
       <div v-if="loadingComplexity" class="complexity-loading">
         <Spin size="large" />
         <p style="text-align: center; margin-top: 10px;">{{ $t('m.Loading_Complexity_Data') }}</p>
@@ -1248,7 +1248,6 @@ export default {
   }
 }
 </script>
-
 <style lang="less" scoped>
 .card-title {
   margin-left: 8px;
@@ -1266,28 +1265,67 @@ export default {
   }
 }
 
+.problem-panel {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+  border: 1px solid #e8f4ff;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+    transform: translateY(-2px);
+  }
+
+  /deep/ .ivu-card-head {
+    border-bottom: 1px solid #e8f4ff;
+    padding: 16px 24px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+
+    .panel-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1890ff;
+    }
+  }
+
+  /deep/ .ivu-card-body {
+    padding: 20px 40px;
+  }
+}
+
 #problem-content {
-  margin-top: -50px;
+  margin-top: -30px;
 
   .title {
     font-size: 20px;
-    font-weight: 400;
+    font-weight: 600;
     margin: 25px 0 8px 0;
-    color: #3091f2;
+    color: #1890ff;
 
     .copy {
       padding-left: 8px;
+      color: #1890ff;
+      cursor: pointer;
+      transition: color 0.3s;
+
+      &:hover {
+        color: #096dd9;
+      }
     }
   }
 
   p.content {
     margin-left: 25px;
     margin-right: 20px;
-    font-size: 15px
+    font-size: 15px;
+    line-height: 1.7;
+    color: #515a6e;
   }
 
   .sample {
     align-items: stretch;
+    margin: 15px 0;
 
     &-input,
     &-output {
@@ -1302,26 +1340,86 @@ export default {
       flex: 1 1 auto;
       align-self: stretch;
       border-style: solid;
-      background: transparent;
+      background: #f8f9fa;
+      border: 1px solid #e8f4ff;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.4;
+      overflow-x: auto;
     }
   }
 }
 
-#submit-code {
+.hint-card {
+  border-radius: 4px;
+  border: 1px solid #e8f4ff;
+  background: #f8f9fa;
+
+  /deep/ .ivu-card-body {
+    padding: 15px;
+  }
+
+  .content {
+    color: #515a6e;
+    line-height: 1.6;
+  }
+}
+
+.submit-card {
   margin-top: 20px;
   margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+  border: 1px solid #e8f4ff;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+    transform: translateY(-2px);
+  }
+
+  /deep/ .ivu-card-head {
+    border-bottom: 1px solid #e8f4ff;
+    padding: 14px 20px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+  }
+
+  /deep/ .ivu-card-body {
+    padding: 20px;
+  }
 
   .status {
     float: left;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
 
     span {
       margin-right: 10px;
       margin-left: 10px;
+      font-weight: 500;
+      color: #515a6e;
+    }
+
+    /deep/ .ivu-tag {
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 4px;
     }
   }
 
   .captcha-container {
     display: inline-block;
+    margin-bottom: 15px;
+
+    img {
+      cursor: pointer;
+      border-radius: 4px;
+      border: 1px solid #e8f4ff;
+    }
 
     .captcha-code {
       width: auto;
@@ -1334,164 +1432,538 @@ export default {
 // 添加按钮样式
 .problem-buttons {
   text-align: right;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+
+  .btn-explain,
+  .btn-submit,
+  .btn-recommend {
+    flex: 1;
+    min-width: 120px;
+    border-radius: 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  }
 
   .btn-explain {
-    margin-right: 10px;
+    background: linear-gradient(120deg, #1890ff 0%, #096dd9 100%);
+    border: none;
+    color: white;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+    }
+  }
+
+  .btn-submit {
+    background: linear-gradient(120deg, #fa8c16 0%, #d46b08 100%);
+    border: none;
+    color: white;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3);
+    }
+  }
+
+  .btn-recommend {
+    background: linear-gradient(120deg, #52c41a 0%, #389e0d 100%);
+    border: none;
+    color: white;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+    }
   }
 }
 
-#info {
+.vertical-menu {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+  border: 1px solid #e8f4ff;
+  overflow: hidden;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+    transform: translateY(-2px);
+  }
+
+  /deep/ .vertical_menu-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.3s ease;
+    color: #515a6e;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: #e6f7ff;
+      color: #1890ff;
+    }
+
+    i {
+      margin-right: 8px;
+      color: #1890ff;
+    }
+  }
+
+  /deep/ .active {
+    background: #e6f7ff;
+    color: #1890ff;
+    font-weight: 500;
+
+    i {
+      color: #1890ff;
+    }
+  }
+}
+
+.info-card {
   margin-bottom: 20px;
   margin-top: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+  border: 1px solid #e8f4ff;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+    transform: translateY(-2px);
+  }
+
+  /deep/ .ivu-card-head {
+    border-bottom: 1px solid #e8f4ff;
+    padding: 14px 16px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+
+    .header {
+      display: flex;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1890ff;
+
+      i {
+        font-size: 20px;
+      }
+
+      .card-title {
+        margin-left: 8px;
+      }
+    }
+  }
+
+  /deep/ .ivu-card-body {
+    padding: 15px;
+  }
 
   ul {
     list-style-type: none;
+    margin: 0;
+    padding: 0;
 
     li {
       border-bottom: 1px dotted #e9eaec;
       margin-bottom: 10px;
+      padding-bottom: 10px;
+
+      &:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
 
       p {
         display: inline-block;
+        margin: 0;
+        color: #515a6e;
       }
 
       p:first-child {
         width: 90px;
+        font-weight: 500;
       }
 
       p:last-child {
         float: right;
+        font-weight: 400;
+      }
+
+      .ivu-btn {
+        border-radius: 4px;
+        background: linear-gradient(120deg, #1890ff 0%, #096dd9 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+        transition: all 0.3s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+        }
       }
     }
   }
 }
 
-.fl-right {
-  float: right;
-}
+.pie-chart-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+  border: 1px solid #e8f4ff;
+  transition: all 0.3s ease;
 
-#pieChart {
+  &:hover {
+    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+    transform: translateY(-2px);
+  }
+
+  /deep/ .ivu-card-head {
+    border-bottom: 1px solid #e8f4ff;
+    padding: 14px 16px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1890ff;
+      margin-left: 8px;
+    }
+
+    #detail {
+      position: absolute;
+      right: 16px;
+      top: 12px;
+      border-radius: 4px;
+      border: 1px solid #1890ff;
+      color: #1890ff;
+      background: transparent;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: #1890ff;
+        color: white;
+      }
+    }
+  }
+
   .echarts {
     height: 250px;
     width: 210px;
-  }
-
-  #detail {
-    position: absolute;
-    right: 10px;
-    top: 10px;
+    padding: 10px;
   }
 }
 
-#pieChart-detail {
-  margin-top: 20px;
-  width: 500px;
-  height: 480px;
+.statistic-modal {
+  /deep/ .ivu-modal {
+    border-radius: 8px;
+  }
+
+  /deep/ .ivu-modal-header {
+    border-bottom: 1px solid #e8f4ff;
+    padding: 14px 16px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+
+    .ivu-modal-header-inner {
+      color: #1890ff;
+      font-weight: 600;
+    }
+  }
+
+  #pieChart-detail {
+    margin-top: 20px;
+    width: 100%;
+    height: 480px;
+  }
 }
 
 // 添加代码解释相关样式
-.code-explanation {
-  max-height: 500px;
-  overflow-y: auto;
-  padding: 15px;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-
-  /deep/ h1,
-  /deep/ h2,
-  /deep/ h3 {
-    margin: 10px 0;
+.explanation-modal {
+  /deep/ .ivu-modal {
+    border-radius: 8px;
   }
 
-  /deep/ p {
-    margin: 8px 0;
-    line-height: 1.6;
+  /deep/ .ivu-modal-header {
+    border-bottom: 1px solid #e8f4ff;
+    padding: 14px 16px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+
+    .ivu-modal-header-inner {
+      color: #1890ff;
+      font-weight: 600;
+    }
   }
 
-  /deep/ pre {
-    background: #f0f0f0;
-    padding: 12px;
+  .code-explanation {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #f9f9f9;
     border-radius: 4px;
-    overflow-x: auto;
-    margin: 10px 0;
+    border: 1px solid #e8f4ff;
+
+    /deep/ h1,
+    /deep/ h2,
+    /deep/ h3 {
+      margin: 10px 0;
+      color: #1890ff;
+    }
+
+    /deep/ p {
+      margin: 8px 0;
+      line-height: 1.6;
+      color: #515a6e;
+    }
+
+    /deep/ pre {
+      background: #f0f0f0;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 10px 0;
+      border: 1px solid #e8f4ff;
+    }
+
+    /deep/ code {
+      background: #f0f0f0;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+
+    /deep/ ul,
+    /deep/ ol {
+      padding-left: 20px;
+    }
   }
 
-  /deep/ code {
-    background: #f0f0f0;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-family: 'Courier New', monospace;
-  }
+  .loading-explanation {
+    text-align: center;
+    padding: 40px 20px;
 
-  /deep/ ul,
-  /deep/ ol {
-    padding-left: 20px;
+    /deep/ .ivu-spin-text {
+      margin-top: 10px;
+      color: #1890ff;
+    }
   }
 }
 
-.loading-explanation {
+.complexity-modal {
+  /deep/ .ivu-modal {
+    border-radius: 8px;
+  }
+
+  /deep/ .ivu-modal-header {
+    border-bottom: 1px solid #e8f4ff;
+    padding: 14px 16px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+
+    .ivu-modal-header-inner {
+      color: #1890ff;
+      font-weight: 600;
+    }
+  }
+}
+
+.complexity-loading {
   text-align: center;
-  padding: 40px 20px;
+  padding: 30px 0;
+}
 
-  /deep/ .ivu-spin-text {
-    margin-top: 10px;
+.complexity-content {
+  padding: 10px 0;
+
+  .complexity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    border: 1px solid #e8f4ff;
+
+    .complexity-level {
+      text-align: center;
+
+      .level-tag {
+        font-size: 16px;
+        padding: 6px 20px;
+        margin-bottom: 5px;
+        font-weight: 500;
+      }
+
+      .level-label {
+        font-size: 13px;
+        color: #808695;
+      }
+    }
+
+    .complexity-score {
+      text-align: center;
+
+      .score-value {
+        font-size: 28px;
+        font-weight: 600;
+        color: #1890ff;
+        line-height: 1;
+      }
+
+      .score-label {
+        font-size: 13px;
+        color: #808695;
+        margin-top: 5px;
+      }
+    }
   }
-}
 
-.problem-buttons {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+  .complexity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
 
-.btn-explain,
-.btn-submit,
-.btn-recommend {
-  flex: 1;
-  min-width: 120px;
-}
+    .metric-item {
+      text-align: center;
+      padding: 15px;
+      background-color: #fff;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e8f4ff;
 
-@media screen and (max-width: 768px) {
-  .problem-buttons {
-    flex-direction: column;
+      .metric-icon {
+        color: #1890ff;
+        margin-bottom: 10px;
+      }
+
+      .metric-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: #515a6e;
+        margin-bottom: 5px;
+      }
+
+      .metric-label {
+        font-size: 13px;
+        color: #808695;
+      }
+    }
   }
 
-  .btn-explain,
-  .btn-submit,
-  .btn-recommend {
-    width: 100%;
-    margin-bottom: 10px;
+  .detail-section {
+    margin-bottom: 20px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #515a6e;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e8eaec;
+    }
+
+    .keywords-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .keyword-tag {
+        margin: 0;
+        font-size: 12px;
+        padding: 4px 10px;
+        background-color: #f0f0f0;
+        color: #515a6e;
+        border: 1px solid #e8eaec;
+        font-weight: 500;
+      }
+    }
+
+    .readability-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+
+      .readability-item {
+        text-align: center;
+        padding: 15px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e8f4ff;
+
+        .readability-value {
+          font-size: 20px;
+          font-weight: 600;
+          color: #515a6e;
+          margin-bottom: 5px;
+        }
+
+        .readability-label {
+          font-size: 13px;
+          color: #808695;
+        }
+      }
+    }
   }
 }
 
 .real-time-diagnosis {
   margin-top: 15px;
-  border: 1px solid #dddee1;
-  border-radius: 4px;
-  background-color: #f8f8f9;
+  border: 1px solid #e8f4ff;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 
   .diagnosis-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 15px;
-    border-bottom: 1px solid #dddee1;
+    padding: 12px 15px;
+    border-bottom: 1px solid #e8f4ff;
     background-color: #fff;
-    border-radius: 4px 4px 0 0;
+    border-radius: 8px 8px 0 0;
 
     h4 {
       margin: 0;
-      color: #495060;
-      font-weight: normal;
+      color: #1890ff;
+      font-weight: 600;
 
       i {
         margin-right: 8px;
-        color: #2d8cf0;
+        color: #1890ff;
       }
     }
 
     .ivu-btn {
       min-width: auto;
+      border-radius: 4px;
+      border: 1px solid #1890ff;
+      color: #1890ff;
+      background: transparent;
+
+      &:hover {
+        background: #1890ff;
+        color: white;
+      }
     }
   }
 
@@ -1512,7 +1984,7 @@ export default {
       margin-bottom: 8px;
       padding: 5px 10px;
       background-color: #fff;
-      border-radius: 3px;
+      border-radius: 4px;
       border-left: 3px solid #ccc;
 
       i {
@@ -1572,8 +2044,9 @@ export default {
 
 .ai-assistant-panel {
   margin-top: 15px;
-  border: 1px solid #dddee1;
-  border-radius: 4px;
+  border: 1px solid #e8f4ff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 
   .ivu-tabs {
     border: none;
@@ -1584,7 +2057,7 @@ export default {
   }
 
   .ivu-tabs-nav-container {
-    border-bottom: 1px solid #dddee1;
+    border-bottom: 1px solid #e8f4ff;
   }
 
   .ivu-tabs-tab {
@@ -1597,7 +2070,7 @@ export default {
 
   .panel-footer {
     padding: 10px 15px;
-    border-top: 1px solid #dddee1;
+    border-top: 1px solid #e8f4ff;
     text-align: right;
     background-color: #f8f8f9;
   }
@@ -1636,7 +2109,7 @@ export default {
       margin-bottom: 8px;
       padding: 5px 10px;
       background-color: #fff;
-      border-radius: 3px;
+      border-radius: 4px;
       border-left: 3px solid #ccc;
 
       i {
@@ -1720,143 +2193,180 @@ export default {
   }
 }
 
-.complexity-loading {
-  text-align: center;
-  padding: 30px 0;
+// 响应式设计
+@media (max-width: 1200px) {
+  .flex-container {
+    flex-direction: column;
+
+    #problem-main {
+      margin-right: 0;
+      margin-bottom: 20px;
+    }
+
+    #right-column {
+      width: 100%;
+    }
+  }
+
+  .problem-panel {
+    /deep/ .ivu-card-head {
+      padding: 14px 20px;
+    }
+
+    /deep/ .ivu-card-body {
+      padding: 15px 20px;
+    }
+
+    .panel-title {
+      font-size: 22px;
+    }
+  }
+
+  #problem-content {
+    .title {
+      font-size: 18px;
+    }
+
+    p.content {
+      font-size: 14px;
+    }
+
+    .sample {
+      flex-direction: column;
+
+      &-input,
+      &-output {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 15px;
+      }
+    }
+  }
+
+  .submit-card {
+    /deep/ .ivu-card-head {
+      padding: 12px 16px;
+    }
+
+    /deep/ .ivu-card-body {
+      padding: 15px;
+    }
+  }
+
+  .problem-buttons {
+    flex-direction: column;
+
+    .btn-explain,
+    .btn-submit,
+    .btn-recommend {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  }
+
+  .vertical-menu {
+    /deep/ .vertical_menu-item {
+      padding: 10px 12px;
+    }
+  }
+
+  .info-card {
+    /deep/ .ivu-card-head {
+      padding: 12px 14px;
+    }
+
+    ul {
+      li {
+        p:first-child {
+          width: 70px;
+        }
+      }
+    }
+  }
+
+  .pie-chart-card {
+    /deep/ .ivu-card-head {
+      padding: 12px 14px;
+    }
+
+    .echarts {
+      height: 200px;
+      width: 100%;
+    }
+  }
 }
 
-.complexity-content {
-  padding: 10px 0;
-
-  .complexity-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    margin-bottom: 20px;
-
-    .complexity-level {
-      text-align: center;
-
-      .level-tag {
-        font-size: 16px;
-        padding: 6px 20px;
-        margin-bottom: 5px;
-      }
-
-      .level-label {
-        font-size: 13px;
-        color: #808695;
-      }
+@media (max-width: 768px) {
+  .problem-panel {
+    /deep/ .ivu-card-head {
+      padding: 12px 16px;
     }
 
-    .complexity-score {
-      text-align: center;
+    /deep/ .ivu-card-body {
+      padding: 12px 16px;
+    }
 
-      .score-value {
-        font-size: 28px;
-        font-weight: 600;
-        color: #2d8cf0;
-        line-height: 1;
-      }
-
-      .score-label {
-        font-size: 13px;
-        color: #808695;
-        margin-top: 5px;
-      }
+    .panel-title {
+      font-size: 20px;
     }
   }
 
-  .complexity-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
+  #problem-content {
+    margin-top: -20px;
 
-    .metric-item {
-      text-align: center;
-      padding: 15px;
-      background-color: #fff;
-      border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-      .metric-icon {
-        color: #2d8cf0;
-        margin-bottom: 10px;
-      }
-
-      .metric-value {
-        font-size: 24px;
-        font-weight: 600;
-        color: #515a6e;
-        margin-bottom: 5px;
-      }
-
-      .metric-label {
-        font-size: 13px;
-        color: #808695;
-      }
-    }
-  }
-
-  .detail-section {
-    margin-bottom: 20px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    h4 {
+    .title {
       font-size: 16px;
-      font-weight: 600;
-      color: #515a6e;
-      margin-bottom: 15px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e8eaec;
+      margin: 20px 0 6px 0;
     }
 
-    .keywords-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+    p.content {
+      font-size: 13px;
+      margin-left: 15px;
+      margin-right: 10px;
+    }
+  }
 
-      .keyword-tag {
-        margin: 0;
-        font-size: 12px;
-        padding: 4px 10px;
-        background-color: #f0f0f0;
-        color: #515a6e;
-        border: 1px solid #e8eaec;
-      }
+  .submit-card {
+    /deep/ .ivu-card-head {
+      padding: 10px 14px;
     }
 
-    .readability-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
+    /deep/ .ivu-card-body {
+      padding: 12px;
+    }
+  }
 
-      .readability-item {
-        text-align: center;
-        padding: 15px;
-        background-color: #fff;
-        border-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  .info-card {
+    /deep/ .ivu-card-head {
+      padding: 10px 12px;
+    }
 
-        .readability-value {
-          font-size: 20px;
-          font-weight: 600;
-          color: #515a6e;
-          margin-bottom: 5px;
-        }
-
-        .readability-label {
+    ul {
+      li {
+        p:first-child {
+          width: 60px;
           font-size: 13px;
-          color: #808695;
+        }
+
+        p:last-child {
+          font-size: 13px;
         }
       }
+    }
+  }
+
+  .pie-chart-card {
+    /deep/ .ivu-card-head {
+      padding: 10px 12px;
+    }
+
+    #detail {
+      padding: 2px 8px;
+      font-size: 12px;
+    }
+
+    .echarts {
+      height: 180px;
     }
   }
 }
