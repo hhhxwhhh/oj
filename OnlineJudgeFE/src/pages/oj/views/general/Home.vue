@@ -45,7 +45,10 @@
             </Carousel>
           </div>
           <div v-else class="no-contest">
-            <p>{{ $t('m.No_Upcoming_Contests') }}</p>
+            <div class="no-contest-content">
+              <Icon type="trophy" size="48" class="no-contest-icon" />
+              <p>{{ $t('m.No_Upcoming_Contests') }}</p>
+            </div>
           </div>
         </Card>
 
@@ -104,30 +107,33 @@ export default {
   .home-content {
     .contest-section {
       margin-bottom: 20px;
-      border-radius: 4px;
-      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
-      transition: box-shadow 0.3s ease;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(24, 144, 255, 0.15);
+      transition: all 0.3s ease;
+      border: 1px solid #e8f4ff;
 
       &:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+        transform: translateY(-2px);
       }
 
       /deep/ .ivu-card-head {
-        border-bottom: 1px solid #e8eaec;
-        padding: 14px 20px;
-        background-color: #f8f9fa;
+        border-bottom: 1px solid #e8f4ff;
+        padding: 16px 24px;
+        background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+        border-radius: 8px 8px 0 0;
 
         .section-header {
           display: flex;
           align-items: center;
-          font-size: 18px;
-          font-weight: 500;
-          color: #515a6e;
+          font-size: 20px;
+          font-weight: 600;
+          color: #1890ff;
 
           .header-icon {
-            margin-right: 10px;
-            color: #2d8cf0;
-            font-size: 20px;
+            margin-right: 12px;
+            color: #1890ff;
+            font-size: 22px;
           }
         }
       }
@@ -139,37 +145,70 @@ export default {
       .contest-carousel-wrapper {
         .contest-carousel {
           /deep/ .ivu-carousel-list {
-            height: 280px;
+            height: 320px;
           }
 
           /deep/ .ivu-carousel-arrow {
-            color: #2d8cf0;
-            font-size: 18px;
-            width: 32px;
-            height: 32px;
+            color: #1890ff;
+            font-size: 20px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+            transition: all 0.3s ease;
+
+            &:hover {
+              background: #fff;
+              transform: scale(1.1);
+            }
           }
 
           .contest-content {
-            height: 280px;
-            padding: 25px 40px;
+            height: 320px;
+            padding: 30px 50px;
             display: flex;
             flex-direction: column;
-            background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+            background: linear-gradient(135deg, #f0f8ff 0%, #e6f7ff 100%);
+            position: relative;
+            overflow: hidden;
+
+            &::before {
+              content: "";
+              position: absolute;
+              top: -50px;
+              right: -50px;
+              width: 200px;
+              height: 200px;
+              border-radius: 50%;
+              background: rgba(24, 144, 255, 0.05);
+            }
+
+            &::after {
+              content: "";
+              position: absolute;
+              bottom: -80px;
+              left: -30px;
+              width: 250px;
+              height: 250px;
+              border-radius: 50%;
+              background: rgba(24, 144, 255, 0.03);
+            }
 
             .contest-title {
-              font-size: 22px;
-              font-weight: 600;
-              color: #495060;
-              margin: 0 0 20px;
+              font-size: 24px;
+              font-weight: 700;
+              color: #1890ff;
+              margin: 0 0 25px;
               text-align: center;
               cursor: pointer;
-              transition: color 0.3s;
+              transition: all 0.3s ease;
+              position: relative;
+              z-index: 1;
 
               &:hover {
-                color: #2d8cf0;
+                color: #096dd9;
+                transform: scale(1.02);
               }
             }
 
@@ -177,51 +216,85 @@ export default {
               display: flex;
               justify-content: center;
               flex-wrap: wrap;
-              gap: 15px;
-              margin-bottom: 20px;
+              gap: 20px;
+              margin-bottom: 25px;
+              position: relative;
+              z-index: 1;
 
               .info-item {
                 display: flex;
                 align-items: center;
-                background: rgba(255, 255, 255, 0.7);
-                padding: 6px 12px;
-                border-radius: 16px;
-                font-size: 13px;
+                background: rgba(255, 255, 255, 0.8);
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-size: 14px;
                 color: #515a6e;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+                transition: all 0.3s ease;
+
+                &:hover {
+                  transform: translateY(-2px);
+                  box-shadow: 0 4px 10px rgba(24, 144, 255, 0.15);
+                  background: #fff;
+                }
 
                 .info-icon {
-                  margin-right: 5px;
-                  color: #2d8cf0;
+                  margin-right: 8px;
+                  color: #1890ff;
+                  font-size: 16px;
                 }
               }
             }
 
             .contest-description {
               flex: 1;
-              margin-bottom: 20px;
+              margin-bottom: 25px;
               display: flex;
               align-items: center;
+              position: relative;
+              z-index: 1;
 
               blockquote {
                 text-align: center;
                 margin: 0;
-                color: #657180;
-                font-size: 14px;
-                line-height: 1.6;
-                max-height: 80px;
+                color: #515a6e;
+                font-size: 15px;
+                line-height: 1.7;
+                max-height: 100px;
                 overflow: hidden;
+                background: rgba(255, 255, 255, 0.7);
+                padding: 15px 20px;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
               }
             }
 
             .contest-action {
               text-align: center;
+              position: relative;
+              z-index: 1;
 
               .ivu-btn {
-                padding: 6px 20px;
-                font-size: 14px;
+                padding: 8px 24px;
+                font-size: 15px;
+                border-radius: 20px;
+                background: linear-gradient(120deg, #1890ff 0%, #096dd9 100%);
+                border: none;
+                box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+                transition: all 0.3s ease;
+
+                &:hover {
+                  transform: translateY(-2px);
+                  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+                }
 
                 i {
-                  margin-left: 5px;
+                  margin-left: 8px;
+                  transition: transform 0.3s ease;
+                }
+
+                &:hover i {
+                  transform: translateX(3px);
                 }
               }
             }
@@ -230,47 +303,63 @@ export default {
       }
 
       .no-contest {
-        height: 280px;
+        height: 320px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #f8f9fa;
+        background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+        border-radius: 0 0 8px 8px;
 
-        p {
-          margin: 0;
-          color: #808695;
-          font-size: 16px;
+        .no-contest-content {
+          text-align: center;
+          padding: 20px;
+
+          .no-contest-icon {
+            color: #1890ff;
+            margin-bottom: 20px;
+            opacity: 0.7;
+          }
+
+          p {
+            margin: 0;
+            color: #515a6e;
+            font-size: 18px;
+            font-weight: 500;
+          }
         }
       }
     }
 
     .announcement-section {
       /deep/ .ivu-card {
-        border-radius: 4px;
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
-        transition: box-shadow 0.3s ease;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(24, 144, 255, 0.15);
+        transition: all 0.3s ease;
+        border: 1px solid #e8f4ff;
 
         &:hover {
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+          transform: translateY(-2px);
         }
       }
 
       /deep/ .ivu-card-head {
-        border-bottom: 1px solid #e8eaec;
-        padding: 14px 20px;
-        background-color: #f8f9fa;
+        border-bottom: 1px solid #e8f4ff;
+        padding: 16px 24px;
+        background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+        border-radius: 8px 8px 0 0;
 
         .section-header {
           display: flex;
           align-items: center;
-          font-size: 18px;
-          font-weight: 500;
-          color: #515a6e;
+          font-size: 20px;
+          font-weight: 600;
+          color: #1890ff;
 
           .header-icon {
-            margin-right: 10px;
-            color: #2d8cf0;
-            font-size: 20px;
+            margin-right: 12px;
+            color: #1890ff;
+            font-size: 22px;
           }
         }
       }
@@ -279,6 +368,118 @@ export default {
 }
 
 // 响应式设计
+@media (max-width: 1200px) {
+  .home-container {
+    padding: 18px 0;
+
+    .home-content {
+      .contest-section {
+        /deep/ .ivu-card-head {
+          padding: 15px 20px;
+        }
+
+        .contest-carousel-wrapper {
+          .contest-carousel {
+            /deep/ .ivu-carousel-list {
+              height: 300px;
+            }
+
+            .contest-content {
+              padding: 25px 40px;
+              height: 300px;
+
+              .contest-title {
+                font-size: 22px;
+                margin-bottom: 20px;
+              }
+
+              .contest-info {
+                gap: 15px;
+
+                .info-item {
+                  padding: 6px 14px;
+                  font-size: 13px;
+                }
+              }
+
+              .contest-description {
+                blockquote {
+                  font-size: 14px;
+                  max-height: 80px;
+                  padding: 12px 18px;
+                }
+              }
+            }
+          }
+        }
+
+        .no-contest {
+          height: 300px;
+
+          .no-contest-content {
+            p {
+              font-size: 17px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 992px) {
+  .home-container {
+    padding: 16px 0;
+
+    .home-content {
+      .contest-section {
+        /deep/ .ivu-card-head {
+          padding: 14px 18px;
+        }
+
+        .contest-carousel-wrapper {
+          .contest-carousel {
+            /deep/ .ivu-carousel-list {
+              height: 280px;
+            }
+
+            .contest-content {
+              padding: 20px 30px;
+              height: 280px;
+
+              .contest-title {
+                font-size: 20px;
+                margin-bottom: 18px;
+              }
+
+              .contest-info {
+                gap: 12px;
+
+                .info-item {
+                  padding: 5px 12px;
+                  font-size: 12px;
+                }
+              }
+
+              .contest-description {
+                blockquote {
+                  font-size: 13px;
+                  max-height: 70px;
+                  padding: 10px 15px;
+                }
+              }
+            }
+          }
+        }
+
+        .no-contest {
+          height: 280px;
+        }
+      }
+    }
+  }
+}
+
 @media (max-width: 768px) {
   .home-container {
     padding: 15px 0;
@@ -326,8 +527,10 @@ export default {
         .no-contest {
           height: 250px;
 
-          p {
-            font-size: 15px;
+          .no-contest-content {
+            p {
+              font-size: 16px;
+            }
           }
         }
       }
