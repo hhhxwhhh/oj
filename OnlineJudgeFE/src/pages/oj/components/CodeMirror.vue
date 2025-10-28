@@ -146,14 +146,6 @@ export default {
         { label: this.$i18n.t('m.Solarized_Light'), value: 'solarized' },
         { label: this.$i18n.t('m.Material'), value: 'material' }
       ],
-      suggestions: [],
-      suggestionTimer: null,
-      completionTimer: null, // 用于代码补全的定时器
-      lastCursorPosition: null,
-      // 添加一个状态来控制是否启用自动补全
-      autoCompletionEnabled: true,
-      // 设置自动补全的延迟时间（毫秒）
-      autoCompletionDelay: 800
     }
   },
   mounted() {
@@ -298,8 +290,6 @@ export default {
         triggerCompletion = false;
       }
 
-      console.log('触发自动补全，前缀:', prefix);
-
       // 触发补全（即使前缀为空）
       if (triggerCompletion) {
         // 根据配置决定使用哪种补全方式
@@ -311,9 +301,6 @@ export default {
       }
     },
     async fetchAutoCompletion(code, prefix, cursor) {
-      console.log('获取代码自动补全');
-      console.log('代码:', code);
-      console.log('前缀:', prefix);
 
       try {
         const res = await api.getCodeAutoCompletion({
@@ -327,7 +314,6 @@ export default {
           problem_id: this.problemId
         });
 
-        console.log('自动补全响应:', res);
 
         if (res.data && res.data.data && res.data.data.completions) {
           const completions = res.data.data.completions;
@@ -335,13 +321,9 @@ export default {
           this.showAutoCompletionHints(completions, prefix);
         }
       } catch (err) {
-        console.error('获取代码自动补全失败:', err);
       }
     },
     async fetchOllamaAutoCompletion(code, prefix, cursor) {
-      console.log('使用Ollama获取代码自动补全');
-      console.log('代码:', code);
-      console.log('前缀:', prefix);
 
       try {
         const res = await api.getOllamaCodeCompletion({
@@ -355,7 +337,6 @@ export default {
           problem_id: this.problemId
         });
 
-        console.log('Ollama自动补全响应:', res);
 
         if (res.data && res.data.data && res.data.data.completions) {
           const completions = res.data.data.completions;
@@ -380,7 +361,6 @@ export default {
           this.ollamaAvailable = false;
         }
       } catch (err) {
-        console.error('检查Ollama可用性失败:', err);
         this.ollamaAvailable = false;
       }
     },
@@ -481,9 +461,76 @@ export default {
     },
 
     applySuggestion(suggestion) {
-      // 应用建议（这里可以进一步定制）
+      // 应用建议到代码编辑器中
       this.suggestions = []
-      // 可以添加更多逻辑来实际应用建议
+      if (!suggestion) {
+        return
+      }
+
+      // 根据不同类型的建议进行处理
+      if (typeof suggestion === 'string') {
+        // 如果是简单字符串建议，插入到光标位置
+        const cursor = this.editor.getCursor()
+        this.editor.replaceRange(suggestion, cursor)
+        // 将光标移动到插入内容的末尾
+        const newCursor = {
+          line: cursor.line,
+          ch: cursor.ch + suggestion.length
+        }
+        this.editor.setCursor(newCursor)
+      } else if (typeof suggestion === 'object') {
+        // 如果是对象形式的建议
+        if (suggestion.type === 'completion' && suggestion.text) {
+          // 代码补全类型建议
+          const cursor = this.editor.getCursor()
+          this.editor.replaceRange(suggestion.text, cursor)
+          const newCursor = {
+            line: cursor.line,
+            ch: cursor.ch + suggestion.text.length
+          }
+          this.editor.setCursor(newCursor)
+        } else if (suggestion.replacement && suggestion.range) {
+          // 代码替换类型建议（有明确的替换范围）
+          const from = {
+            line: suggestion.range.start.line,
+            ch: suggestion.range.start.character
+          }
+          const to = {
+            line: suggestion.range.end.line,
+            ch: suggestion.range.end.character
+          }
+          this.editor.replaceRange(suggestion.replacement, from, to)
+          // 将光标定位到替换内容的末尾
+          const newCursor = {
+            line: to.line,
+            ch: to.ch + (suggestion.replacement.length - (to.ch - from.ch))
+          }
+          this.editor.setCursor(newCursor)
+        } else if (suggestion.text) {
+          // 通用文本建议
+          const cursor = this.editor.getCursor()
+          this.editor.replaceRange(suggestion.text, cursor)
+          const newCursor = {
+            line: cursor.line,
+            ch: cursor.ch + suggestion.text.length
+          }
+          this.editor.setCursor(newCursor)
+        } else {
+          // 其他对象形式的建议，尝试直接使用
+          const cursor = this.editor.getCursor()
+          const suggestionText = suggestion.toString()
+          this.editor.replaceRange(suggestionText, cursor)
+          const newCursor = {
+            line: cursor.line,
+            ch: cursor.ch + suggestionText.length
+          }
+          this.editor.setCursor(newCursor)
+        }
+      }
+
+      // 聚焦到编辑器
+      this.editor.focus()
+
     },
     async fetchRealTimeSuggestions() {
       const code = this.editor.getValue()
@@ -501,7 +548,6 @@ export default {
           problem_id: this.problemId
         })
 
-        console.log('实时建议API响应:', res)
         // 正确处理API响应并传递给父组件
         if (res.data && res.data.data) {
           this.$emit('suggestions', res.data.data)
@@ -509,7 +555,8 @@ export default {
           this.$emit('suggestions', [])
         }
       } catch (err) {
-        console.error('获取实时建议失败:', err)
+
+
         // 出错时也通知父组件
         this.$emit('suggestions', [])
       }
