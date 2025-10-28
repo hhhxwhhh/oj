@@ -124,7 +124,19 @@ export default {
         },
         ollamaAvailable: false,
         ollamaModels: [],
-        selectedOllamaModel: null
+        selectedOllamaModel: null,
+        suggestions: [],
+        suggestionTimer: null,
+        completionTimer: null, // 用于代码补全的定时器
+        lastCursorPosition: null,
+        // 添加一个状态来控制是否启用自动补全
+        autoCompletionEnabled: true,
+        // 设置自动补全的延迟时间（毫秒）
+        autoCompletionDelay: 800,
+        // 添加防抖控制
+        debounceTimer: null,
+        // 添加补全缓存
+        completionCache: new Map()
       },
       mode: {
         'C++': 'text/x-csrc'
@@ -365,7 +377,28 @@ export default {
           list: completions.map(item => ({
             text: item.text,
             displayText: item.text + (item.description ? ' - ' + item.description : ''),
-            className: 'code-autocomplete-hint'
+            className: 'code-autocomplete-hint',
+            // 添加渲染函数以支持更丰富的显示
+            render: (element, self, data) => {
+              const wrapper = document.createElement('div');
+              wrapper.className = 'autocomplete-item';
+
+              const text = document.createElement('div');
+              text.className = 'autocomplete-text';
+              text.textContent = data.text;
+
+              if (data.description) {
+                const desc = document.createElement('div');
+                desc.className = 'autocomplete-description';
+                desc.textContent = data.description;
+                wrapper.appendChild(text);
+                wrapper.appendChild(desc);
+              } else {
+                wrapper.appendChild(text);
+              }
+
+              element.appendChild(wrapper);
+            }
           })),
           from: this.editor.getCursor(),
           to: this.editor.getCursor()
@@ -520,5 +553,49 @@ export default {
 
 .CodeMirror-hints {
   z-index: 9999 !important;
+}
+
+/* 添加自定义代码补全样式 */
+.CodeMirror-hint {
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.autocomplete-item {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+}
+
+.autocomplete-text {
+  font-weight: 500;
+  font-family: monospace;
+  font-size: 14px;
+  color: #333;
+}
+
+.autocomplete-description {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.CodeMirror-hint-active .autocomplete-item {
+  background-color: #e0e0e0;
+}
+
+.CodeMirror-hints {
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #ddd;
+  max-width: 500px;
+}
+
+.CodeMirror-hint-active {
+  border-radius: 4px;
 }
 </style>
