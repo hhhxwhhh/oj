@@ -260,7 +260,7 @@ export default {
       const cursor = this.editor.getCursor()
       const line = this.editor.getLine(cursor.line)
 
-      // 改进前缀提取逻辑
+      // 改进前缀提取逻辑 - 更准确地处理函数调用场景
       let start = cursor.ch
       let end = start
 
@@ -289,20 +289,28 @@ export default {
         triggerCompletion = true
       }
 
+      // 特殊处理：在字符串内部时不触发自动补全
+      const lineBeforeCursor = line.substring(0, cursor.ch);
+      const quoteCount = (lineBeforeCursor.match(/["']/g) || []).length;
+      const inString = quoteCount % 2 === 1;
+
+      if (inString) {
+        triggerCompletion = false;
+      }
+
       console.log('触发自动补全，前缀:', prefix);
 
       // 触发补全（即使前缀为空）
       if (triggerCompletion) {
         // 根据配置决定使用哪种补全方式
         if (this.useOllama && this.ollamaAvailable) {
-          this.fetchOllamaAutoCompletion(code, prefix)
+          this.fetchOllamaAutoCompletion(code, prefix, cursor)
         } else {
-          this.fetchAutoCompletion(code, prefix)
+          this.fetchAutoCompletion(code, prefix, cursor)
         }
       }
     },
-
-    async fetchAutoCompletion(code, prefix) {
+    async fetchAutoCompletion(code, prefix, cursor) {
       console.log('获取代码自动补全');
       console.log('代码:', code);
       console.log('前缀:', prefix);
@@ -312,6 +320,10 @@ export default {
           code: code,
           language: this.language,
           prefix: prefix,
+          cursor_position: {
+            line: cursor.line,
+            ch: cursor.ch
+          },
           problem_id: this.problemId
         });
 
@@ -326,7 +338,7 @@ export default {
         console.error('获取代码自动补全失败:', err);
       }
     },
-    async fetchOllamaAutoCompletion(code, prefix) {
+    async fetchOllamaAutoCompletion(code, prefix, cursor) {
       console.log('使用Ollama获取代码自动补全');
       console.log('代码:', code);
       console.log('前缀:', prefix);
@@ -336,6 +348,10 @@ export default {
           code: code,
           language: this.language,
           prefix: prefix,
+          cursor_position: {
+            line: cursor.line,
+            ch: cursor.ch
+          },
           problem_id: this.problemId
         });
 
@@ -349,7 +365,7 @@ export default {
       } catch (err) {
         console.error('获取Ollama代码自动补全失败:', err);
         // 如果Ollama失败，回退到默认补全
-        this.fetchAutoCompletion(code, prefix);
+        this.fetchAutoCompletion(code, prefix, cursor);
       }
     },
     async checkOllamaAvailability() {
@@ -368,8 +384,6 @@ export default {
         this.ollamaAvailable = false;
       }
     },
-
-
     showAutoCompletionHints(completions, prefix) {
       if (completions.length > 0) {
         // 构造CodeMirror hint格式的数据
@@ -409,9 +423,35 @@ export default {
         const line = this.editor.getLine(cursor.line)
         let start = cursor.ch
 
-        // 计算前缀的起始位置
-        while (start > 0 && /[\w$.]/.test(line.charAt(start - 1))) {
+        // 计算前缀的起始位置 - 更精确地计算
+        while (start > 0 && /[\w$._]/.test(line.charAt(start - 1))) {
           start--
+        }
+
+        // 特殊处理：如果光标前是左括号，我们应该替换整个函数调用
+        if (cursor.ch > 0 && line.charAt(cursor.ch - 1) === '(') {
+          // 找到匹配的左括号位置
+          let parenCount = 1;
+          let searchPos = cursor.ch - 2;
+          while (searchPos >= 0 && parenCount > 0) {
+            if (line.charAt(searchPos) === '(') {
+              parenCount--;
+            } else if (line.charAt(searchPos) === ')') {
+              parenCount++;
+            }
+            if (parenCount > 0) {
+              searchPos--;
+            }
+          }
+
+          // 找到函数名开始位置
+          while (searchPos > 0 && /[\w$.]/.test(line.charAt(searchPos - 1))) {
+            searchPos--;
+          }
+
+          if (searchPos >= 0) {
+            start = searchPos;
+          }
         }
 
         const from = { line: cursor.line, ch: start };
@@ -427,6 +467,7 @@ export default {
         });
       }
     },
+
     scheduleSuggestions() {
       // 清除之前的定时器
       if (this.suggestionTimer) {
