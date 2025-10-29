@@ -500,5 +500,10 @@ export const m = {
   Detailed_Rankings: "Detailed Rankings",
   Top_Scorers_Chart: "Top Scorers Chart",
   Top_20_Users_Score_and_Submission_Chart:
-    "Top 10 Users Score and Submission Chart"
+    "Top 20 Users Score and Submission Chart",
+  Code: "Code",
+  Test_Point_Details: "Test Point Details",
+  AI_Code_Review_Result: "AI Code Review Result",
+  Filter: "Filter",
+  Submission_List: "Submission List"
 };
