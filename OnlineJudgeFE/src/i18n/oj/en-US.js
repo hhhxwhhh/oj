@@ -505,5 +505,8 @@ export const m = {
   Test_Point_Details: "Test Point Details",
   AI_Code_Review_Result: "AI Code Review Result",
   Filter: "Filter",
-  Submission_List: "Submission List"
+  Submission_List: "Submission List",
+  Welcome_to_AI_Assistant: "Welcome to AI Assistant：",
+  You_can_ask_anything_about_this_problem:
+    "You can ask anything about this problem:"
 };

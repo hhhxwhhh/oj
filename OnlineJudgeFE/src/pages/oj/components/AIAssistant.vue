@@ -3,7 +3,7 @@
         <!-- 悬浮球按钮 -->
         <div class="floating-ball" @click="toggleAIAssistant">
             <div class="floating-ball-inner">
-                <Icon type="android-chat" size="20"></Icon>
+                <Icon type="md-chatbubbles" size="20"></Icon>
                 <div class="pulse"></div>
             </div>
         </div>
@@ -14,15 +14,15 @@
             <div class="chat-window">
                 <div class="chat-header">
                     <div class="header-title">
-                        <Icon type="android-chat" size="16"></Icon>
-                        AI Assistant
+                        <Icon type="md-chatbubbles" size="16"></Icon>
+                        {{ $t('m.AI_Assistant') }}
                     </div>
                     <div class="header-actions">
                         <Button type="text" size="small" @click="isAIExpanded = !isAIExpanded">
-                            <Icon :type="isAIExpanded ? 'minus-round' : 'plus-round'"></Icon>
+                            <Icon :type="isAIExpanded ? 'md-remove' : 'md-add'"></Icon>
                         </Button>
                         <Button type="text" size="small" @click="showAIAssistant = false">
-                            <Icon type="close"></Icon>
+                            <Icon type="md-close"></Icon>
                         </Button>
                     </div>
                 </div>
@@ -31,7 +31,7 @@
                     <div class="model-selection" v-if="aiModels.length > 0">
                         <Select v-model="selectedModel" size="small" style="width:200px">
                             <Option v-for="model in aiModels" :value="model.id" :key="model.id">
-                                <Icon type="cube" /> {{ model.name }}
+                                <Icon type="md-cube" /> {{ model.name }}
                             </Option>
                         </Select>
                     </div>
@@ -39,8 +39,8 @@
                     <div class="chat-history" ref="chatHistory">
                         <div v-for="(message, index) in chatMessages" :key="index" :class="['message', message.type]">
                             <div class="avatar">
-                                <Icon v-if="message.type === 'user'" type="person"></Icon>
-                                <Icon v-else type="android-chat"></Icon>
+                                <Icon v-if="message.type === 'user'" type="md-person"></Icon>
+                                <Icon v-else type="md-chatbubbles"></Icon>
                             </div>
                             <div class="message-content">
                                 <div v-if="message.type === 'user'" class="text" v-html="message.content"></div>
@@ -49,7 +49,7 @@
                         </div>
                         <div v-if="isLoading" class="message ai">
                             <div class="avatar">
-                                <Icon type="android-chat"></Icon>
+                                <Icon type="md-chatbubbles"></Icon>
                             </div>
                             <div class="message-content">
                                 <div class="typing-indicator">
@@ -62,10 +62,10 @@
                         <!-- 欢迎信息 -->
                         <div v-if="chatMessages.length === 0 && !isLoading" class="welcome-message">
                             <div class="welcome-icon">
-                                <Icon type="android-chat" size="40"></Icon>
+                                <Icon type="md-chatbubbles" size="40"></Icon>
                             </div>
-                            <h3>欢迎使用 AI 助手</h3>
-                            <p>您可以在这里询问有关当前题目的任何问题，我会尽力为您解答。</p>
+                            <h3>{{ $t('m.Welcome_to_AI_Assistant') }}</h3>
+                            <p>{{ $t('m.You_can_ask_anything_about_this_problem') }}</p>
                         </div>
                     </div>
 
@@ -75,12 +75,12 @@
                             @on-keyup.enter.exact="sendMessage" />
                         <div class="actions">
                             <Button type="primary" size="small" @click="sendMessage" :loading="isLoading"
-                                :disabled="!userMessage.trim()">
-                                <Icon type="paper-airplane"></Icon>
+                                :disabled="!userMessage.trim()" class="send-button">
+                                <Icon type="md-send" />
                                 {{ $t('m.Send') }}
                             </Button>
-                            <Button type="ghost" size="small" @click="clearChat">
-                                <Icon type="ios-trash-outline"></Icon>
+                            <Button type="default" size="small" @click="clearChat" class="clear-button">
+                                <Icon type="md-trash" />
                                 {{ $t('m.Clear') }}
                             </Button>
                         </div>
@@ -253,19 +253,19 @@ export default {
             position: relative;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2d8cf0, #57a3f3);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(45, 140, 240, 0.3);
             transition: all 0.3s ease;
             z-index: 2;
 
             &:hover {
                 transform: scale(1.1);
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+                box-shadow: 0 6px 20px rgba(45, 140, 240, 0.4);
             }
 
             .pulse {
@@ -303,7 +303,7 @@ export default {
             right: 30px;
             width: 420px;
             max-width: calc(100% - 60px);
-            background: linear-gradient(to bottom, #ffffff, #f9f9f9);
+            background: #ffffff;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             display: flex;
@@ -317,12 +317,12 @@ export default {
                 justify-content: space-between;
                 align-items: center;
                 padding: 15px 20px;
-                border-bottom: 1px solid #e9eaec;
-                background: linear-gradient(to right, #667eea, #764ba2);
-                color: white;
+                border-bottom: 1px solid #e8eaec;
+                background: #f8f9fa;
+                color: #2d8cf0;
 
                 .header-title {
-                    font-weight: bold;
+                    font-weight: 500;
                     font-size: 18px;
                     display: flex;
                     align-items: center;
@@ -337,10 +337,11 @@ export default {
 
                     button {
                         margin-left: 5px;
-                        color: white;
+                        color: #808695;
 
                         &:hover {
-                            background-color: rgba(255, 255, 255, 0.2);
+                            background-color: #e6f2ff;
+                            color: #2d8cf0;
                         }
                     }
                 }
@@ -359,7 +360,13 @@ export default {
                     text-align: right;
 
                     /deep/ .ivu-select-selection {
-                        border-radius: 20px;
+                        border-radius: 4px;
+                        border-color: #dcdee2;
+                    }
+
+                    /deep/ .ivu-select-focused .ivu-select-selection {
+                        border-color: #57a3f3;
+                        box-shadow: 0 0 0 2px rgba(45, 140, 240, 0.2);
                     }
                 }
 
@@ -368,23 +375,24 @@ export default {
                     overflow-y: auto;
                     margin-bottom: 20px;
                     padding: 15px;
-                    border: 1px solid #e9eaec;
-                    border-radius: 10px;
+                    border: 1px solid #e8eaec;
+                    border-radius: 6px;
                     background-color: #fafafa;
 
                     .welcome-message {
                         text-align: center;
                         padding: 20px;
-                        color: #666;
+                        color: #808695;
 
                         .welcome-icon {
-                            color: #667eea;
+                            color: #2d8cf0;
                             margin-bottom: 15px;
                         }
 
                         h3 {
                             margin: 10px 0;
                             color: #333;
+                            font-weight: 500;
                         }
 
                         p {
@@ -402,13 +410,13 @@ export default {
                             flex-direction: row-reverse;
 
                             .avatar {
-                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                background: linear-gradient(135deg, #2d8cf0, #57a3f3);
                                 color: white;
                             }
 
                             .message-content {
                                 .text {
-                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    background: #2d8cf0;
                                     color: white;
                                 }
                             }
@@ -416,7 +424,7 @@ export default {
 
                         &.ai {
                             .avatar {
-                                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                                background: linear-gradient(135deg, #808695, #515a6e);
                                 color: white;
                             }
 
@@ -429,8 +437,8 @@ export default {
                         }
 
                         .avatar {
-                            width: 40px;
-                            height: 40px;
+                            width: 36px;
+                            height: 36px;
                             border-radius: 50%;
                             display: flex;
                             align-items: center;
@@ -450,7 +458,22 @@ export default {
                                 border-radius: 18px;
                                 word-wrap: break-word;
                                 white-space: pre-wrap;
-                                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                                font-size: 14px;
+                                line-height: 1.5;
+
+                                /deep/ pre {
+                                    background: rgba(0, 0, 0, 0.05);
+                                    padding: 10px;
+                                    border-radius: 4px;
+                                    overflow-x: auto;
+                                }
+
+                                /deep/ code {
+                                    background: rgba(0, 0, 0, 0.05);
+                                    padding: 2px 4px;
+                                    border-radius: 3px;
+                                }
                             }
                         }
                     }
@@ -462,8 +485,8 @@ export default {
                         border-radius: 18px;
 
                         span {
-                            height: 10px;
-                            width: 10px;
+                            height: 8px;
+                            width: 8px;
                             background: #999;
                             border-radius: 50%;
                             margin: 0 3px;
@@ -482,21 +505,40 @@ export default {
 
                 .chat-input {
                     /deep/ .ivu-input {
-                        border-radius: 10px;
+                        border-radius: 4px;
                         margin-bottom: 10px;
+                        border-color: #dcdee2;
+
+                        &:focus {
+                            border-color: #57a3f3;
+                            box-shadow: 0 0 0 2px rgba(45, 140, 240, 0.2);
+                        }
                     }
 
                     .actions {
                         display: flex;
                         justify-content: flex-end;
 
-                        button {
-                            border-radius: 20px;
+                        .send-button {
+                            background: linear-gradient(135deg, #2d8cf0, #57a3f3);
+                            border: none;
+                            border-radius: 4px;
                             margin-left: 10px;
 
-                            &:first-child {
-                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                border: none;
+                            &:hover {
+                                background: linear-gradient(135deg, #57a3f3, #84c0f7);
+                            }
+                        }
+
+                        .clear-button {
+                            border-radius: 4px;
+                            margin-left: 10px;
+                            border-color: #dcdee2;
+                            color: #515a6e;
+
+                            &:hover {
+                                border-color: #57a3f3;
+                                color: #2d8cf0;
                             }
                         }
                     }
@@ -549,7 +591,7 @@ export default {
         }
 
         50% {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
         }
     }
 }
