@@ -1,4 +1,5 @@
 from django.conf.urls import include, url
+from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 urlpatterns = [
@@ -16,6 +17,7 @@ urlpatterns = [
     url(r"^api/admin/", include("utils.urls")),
     url(r"^api/admin/", include("account.urls.admin")),
     url(r"^api/", include("ai.urls")),
+    path('api/admin/', include('assignment.urls')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
