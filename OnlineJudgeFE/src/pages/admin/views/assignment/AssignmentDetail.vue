@@ -11,6 +11,38 @@
                 </el-button>
             </div>
 
+            <el-card class="statistics-card">
+                <div slot="header">
+                    <span>统计信息</span>
+                    <el-button style="float: right; padding: 3px 0" type="text" @click="viewStatistics">查看详情</el-button>
+                </div>
+                <el-row :gutter="20">
+                    <el-col :span="6">
+                        <div class="stat-item">
+                            <p class="stat-value">{{ statistics.total_students || 0 }}</p>
+                            <p class="stat-label">总学生数</p>
+                        </div>
+                    </el-col>
+                    <el-col :span="6">
+                        <div class="stat-item">
+                            <p class="stat-value">{{ statistics.submitted_students || 0 }}</p>
+                            <p class="stat-label">已提交</p>
+                        </div>
+                    </el-col>
+                    <el-col :span="6">
+                        <div class="stat-item">
+                            <p class="stat-value">{{ statistics.average_score || 0 }}</p>
+                            <p class="stat-label">平均分</p>
+                        </div>
+                    </el-col>
+                    <el-col :span="6">
+                        <div class="stat-item">
+                            <p class="stat-value">{{ statistics.completion_percentage || 0 }}%</p>
+                            <p class="stat-label">完成率</p>
+                        </div>
+                    </el-col>
+                </el-row>
+            </el-card>
             <el-row :gutter="20">
                 <el-col :span="16">
                     <el-card class="info-card">
@@ -152,7 +184,13 @@ export default {
             assignForm: {
                 assignType: 'specific',
                 student_ids: []
-            }
+            },
+            statistics: {
+                total_students: 0,
+                submitted_students: 0,
+                average_score: 0,
+                completion_percentage: 0
+            },
         }
     },
     created() {
@@ -160,6 +198,7 @@ export default {
         this.getAssignmentDetail()
         this.getAssignmentProblems()
         this.getAssignedStudents()
+        this.getAssignmentStatistics()
         this.getAllStudents()
     },
     methods: {
@@ -171,6 +210,17 @@ export default {
         getAssignmentProblems() {
             api.getAssignmentProblems(this.assignmentId).then(res => {
                 this.problems = res.data.data
+            })
+        },
+        getAssignmentStatistics() {
+            api.getAssignmentDetailedStatistics(this.assignmentId).then(res => {
+                this.statistics = res.data.data
+            })
+        },
+        viewStatistics() {
+            this.$router.push({
+                name: 'assignment-statistics',
+                params: { assignmentId: this.assignmentId }
             })
         },
         getAssignedStudents() {
@@ -249,5 +299,24 @@ export default {
 .problems-card,
 .assigned-students-card {
     margin-bottom: 20px;
+}
+
+.statistics-card {
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.stat-label {
+    margin: 5px 0 0 0;
+    color: #999;
 }
 </style>

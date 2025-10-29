@@ -390,6 +390,12 @@ export default {
       "get"
     );
   },
+  getAssignmentDetailedStatistics(assignmentId) {
+    return ajax(
+      `admin/assignments/${assignmentId}/detailed-statistics/`,
+      "get"
+    );
+  },
 
   initializeKnowledgePoints() {
     return ajax("ai/knowledge_point/initialize", "post");

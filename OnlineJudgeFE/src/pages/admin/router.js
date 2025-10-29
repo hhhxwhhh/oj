@@ -24,6 +24,7 @@ import AssignmentDetail from "./views/assignment/AssignmentDetail.vue";
 import CreateAssignment from "./views/assignment/CreateAssignment.vue";
 import AssignmentList from "./views/assignment/AssignmentList.vue";
 import StudentProgress from "./views/assignment/StudentProgress.vue";
+import AssignmentStatistics from "./views/assignment/AssignmentStatistics.vue";
 const GenerateTags = () => import("./views/problem/GenerateTags.vue");
 
 export default new VueRouter({
@@ -162,6 +163,11 @@ export default new VueRouter({
           path: "/assignment/create",
           name: "create-assignment",
           component: CreateAssignment
+        },
+        {
+          path: "/assignment/:assignmentId/statistics",
+          name: "assignment-statistics",
+          component: AssignmentStatistics
         },
         {
           path: "/assignment/:assignmentId",
