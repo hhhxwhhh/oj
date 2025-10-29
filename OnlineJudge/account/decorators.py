@@ -9,6 +9,81 @@ from utils.constants import CONTEST_PASSWORD_SESSION_KEY
 from .models import ProblemPermission
 
 
+def _get_request_from_args(args):
+    # 从参数中提取request对象
+    if len(args) >= 2:
+        return args[1]
+    return None
+
+
+def _get_self_from_args(args):
+    # 从参数中提取self对象（视图实例）
+    if len(args) >= 1:
+        return args[0]
+    return None
+
+
+def error(data):
+    return JSONResponse.response({"error": "permission-denied", "data": data})
+
+
+def check_contest_permission(check_type="details"):
+    """
+    只供Class based view 使用，检查用户是否有权进入该contest, check_type 可选 details, problems, ranks, submissions
+    若通过验证，在view中可通过self.contest获得该contest
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def _check_permission(*args, **kwargs):
+            # 获取视图实例和请求对象
+            self = _get_self_from_args(args)
+            request = _get_request_from_args(args)
+            
+            if not request:
+                return error("Invalid request")
+                
+            user = request.user
+            if request.data.get("contest_id"):
+                contest_id = request.data["contest_id"]
+            else:
+                contest_id = request.GET.get("contest_id")
+            if not contest_id:
+                return error("Parameter error, contest_id is required")
+
+            try:
+                # use self.contest to avoid query contest again in view.
+                self.contest = Contest.objects.select_related("created_by").get(id=contest_id, visible=True)
+            except Contest.DoesNotExist:
+                return error("Contest %s doesn't exist" % contest_id)
+
+            # Anonymous
+            if not user.is_authenticated:
+                return error("Please login first.")
+
+            # creator or owner
+            if user.is_contest_admin(self.contest):
+                return func(*args, **kwargs)
+
+            if self.contest.contest_type == ContestType.PASSWORD_PROTECTED_CONTEST:
+                # password error
+                if not check_contest_password(request.session.get(CONTEST_PASSWORD_SESSION_KEY, {}).get(self.contest.id), self.contest.password):
+                    return error("Wrong password or password expired")
+
+            # regular user get contest problems, ranks etc. before contest started
+            if self.contest.status == ContestStatus.CONTEST_NOT_START and check_type != "details":
+                return error("Contest has not started yet.")
+
+            # check does user have permission to get ranks, submissions in OI Contest
+            if self.contest.status == ContestStatus.CONTEST_UNDERWAY and self.contest.rule_type == ContestRuleType.OI:
+                if not self.contest.real_time_rank and (check_type == "ranks" or check_type == "submissions"):
+                    return error(f"No permission to get {check_type}")
+
+            return func(*args, **kwargs)
+        return _check_permission
+    return decorator
+
+
 class BasePermissionDecorator(object):
     def __init__(self, func):
         self.func = func
@@ -16,18 +91,17 @@ class BasePermissionDecorator(object):
     def __get__(self, obj, obj_type):
         return functools.partial(self.__call__, obj)
 
-    def error(self, data):
-        return JSONResponse.response({"error": "permission-denied", "data": data})
-
     def __call__(self, *args, **kwargs):
-        self.request = args[1]
+        self.request = _get_request_from_args(args)
+        if not self.request:
+            return error("Invalid request")
 
         if self.check_permission():
             if self.request.user.is_disabled:
-                return self.error("Your account is disabled")
+                return error("Your account is disabled")
             return self.func(*args, **kwargs)
         else:
-            return self.error("Please login")
+            return error("Please login")
 
     def check_permission(self):
         raise NotImplementedError()
@@ -36,19 +110,6 @@ class BasePermissionDecorator(object):
 class login_required(BasePermissionDecorator):
     def check_permission(self):
         return self.request.user.is_authenticated
-
-
-class super_admin_required(BasePermissionDecorator):
-    def check_permission(self):
-        user = self.request.user
-        return user.is_authenticated and user.is_super_admin()
-
-
-class admin_role_required(BasePermissionDecorator):
-    def check_permission(self):
-        user = self.request.user
-        return user.is_authenticated and user.is_admin_role()
-
 
 
 class super_admin_required(BasePermissionDecorator):
@@ -96,57 +157,6 @@ def check_contest_password(password, contest_password):
                 return False
         else:
             return False
-
-
-def check_contest_permission(check_type="details"):
-    """
-    只供Class based view 使用，检查用户是否有权进入该contest, check_type 可选 details, problems, ranks, submissions
-    若通过验证，在view中可通过self.contest获得该contest
-    """
-
-    def decorator(func):
-        def _check_permission(*args, **kwargs):
-            self = args[0]
-            request = args[1]
-            user = request.user
-            if request.data.get("contest_id"):
-                contest_id = request.data["contest_id"]
-            else:
-                contest_id = request.GET.get("contest_id")
-            if not contest_id:
-                return self.error("Parameter error, contest_id is required")
-
-            try:
-                # use self.contest to avoid query contest again in view.
-                self.contest = Contest.objects.select_related("created_by").get(id=contest_id, visible=True)
-            except Contest.DoesNotExist:
-                return self.error("Contest %s doesn't exist" % contest_id)
-
-            # Anonymous
-            if not user.is_authenticated:
-                return self.error("Please login first.")
-
-            # creator or owner
-            if user.is_contest_admin(self.contest):
-                return func(*args, **kwargs)
-
-            if self.contest.contest_type == ContestType.PASSWORD_PROTECTED_CONTEST:
-                # password error
-                if not check_contest_password(request.session.get(CONTEST_PASSWORD_SESSION_KEY, {}).get(self.contest.id), self.contest.password):
-                    return self.error("Wrong password or password expired")
-
-            # regular user get contest problems, ranks etc. before contest started
-            if self.contest.status == ContestStatus.CONTEST_NOT_START and check_type != "details":
-                return self.error("Contest has not started yet.")
-
-            # check does user have permission to get ranks, submissions in OI Contest
-            if self.contest.status == ContestStatus.CONTEST_UNDERWAY and self.contest.rule_type == ContestRuleType.OI:
-                if not self.contest.real_time_rank and (check_type == "ranks" or check_type == "submissions"):
-                    return self.error(f"No permission to get {check_type}")
-
-            return func(*args, **kwargs)
-        return _check_permission
-    return decorator
 
 
 def ensure_created_by(obj, user):

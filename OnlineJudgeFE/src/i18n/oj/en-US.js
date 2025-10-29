@@ -583,5 +583,8 @@ export const m = {
   Generate_Report: "Generate Report",
   To: "To",
   Yes: "Yes",
-  No: "No"
+  No: "No",
+  Assignment_List: "Assignment List",
+  Assignment: "Assignment",
+  Rule_Type: "Rule Type"
 };
