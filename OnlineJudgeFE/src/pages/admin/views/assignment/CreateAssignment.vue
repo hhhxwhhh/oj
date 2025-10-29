@@ -41,7 +41,7 @@
                 </el-form-item>
 
                 <el-form-item>
-                    <el-button type="primary" @click="submitForm('assignmentForm')">
+                    <el-button type="primary" @click="submitForm('assignmentForm')" :loading="loading">
                         {{ isEdit ? $t('m.Update') : $t('m.Create') }}
                     </el-button>
                     <el-button @click="resetForm('assignmentForm')">{{ $t('m.Reset') }}</el-button>
@@ -60,6 +60,7 @@ export default {
         return {
             isEdit: false,
             assignmentId: '',
+            loading: false,
             assignmentForm: {
                 title: '',
                 description: '',
@@ -90,7 +91,9 @@ export default {
     },
     methods: {
         getAssignmentDetail() {
+            this.loading = true
             api.getAssignment(this.assignmentId).then(res => {
+                this.loading = false
                 const data = res.data.data
                 this.assignmentForm = {
                     title: data.title,
@@ -100,36 +103,80 @@ export default {
                     start_time: data.start_time,
                     end_time: data.end_time
                 }
+            }).catch(err => {
+                this.loading = false
+                this.handleError(err, '获取作业详情失败')
             })
         },
+
         submitForm(formName) {
             this.$refs[formName].validate((valid) => {
                 if (valid) {
-                    if (this.isEdit) {
-                        // 更新作业
-                        api.updateAssignment(this.assignmentId, this.assignmentForm).then(res => {
-                            this.$message({
-                                type: 'success',
-                                message: this.$t('m.Update_Successfully')
-                            })
-                            this.goBack()
+                    this.loading = true
+
+                    // 根据是否为编辑模式选择不同的API方法
+                    const apiMethod = this.isEdit ?
+                        () => api.updateAssignment(this.assignmentId, this.assignmentForm) :
+                        () => api.createAssignment(this.assignmentForm)
+
+                    // 调用API
+                    apiMethod().then(res => {
+                        // 成功处理
+                        this.loading = false
+                        this.$message({
+                            type: 'success',
+                            message: this.isEdit ? this.$t('m.Update_Successfully') : this.$t('m.Create_Successfully')
                         })
-                    } else {
-                        // 创建作业
-                        api.createAssignment(this.assignmentForm).then(res => {
-                            this.$message({
-                                type: 'success',
-                                message: this.$t('m.Create_Successfully')
-                            })
-                            this.goBack()
-                        })
-                    }
+                        this.goBack()
+                    }).catch(err => {
+                        this.loading = false
+                        // 错误处理
+                        const operation = this.isEdit ? '更新作业' : '创建作业'
+                        this.handleError(err, operation)
+                    })
+                } else {
+                    this.$message.error('请检查表单中的错误字段')
+                    return false
                 }
             })
         },
+
+        handleError(err, operation) {
+            console.error(`${operation}失败:`, err)
+
+            let errorMsg = '未知错误'
+
+            if (err && err.response) {
+                const response = err.response
+                if (response.data) {
+                    // 优先使用具体的错误信息
+                    if (response.data.data) {
+                        errorMsg = typeof response.data.data === 'string' ?
+                            response.data.data :
+                            JSON.stringify(response.data.data)
+                    } else if (response.data.error) {
+                        errorMsg = response.data.error
+                    } else if (response.data.detail) {
+                        errorMsg = response.data.detail
+                    } else if (response.data.message) {
+                        errorMsg = response.data.message
+                    } else {
+                        errorMsg = response.statusText || '服务器错误'
+                    }
+                } else {
+                    errorMsg = response.statusText || '服务器错误'
+                }
+            } else if (err && err.message) {
+                errorMsg = err.message
+            }
+
+            this.$message.error(`${operation}失败: ${errorMsg}`)
+        },
+
         resetForm(formName) {
             this.$refs[formName].resetFields()
         },
+
         goBack() {
             this.$router.push({ name: 'assignment-list' })
         }

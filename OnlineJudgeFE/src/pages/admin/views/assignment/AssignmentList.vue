@@ -50,7 +50,6 @@
         </el-card>
     </div>
 </template>
-
 <script>
 import api from '../../api.js'
 
@@ -71,11 +70,19 @@ export default {
     methods: {
         getAssignments() {
             this.loading = true
-            api.getAssignmentList(this.currentPage - 1, this.pageSize)
+            // 修改参数传递方式，使用页码而不是offset
+            api.getAssignmentList(this.currentPage, this.pageSize)
                 .then(res => {
                     this.loading = false
-                    this.assignments = res.data.data.results
-                    this.total = res.data.data.total
+                    // 修改响应数据的处理方式
+                    if (res.data.results) {
+                        this.assignments = res.data.results
+                        this.total = res.data.count
+                    } else {
+                        // 兼容旧版响应格式
+                        this.assignments = res.data.data.results
+                        this.total = res.data.data.total
+                    }
                 })
                 .catch(() => {
                     this.loading = false
@@ -90,8 +97,8 @@ export default {
         },
         handleEdit(row) {
             this.$router.push({
-                name: 'edit-problem',
-                params: { problemId: row.id }
+                name: 'edit-assignment',  // 修复路由名称
+                params: { assignmentId: row.id }
             })
         },
         handleAssign(row) {
@@ -117,6 +124,11 @@ export default {
                     this.$message({
                         type: 'success',
                         message: this.$t('m.Delete_Successfully')
+                    })
+                }).catch(() => {
+                    this.$message({
+                        type: 'error',
+                        message: this.$t('m.Delete_Failed')
                     })
                 })
             }).catch(() => {

@@ -342,14 +342,15 @@ export default {
       data
     });
   },
-  getAssignmentList(offset, limit) {
+  getAssignmentList(page, page_size) {
     return ajax("admin/assignments/", "get", {
       params: {
-        offset,
-        limit
+        page,
+        page_size
       }
     });
   },
+
   getAssignment(assignmentId) {
     return ajax(`admin/assignments/${assignmentId}/`, "get");
   },
@@ -401,7 +402,6 @@ export default {
     });
   }
 };
-
 /**
  * @param url
  * @param method get|post|put|delete...
@@ -423,11 +423,29 @@ function ajax(url, method, options) {
       data
     }).then(
       res => {
-        // API正常返回(status=20x), 是否错误通过有无error判断
-        if (res.data && res.data.error !== null) {
-          Vue.prototype.$error(res.data.data);
-          reject(res);
+        // API正常返回(status=20x)
+        // 检查返回数据格式，兼容两种格式
+        if (
+          res.data &&
+          (typeof res.data.error !== "undefined" ||
+            typeof res.data.data !== "undefined")
+        ) {
+          // 标准格式 {error: null, data: {}}
+          if (res.data.error !== null) {
+            Vue.prototype.$error(res.data.data);
+            reject(res);
+          } else {
+            resolve(res);
+            if (method !== "get") {
+              Vue.prototype.$success("Succeeded");
+            }
+          }
         } else {
+          // 非标准格式，直接返回整个响应数据
+          res.data = {
+            error: null,
+            data: res.data
+          };
           resolve(res);
           if (method !== "get") {
             Vue.prototype.$success("Succeeded");
