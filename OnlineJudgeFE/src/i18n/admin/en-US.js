@@ -273,5 +273,12 @@ export const m = {
   Select_Students: "Select Students",
   Problem_ID: "Problem ID",
   Add_Problem: "Add Problem",
-  Real_Name: "Real Name"
+  Real_Name: "Real Name",
+  Student_Progress: "Student Progress",
+  Progress_Details: "Progress Details",
+  Total_Problems_Count: "Total Problems",
+  Solved_Problems_Count: "Solved Problems",
+  Completion_Rate: "Completion Rate",
+  Student_Progress_Detail: "Student Progress Detail",
+  View_Progress: "View Progress"
 };

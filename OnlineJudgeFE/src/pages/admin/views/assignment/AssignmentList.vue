@@ -41,6 +41,11 @@
                         </el-button>
                     </template>
                 </el-table-column>
+                <el-table-column :label="$t('m.Actions')" width="200">
+                    <template slot-scope="scope">
+                        <el-button size="mini" @click="viewProgress(scope.row)">查看进度</el-button>
+                    </template>
+                </el-table-column>
             </el-table>
 
             <div class="panel-options">
@@ -113,6 +118,16 @@ export default {
                 params: { assignmentId: row.id }
             })
         },
+        viewProgress(row) {
+            this.$router.push({
+                name: 'student-progress',
+                params: {
+                    assignmentId: this.assignmentId,
+                    studentAssignmentId: row.id
+                }
+            })
+        },
+
         handleDelete(row) {
             this.$confirm(this.$t('m.Delete_Assignment_Tips'), this.$t('m.Warning'), {
                 confirmButtonText: this.$t('m.OK'),

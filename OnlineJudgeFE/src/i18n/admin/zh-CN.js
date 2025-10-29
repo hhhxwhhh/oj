@@ -185,5 +185,13 @@ export const m = {
   Reset: "重置",
   AI_Model: "AI 模型管理",
   Init_Knowledge: "初始化知识点",
-  Generate_Problem_Tags: "生成题目标签"
+  Generate_Problem_Tags: "生成题目标签",
+
+  Student_Progress: "学生进度",
+  Progress_Details: "进度详情",
+  Total_Problems_Count: "总题目数",
+  Solved_Problems_Count: "已解决题目数",
+  Completion_Rate: "完成率",
+  Student_Progress_Detail: "学生进度详情",
+  View_Progress: "查看进度"
 };

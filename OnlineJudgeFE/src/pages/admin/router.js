@@ -23,6 +23,7 @@ import Init_knowledge from "./views/ai/Init_knowledge.vue";
 import AssignmentDetail from "./views/assignment/AssignmentDetail.vue";
 import CreateAssignment from "./views/assignment/CreateAssignment.vue";
 import AssignmentList from "./views/assignment/AssignmentList.vue";
+import StudentProgress from "./views/assignment/StudentProgress.vue";
 const GenerateTags = () => import("./views/problem/GenerateTags.vue");
 
 export default new VueRouter({
@@ -166,6 +167,12 @@ export default new VueRouter({
           path: "/assignment/:assignmentId",
           name: "assignment-detail",
           component: AssignmentDetail
+        },
+        {
+          path:
+            "/assignment/:assignmentId/student/:studentAssignmentId/progress",
+          name: "student-progress",
+          component: StudentProgress
         }
       ]
     },

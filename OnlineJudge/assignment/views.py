@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import BasePermission
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
 from .models import Assignment, AssignmentProblem, StudentAssignment, AssignmentStatistics
@@ -15,13 +15,24 @@ from .serializers import (
     AssignmentStatisticsSerializer
 )
 from utils.api import APIView, validate_serializer
+from account.decorators import super_admin_required, admin_role_required
 import random
 import json
+
+
+class IsAdminOrSuperAdmin(BasePermission):
+    """
+    自定义权限类，允许管理员或超级管理员访问
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_authenticated and (user.is_super_admin() or user.is_admin_role())
+
 
 class AssignmentViewSet(viewsets.ModelViewSet):
     queryset = Assignment.objects.all()
     serializer_class = AssignmentSerializer
-    permission_classes = [AllowAny]  
+    permission_classes = [IsAdminOrSuperAdmin]
     
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
@@ -33,8 +44,10 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         all_students = request.data.get('all_students', False)
         
         if all_students:
+            # 分配给所有学生
             students = User.objects.filter(admin_type=User.REGULAR_USER)
         else:
+            # 分配给指定学生
             students = User.objects.filter(id__in=student_ids)
         
         created_count = 0
@@ -44,6 +57,8 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                 student=student,
                 defaults={'status': 'assigned'}
             )
+            
+            # 如果是个性化作业，为每个学生生成个性化题目
             if assignment.is_personalized and created:
                 personalized_problems = self._generate_personalized_problems(student, assignment.rule_type)
                 student_assignment.set_personalized_problems(personalized_problems)
@@ -56,49 +71,6 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             'message': f'成功分配给{created_count}名学生',
             'assigned_count': created_count
         })
-
-    @action(detail=True, methods=['post'], url_path='clone')
-    def clone_assignment(self, request, pk=None):
-        """
-        克隆作业
-        """
-        original_assignment = self.get_object()
-        # 创建新作业，复制基本信息
-        new_assignment = Assignment.objects.create(
-            title=f"{original_assignment.title} (副本)",
-            description=original_assignment.description,
-            creator=request.user,
-            is_personalized=original_assignment.is_personalized,
-            rule_type=original_assignment.rule_type,
-            start_time=original_assignment.start_time,
-            end_time=original_assignment.end_time
-        )
-        
-        # 复制题目
-        original_problems = AssignmentProblem.objects.filter(assignment=original_assignment)
-        for problem in original_problems:
-            AssignmentProblem.objects.create(
-                assignment=new_assignment,
-                problem=problem.problem,
-                score=problem.score
-            )
-        
-        serializer = self.get_serializer(new_assignment)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    @action(detail=False, methods=['get'], url_path='my-created')
-    def my_created_assignments(self, request):
-        """
-        获取当前用户创建的作业
-        """
-        assignments = Assignment.objects.filter(creator=request.user)
-        page = self.paginate_queryset(assignments)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(assignments, many=True)
-        return Response(serializer.data)
-
     
     def _generate_personalized_problems(self, student, rule_type):
         solved_submissions = Submission.objects.filter(
@@ -201,6 +173,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         }
         
         return Response(detailed_stats)
+    
     @action(detail=True, methods=['get'], url_path='problems')
     def get_problems(self, request, pk=None):
         assignment = self.get_object()
@@ -243,10 +216,10 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         except AssignmentProblem.DoesNotExist:
             return Response({'error': '题目不存在于作业中'}, status=status.HTTP_404_NOT_FOUND)
 
+
 class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StudentAssignment.objects.all()
     serializer_class = StudentAssignmentSerializer
-    permission_classes = [AllowAny]  # 允许任何人访问，解决权限问题
     
     @action(detail=True, methods=['get'], url_path='progress')
     def get_progress(self, request, pk=None):
@@ -293,3 +266,11 @@ class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
             progress_data['problems'].append(problem_data)
         
         return Response(progress_data)
+    
+    def retrieve(self, request, *args, **kwargs):
+        """
+        获取单个学生作业详情
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
