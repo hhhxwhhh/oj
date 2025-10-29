@@ -491,5 +491,14 @@ export const m = {
   Potential_Issues: "Potential Issues",
   Improvement_Suggestions: "Improvement Suggestions",
   Auto_Completion_Enabled: "Auto Completion Enabled",
-  Toggle_Auto_Completion: "Toggle Auto Completion"
+  Toggle_Auto_Completion: "Toggle Auto Completion",
+  Total_Users: "Total Users",
+  Page: "Page",
+  First_Place: "First Place",
+  ACM_Score_Chart: "ACM Score Chart",
+  Top_10_ACM_Participants: "Top 10 ACM Participants",
+  Detailed_Rankings: "Detailed Rankings",
+  Top_Scorers_Chart: "Top Scorers Chart",
+  Top_20_Users_Score_and_Submission_Chart:
+    "Top 10 Users Score and Submission Chart"
 };
