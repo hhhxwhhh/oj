@@ -338,12 +338,12 @@ export default {
     });
   },
   createAssignment(data) {
-    return ajax("admin/assignments", "post", {
+    return ajax("admin/assignments/", "post", {
       data
     });
   },
   getAssignmentList(offset, limit) {
-    return ajax("admin/assignments", "get", {
+    return ajax("admin/assignments/", "get", {
       params: {
         offset,
         limit
@@ -351,37 +351,37 @@ export default {
     });
   },
   getAssignment(assignmentId) {
-    return ajax(`admin/assignments/${assignmentId}`, "get");
+    return ajax(`admin/assignments/${assignmentId}/`, "get");
   },
   updateAssignment(assignmentId, data) {
-    return ajax(`admin/assignments/${assignmentId}`, "put", {
+    return ajax(`admin/assignments/${assignmentId}/`, "put", {
       data
     });
   },
   deleteAssignment(assignmentId) {
-    return ajax(`admin/assignments/${assignmentId}`, "delete");
+    return ajax(`admin/assignments/${assignmentId}/`, "delete");
   },
   getAssignmentProblems(assignmentId) {
-    return ajax(`admin/assignments/${assignmentId}/problems`, "get");
+    return ajax(`admin/assignments/${assignmentId}/problems/`, "get");
   },
   addProblemToAssignment(assignmentId, data) {
-    return ajax(`admin/assignments/${assignmentId}/problems`, "post", {
+    return ajax(`admin/assignments/${assignmentId}/problems/`, "post", {
       data
     });
   },
   removeProblemFromAssignment(assignmentId, problemId) {
     return ajax(
-      `admin/assignments/${assignmentId}/problems/${problemId}`,
+      `admin/assignments/${assignmentId}/problems/${problemId}/`,
       "delete"
     );
   },
   assignAssignmentToStudents(assignmentId, data) {
-    return ajax(`admin/assignments/${assignmentId}/assign`, "post", {
+    return ajax(`admin/assignments/${assignmentId}/assign/`, "post", {
       data
     });
   },
   getAssignedStudents(assignmentId) {
-    return ajax(`admin/assignments/${assignmentId}/students`, "get");
+    return ajax(`admin/assignments/${assignmentId}/students/`, "get");
   },
   getStudentAssignmentProgress(studentAssignmentId) {
     return ajax(
