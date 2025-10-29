@@ -508,5 +508,6 @@ export const m = {
   Submission_List: "Submission List",
   Welcome_to_AI_Assistant: "Welcome to AI Assistant：",
   You_can_ask_anything_about_this_problem:
-    "You can ask anything about this problem:"
+    "You can ask anything about this problem:",
+  Contest_Menu: "Contest Menu"
 };
