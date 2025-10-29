@@ -27,6 +27,11 @@
       <el-menu-item index="/contest">{{ $t('m.Contest_List') }}</el-menu-item>
       <el-menu-item index="/contest/create">{{ $t('m.Create_Contest') }}</el-menu-item>
     </el-submenu>
+    <el-submenu index="assignment">
+      <template slot="title"><i class="el-icon-fa-tasks"></i>{{ $t('m.Assignment') }}</template>
+      <el-menu-item index="/assignment">{{ $t('m.Assignment_List') }}</el-menu-item>
+      <el-menu-item index="/assignment/create">{{ $t('m.Create_Assignment') }}</el-menu-item>
+    </el-submenu>
   </el-menu>
 </template>
 

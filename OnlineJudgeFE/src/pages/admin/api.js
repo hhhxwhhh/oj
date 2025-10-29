@@ -337,6 +337,59 @@ export default {
       }
     });
   },
+  createAssignment(data) {
+    return ajax("assignment/assignments", "post", {
+      data
+    });
+  },
+  getAssignmentList(offset, limit) {
+    return ajax("assignment/assignments", "get", {
+      params: {
+        offset,
+        limit
+      }
+    });
+  },
+  getAssignment(assignmentId) {
+    return ajax(`assignment/assignments/${assignmentId}`, "get");
+  },
+  updateAssignment(assignmentId, data) {
+    return ajax(`assignment/assignments/${assignmentId}`, "put", {
+      data
+    });
+  },
+  deleteAssignment(assignmentId) {
+    return ajax(`assignment/assignments/${assignmentId}`, "delete");
+  },
+  getAssignmentProblems(assignmentId) {
+    return ajax(`assignment/assignments/${assignmentId}/problems`, "get");
+  },
+  addProblemToAssignment(assignmentId, data) {
+    return ajax(`assignment/assignments/${assignmentId}/problems`, "post", {
+      data
+    });
+  },
+  removeProblemFromAssignment(assignmentId, problemId) {
+    return ajax(
+      `assignment/assignments/${assignmentId}/problems/${problemId}`,
+      "delete"
+    );
+  },
+  assignAssignmentToStudents(assignmentId, data) {
+    return ajax(`assignment/assignments/${assignmentId}/assign`, "post", {
+      data
+    });
+  },
+  getAssignedStudents(assignmentId) {
+    return ajax(`assignment/assignments/${assignmentId}/students`, "get");
+  },
+  getStudentAssignmentProgress(studentAssignmentId) {
+    return ajax(
+      `assignment/student-assignments/${studentAssignmentId}/progress`,
+      "get"
+    );
+  },
+
   initializeKnowledgePoints() {
     return ajax("ai/knowledge_point/initialize", "post");
   },

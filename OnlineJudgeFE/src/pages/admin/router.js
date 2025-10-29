@@ -20,7 +20,11 @@ import {
 Vue.use(VueRouter);
 import ContestAnalytics from "./views/contest/ContestAnalytics.vue";
 import Init_knowledge from "./views/ai/Init_knowledge.vue";
+import AssignmentDetail from "./views/assignment/AssignmentDetail.vue";
+import CreateAssignment from "./views/assignment/CreateAssignment.vue";
+import AssignmentList from "./views/assignment/AssignmentList.vue";
 const GenerateTags = () => import("./views/problem/GenerateTags.vue");
+
 export default new VueRouter({
   mode: "history",
   base: "/admin/",
@@ -147,6 +151,21 @@ export default new VueRouter({
           name: "generate-tags",
           component: GenerateTags,
           meta: { requiresAuth: true, title: "Generate Tags" }
+        },
+        {
+          path: "/assignment",
+          name: "assignment-list",
+          component: AssignmentList
+        },
+        {
+          path: "/assignment/create",
+          name: "create-assignment",
+          component: CreateAssignment
+        },
+        {
+          path: "/assignment/:assignmentId",
+          name: "assignment-detail",
+          component: AssignmentDetail
         }
       ]
     },
