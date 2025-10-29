@@ -56,6 +56,49 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             'message': f'成功分配给{created_count}名学生',
             'assigned_count': created_count
         })
+
+    @action(detail=True, methods=['post'], url_path='clone')
+    def clone_assignment(self, request, pk=None):
+        """
+        克隆作业
+        """
+        original_assignment = self.get_object()
+        # 创建新作业，复制基本信息
+        new_assignment = Assignment.objects.create(
+            title=f"{original_assignment.title} (副本)",
+            description=original_assignment.description,
+            creator=request.user,
+            is_personalized=original_assignment.is_personalized,
+            rule_type=original_assignment.rule_type,
+            start_time=original_assignment.start_time,
+            end_time=original_assignment.end_time
+        )
+        
+        # 复制题目
+        original_problems = AssignmentProblem.objects.filter(assignment=original_assignment)
+        for problem in original_problems:
+            AssignmentProblem.objects.create(
+                assignment=new_assignment,
+                problem=problem.problem,
+                score=problem.score
+            )
+        
+        serializer = self.get_serializer(new_assignment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'], url_path='my-created')
+    def my_created_assignments(self, request):
+        """
+        获取当前用户创建的作业
+        """
+        assignments = Assignment.objects.filter(creator=request.user)
+        page = self.paginate_queryset(assignments)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(assignments, many=True)
+        return Response(serializer.data)
+
     
     def _generate_personalized_problems(self, student, rule_type):
         solved_submissions = Submission.objects.filter(
@@ -114,6 +157,50 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         serializer = AssignmentStatisticsSerializer(statistics, many=True)
         return Response(serializer.data)
     
+    @action(detail=True, methods=['get'], url_path='detailed-statistics')
+    def get_detailed_statistics(self, request, pk=None):
+        """
+        获取详细统计信息
+        """
+        assignment = self.get_object()
+        
+        # 获取所有分配给学生的作业
+        student_assignments = StudentAssignment.objects.filter(assignment=assignment)
+        total_students = student_assignments.count()
+        
+        # 获取已提交的学生数
+        submitted_students = student_assignments.filter(
+            assignmentstatistics__submission_count__gt=0
+        ).distinct().count()
+        
+        # 获取已完成的学生数 (所有题目都已通过)
+        assignment_problems = AssignmentProblem.objects.filter(assignment=assignment)
+        completed_students = 0
+        if assignment_problems.exists():
+            completed_students = student_assignments.filter(
+                assignmentstatistics__accepted_count__gt=0
+            ).annotate(
+                solved_problems=Count(
+                    'assignmentstatistics', 
+                    filter=Q(assignmentstatistics__accepted_count__gt=0)
+                )
+            ).filter(solved_problems=assignment_problems.count()).count()
+        
+        # 平均分计算
+        avg_score = AssignmentStatistics.objects.filter(
+            assignment=assignment
+        ).aggregate(avg_score=Avg('best_score'))['avg_score'] or 0
+        
+        detailed_stats = {
+            'total_students': total_students,
+            'submitted_students': submitted_students,
+            'completion_rate': (submitted_students / total_students * 100) if total_students > 0 else 0,
+            'completed_students': completed_students,
+            'completion_percentage': (completed_students / total_students * 100) if total_students > 0 else 0,
+            'average_score': round(avg_score, 2),
+        }
+        
+        return Response(detailed_stats)
     @action(detail=True, methods=['get'], url_path='problems')
     def get_problems(self, request, pk=None):
         assignment = self.get_object()
