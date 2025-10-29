@@ -186,5 +186,8 @@ export const m = {
   Reset: "Reset",
   AI_Model: "AI Model Management",
   Init_Knowledge: "Initialize Knowledge Points",
-  Generate_Problem_Tags: "Generate Problem Tags"
+  Generate_Problem_Tags: "Generate Problem Tags",
+  TitleIsRequired: "Title is required",
+  StartTimeIsRequired: "Start Time is required",
+  EndTimeIsRequired: "End Time is required"
 };
