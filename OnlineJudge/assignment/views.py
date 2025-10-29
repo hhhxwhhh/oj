@@ -20,6 +20,13 @@ import random
 import json
 from django.db.models import Count,Sum,Avg,Q,Max
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
+from django.template.loader import render_to_string
+from utils.shortcuts import datetime2str
+from django.db import models
+from django.contrib.contenttypes.models import ContentType
+
 
 class IsAdminOrSuperAdmin(BasePermission):
     """
@@ -386,6 +393,442 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             return Response({'message': '删除成功'})
         except AssignmentProblem.DoesNotExist:
             return Response({'error': '题目不存在于作业中'}, status=status.HTTP_404_NOT_FOUND)
+        
+    @action(detail=True, methods=['post'], url_path='send-reminder')
+    def send_reminder(self, request, pk=None):
+        """
+        发送作业提醒给未提交的学生
+        """
+        assignment = self.get_object()
+        
+        # 获取已分配但未提交的学生
+        student_assignments = StudentAssignment.objects.filter(assignment=assignment)
+        submitted_students = student_assignments.filter(
+            assignmentstatistics__submission_count__gt=0
+        ).values_list('student_id', flat=True)
+        
+        # 找出未提交的学生
+        unsubmitted_students = student_assignments.exclude(
+            student_id__in=submitted_students
+        ).select_related('student')
+        
+        reminder_count = 0
+        failed_count = 0
+        
+        for student_assignment in unsubmitted_students:
+            student = student_assignment.student
+            try:
+                # 发送邮件提醒
+                if student.email:
+                    subject = f"作业提醒: {assignment.title}"
+                    message = render_to_string('assignment/reminder_email.html', {
+                        'student': student,
+                        'assignment': assignment,
+                        'due_date': datetime2str(assignment.end_time) if assignment.end_time else "无截止日期"
+                    })
+                    
+                    send_mail(
+                        subject,
+                        message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [student.email],
+                        fail_silently=False,
+                    )
+                    reminder_count += 1
+            except Exception as e:
+                failed_count += 1
+                # 记录错误日志
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"发送提醒邮件失败: {str(e)}")
+        
+        return Response({
+            'message': f'成功发送{reminder_count}份提醒，{failed_count}份发送失败',
+            'success_count': reminder_count,
+            'failed_count': failed_count
+        })
+    
+    @action(detail=True, methods=['post'], url_path='extend-deadline')
+    def extend_deadline(self, request, pk=None):
+        """
+        延长作业截止日期
+        """
+        assignment = self.get_object()
+        new_end_time = request.data.get('new_end_time')
+        
+        if not new_end_time:
+            return Response(
+                {'error': '请提供新的截止日期'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 更新截止日期
+            assignment.end_time = new_end_time
+            assignment.save()
+            
+            # 获取所有分配的学生
+            student_assignments = StudentAssignment.objects.filter(assignment=assignment)
+            
+            # 更新学生作业状态（如果之前是过期状态）
+            for student_assignment in student_assignments:
+                if student_assignment.status == 'expired':
+                    student_assignment.status = 'assigned'
+                    student_assignment.save()
+            
+            return Response({
+                'message': '截止日期延长成功',
+                'new_end_time': assignment.end_time
+            })
+        except Exception as e:
+            return Response(
+                {'error': f'更新截止日期失败: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+    @action(detail=True, methods=['get'], url_path='plagiarism-check')
+    def plagiarism_check(self, request, pk=None):
+        """
+        作业抄袭检查
+        """
+        assignment = self.get_object()
+        
+        # 获取所有提交的代码
+        statistics = AssignmentStatistics.objects.filter(
+            assignment=assignment
+        ).exclude(code='').select_related('student', 'problem')
+        
+        # 简化的抄袭检查逻辑
+        # 在实际应用中，这里应该使用更复杂的算法
+        plagiarism_results = []
+        
+        # 按题目分组检查
+        problems = {}
+        for stat in statistics:
+            problem_id = stat.problem_id
+            if problem_id not in problems:
+                problems[problem_id] = []
+            problems[problem_id].append(stat)
+        
+        # 检查每个题目的提交
+        for problem_id, stats in problems.items():
+            if len(stats) < 2:
+                continue
+                
+            # 比较每对提交
+            for i in range(len(stats)):
+                for j in range(i + 1, len(stats)):
+                    stat1 = stats[i]
+                    stat2 = stats[j]
+                    
+                    # 简单的字符串相似度检查（实际应用中应使用更复杂的算法）
+                    similarity = self._calculate_similarity(stat1.code, stat2.code)
+                    
+                    if similarity > 0.8:  # 相似度超过80%认为可能抄袭
+                        plagiarism_results.append({
+                            'problem_id': problem_id,
+                            'problem_title': stat1.problem.title,
+                            'student1': {
+                                'id': stat1.student.id,
+                                'username': stat1.student.username,
+                                'real_name': stat1.student.real_name
+                            },
+                            'student2': {
+                                'id': stat2.student.id,
+                                'username': stat2.student.username,
+                                'real_name': stat2.student.real_name
+                            },
+                            'similarity': round(similarity * 100, 2),
+                            'code1_preview': stat1.code[:200] + '...' if len(stat1.code) > 200 else stat1.code,
+                            'code2_preview': stat2.code[:200] + '...' if len(stat2.code) > 200 else stat2.code
+                        })
+        
+        return Response({
+            'assignment_id': assignment.id,
+            'assignment_title': assignment.title,
+            'total_submissions_checked': statistics.count(),
+            'plagiarism_cases_found': len(plagiarism_results),
+            'results': plagiarism_results
+        })
+    def _calculate_similarity(self, code1, code2):
+        """
+        计算两个代码字符串的相似度（简化实现）
+        """
+        # 移除空白字符和注释的简化版本
+        def normalize_code(code):
+            # 简单移除空白字符
+            return ''.join(code.split())
+        
+        normalized_code1 = normalize_code(code1)
+        normalized_code2 = normalize_code(code2)
+        
+        if not normalized_code1 and not normalized_code2:
+            return 1.0
+        if not normalized_code1 or not normalized_code2:
+            return 0.0
+            
+        common_chars = 0
+        total_chars = max(len(normalized_code1), len(normalized_code2))
+        
+        # 简单的字符匹配
+        for i in range(min(len(normalized_code1), len(normalized_code2))):
+            if normalized_code1[i] == normalized_code2[i]:
+                common_chars += 1
+                
+        return common_chars / total_chars if total_chars > 0 else 0
+    @action(detail=True, methods=['post'], url_path='auto-grade')
+    def auto_grade(self, request, pk=None):
+        """
+        自动作业评分
+        """
+        assignment = self.get_object()
+        
+        # 获取所有已提交的学生作业
+        student_assignments = StudentAssignment.objects.filter(assignment=assignment)
+        
+        graded_count = 0
+        error_count = 0
+        
+        for student_assignment in student_assignments:
+            try:
+                # 获取该学生的统计数据
+                stats = AssignmentStatistics.objects.filter(
+                    assignment=assignment,
+                    student=student_assignment.student
+                )
+                
+                if not stats.exists():
+                    continue
+                
+                # 计算总分
+                total_score = 0
+                max_possible_score = 0
+                
+                # 获取作业中所有题目的分数
+                assignment_problems = AssignmentProblem.objects.filter(assignment=assignment)
+                
+                for ap in assignment_problems:
+                    max_possible_score += ap.score or 0
+                    
+                    # 查找该学生该题的统计数据
+                    problem_stat = stats.filter(problem=ap.problem).first()
+                    if problem_stat and problem_stat.accepted_count > 0:
+                        # 如果题目通过，给予满分
+                        total_score += ap.score or 0
+                    elif problem_stat:
+                        # 如果有提交但未通过，根据测试用例通过率给部分分数
+                        if problem_stat.total_testcases > 0:
+                            pass_rate = problem_stat.accepted_testcases / problem_stat.total_testcases
+                            total_score += (ap.score or 0) * pass_rate
+                
+                # 更新学生作业的总分
+                student_assignment.score = round(total_score, 2)
+                student_assignment.max_score = max_possible_score
+                
+                # 更新状态
+                if total_score >= max_possible_score:
+                    student_assignment.status = 'completed'
+                elif total_score > 0:
+                    student_assignment.status = 'in_progress'
+                else:
+                    student_assignment.status = 'assigned'
+                
+                student_assignment.save()
+                graded_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                # 记录错误日志
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"自动评分失败 (学生作业ID: {student_assignment.id}): {str(e)}")
+        
+        return Response({
+            'message': f'自动评分完成：成功评分{graded_count}份作业，{error_count}份评分失败',
+            'graded_count': graded_count,
+            'error_count': error_count
+        })
+    @action(detail=True, methods=['get'], url_path='grade-distribution')
+    def grade_distribution(self, request, pk=None):
+        """
+        获取成绩分布
+        """
+        assignment = self.get_object()
+        
+        # 获取所有学生作业
+        student_assignments = StudentAssignment.objects.filter(assignment=assignment)
+        
+        # 计算成绩分布
+        grade_ranges = {
+            '90-100': 0,
+            '80-89': 0,
+            '70-79': 0,
+            '60-69': 0,
+            '0-59': 0
+        }
+        
+        total_students = student_assignments.count()
+        graded_students = 0
+        average_score = 0
+        
+        for sa in student_assignments:
+            if sa.max_score and sa.score is not None:
+                graded_students += 1
+                percentage = (sa.score / sa.max_score) * 100
+                average_score += percentage
+                
+                if percentage >= 90:
+                    grade_ranges['90-100'] += 1
+                elif percentage >= 80:
+                    grade_ranges['80-89'] += 1
+                elif percentage >= 70:
+                    grade_ranges['70-79'] += 1
+                elif percentage >= 60:
+                    grade_ranges['60-69'] += 1
+                else:
+                    grade_ranges['0-59'] += 1
+        
+        if graded_students > 0:
+            average_score = round(average_score / graded_students, 2)
+        
+        return Response({
+            'assignment_id': assignment.id,
+            'assignment_title': assignment.title,
+            'total_students': total_students,
+            'graded_students': graded_students,
+            'ungraded_students': total_students - graded_students,
+            'average_percentage': average_score,
+            'grade_distribution': grade_ranges
+        })
+    @action(detail=True, methods=['post'], url_path='send-feedback')
+    def send_feedback(self, request, pk=None):
+        """
+        发送作业反馈给所有学生
+        """
+        assignment = self.get_object()
+        feedback_message = request.data.get('feedback_message', '')
+        send_to_all = request.data.get('send_to_all', False)
+        student_ids = request.data.get('student_ids', [])
+        
+        if not feedback_message:
+            return Response(
+                {'error': '请提供反馈内容'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 确定发送对象
+        if send_to_all:
+            student_assignments = StudentAssignment.objects.filter(assignment=assignment)
+        else:
+            student_assignments = StudentAssignment.objects.filter(
+                assignment=assignment,
+                student_id__in=student_ids
+            )
+        
+        success_count = 0
+        failed_count = 0
+        
+        for student_assignment in student_assignments:
+            student = student_assignment.student
+            try:
+                # 发送反馈邮件
+                if student.email:
+                    subject = f"作业反馈: {assignment.title}"
+                    message = render_to_string('assignment/feedback_email.html', {
+                        'student': student,
+                        'assignment': assignment,
+                        'feedback_message': feedback_message,
+                        'score': student_assignment.score,
+                        'max_score': student_assignment.max_score
+                    })
+                    
+                    send_mail(
+                        subject,
+                        message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [student.email],
+                        fail_silently=False,
+                    )
+                    success_count += 1
+            except Exception as e:
+                failed_count += 1
+                # 记录错误日志
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"发送反馈邮件失败: {str(e)}")
+        
+        return Response({
+            'message': f'反馈发送完成：成功发送{success_count}份，失败{failed_count}份',
+            'success_count': success_count,
+            'failed_count': failed_count
+        })
+    @action(detail=True, methods=['get'], url_path='export-report')
+    def export_report(self, request, pk=None):
+        """
+        导出详细的作业报告（Excel格式数据）
+        """
+        assignment = self.get_object()
+        
+        # 获取作业基本信息
+        assignment_info = {
+            'id': assignment.id,
+            'title': assignment.title,
+            'description': assignment.description,
+            'creator': assignment.creator.username,
+            'start_time': assignment.start_time,
+            'end_time': assignment.end_time,
+            'create_time': assignment.create_time
+        }
+        
+        # 获取题目信息
+        assignment_problems = AssignmentProblem.objects.filter(assignment=assignment).select_related('problem')
+        problems_data = []
+        for ap in assignment_problems:
+            problems_data.append({
+                'id': ap.problem._id,
+                'title': ap.problem.title,
+                'score': ap.score
+            })
+        
+        # 获取学生作业信息
+        student_assignments = StudentAssignment.objects.filter(assignment=assignment).select_related('student')
+        students_data = []
+        for sa in student_assignments:
+            # 获取该学生的题目完成情况
+            stats = AssignmentStatistics.objects.filter(
+                assignment=assignment,
+                student=sa.student
+            )
+            
+            problem_details = []
+            for stat in stats:
+                problem_details.append({
+                    'problem_id': stat.problem._id,
+                    'problem_title': stat.problem.title,
+                    'best_score': stat.best_score,
+                    'submission_count': stat.submission_count,
+                    'is_accepted': stat.accepted_count > 0
+                })
+            
+            students_data.append({
+                'student_id': sa.student.id,
+                'username': sa.student.username,
+                'real_name': sa.student.real_name,
+                'status': sa.status,
+                'score': sa.score,
+                'max_score': sa.max_score,
+                'problems': problem_details
+            })
+        
+        # 组织导出数据
+        export_data = {
+            'assignment': assignment_info,
+            'problems': problems_data,
+            'students': students_data
+        }
+        
+        return Response(export_data)
+
 
 
 class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
