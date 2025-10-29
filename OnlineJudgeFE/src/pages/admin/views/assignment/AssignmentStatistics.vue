@@ -42,9 +42,7 @@
                 <h3>完成情况</h3>
                 <el-row :gutter="20">
                     <el-col :span="12">
-                        <div class="chart-container">
-                            <canvas ref="completionChart" height="300"></canvas>
-                        </div>
+                        <div class="chart-container" ref="completionChart" style="width: 100%; height: 300px;"></div>
                     </el-col>
                     <el-col :span="12">
                         <div class="completion-details">
@@ -63,7 +61,7 @@
 
 <script>
 import api from '../../api.js'
-import Chart from 'chart.js'
+import * as echarts from 'echarts'
 
 export default {
     name: 'AssignmentStatistics',
@@ -87,9 +85,13 @@ export default {
         this.getAssignmentDetail()
         this.getStatistics()
     },
+    mounted() {
+        // 初始化图表
+        this.initCharts()
+    },
     beforeDestroy() {
         if (this.completionChart) {
-            this.completionChart.destroy()
+            this.completionChart.dispose()
         }
     },
     methods: {
@@ -102,54 +104,54 @@ export default {
             api.getAssignmentDetailedStatistics(this.assignmentId).then(res => {
                 this.statistics = res.data.data
                 this.$nextTick(() => {
-                    this.renderCompletionChart()
+                    this.updateCharts()
                 })
             })
         },
-        renderCompletionChart() {
-            const ctx = this.$refs.completionChart.getContext('2d')
-
+        initCharts() {
+            // 初始化完成情况图表
+            this.completionChart = echarts.init(this.$refs.completionChart)
+        },
+        updateCharts() {
+            // 更新完成情况图表
             if (this.completionChart) {
-                this.completionChart.destroy()
-            }
-
-            this.completionChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['已完成', '未完成'],
-                    datasets: [{
-                        data: [
-                            this.statistics.completed_students,
-                            this.statistics.total_students - this.statistics.completed_students
-                        ],
-                        backgroundColor: [
-                            '#42b983',
-                            '#e4e7ed'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    legend: {
-                        position: 'bottom'
+                const option = {
+                    title: {
+                        text: '学生完成情况',
+                        left: 'center'
                     },
-                    tooltips: {
-                        callbacks: {
-                            label: function (tooltipItem, data) {
-                                const dataset = data.datasets[tooltipItem.datasetIndex];
-                                const total = dataset.data.reduce(function (previousValue, currentValue) {
-                                    return previousValue + currentValue;
-                                });
-                                const currentValue = dataset.data[tooltipItem.index];
-                                const percentage = Math.floor(((currentValue / total) * 100) + 0.5);
-                                return data.labels[tooltipItem.index] + ': ' + currentValue + ' (' + percentage + '%)';
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    legend: {
+                        orient: 'vertical',
+                        left: 'left'
+                    },
+                    series: [
+                        {
+                            name: '完成情况',
+                            type: 'pie',
+                            radius: '70%',
+                            data: [
+                                { value: this.statistics.completed_students, name: '已完成' },
+                                {
+                                    value: this.statistics.total_students - this.statistics.completed_students,
+                                    name: '未完成'
+                                }
+                            ],
+                            emphasis: {
+                                itemStyle: {
+                                    shadowBlur: 10,
+                                    shadowOffsetX: 0,
+                                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                }
                             }
                         }
-                    }
+                    ]
                 }
-            })
+                this.completionChart.setOption(option)
+            }
         },
         goBack() {
             this.$router.go(-1)
@@ -199,11 +201,6 @@ export default {
 
 .completion-stats {
     padding: 10px 0;
-}
-
-.chart-container {
-    position: relative;
-    height: 300px;
 }
 
 .completion-details {

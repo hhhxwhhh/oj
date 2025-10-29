@@ -23,7 +23,6 @@
     "babel-preset-stage-2": "^6.22.0",
     "browser-detect": "^0.2.27",
     "chalk": "^2.4.1",
-    "chart.js": "^4.5.1",
     "copy-webpack-plugin": "^4.5.1",
     "css-loader": "^0.28.11",
     "easymde": "^2.20.0",

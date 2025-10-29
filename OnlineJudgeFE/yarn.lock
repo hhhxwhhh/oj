@@ -27,11 +27,6 @@
     "@babel/helper-string-parser" "^7.27.1"
     "@babel/helper-validator-identifier" "^7.27.1"
 
-"@kurkle/color@^0.3.0":
-  version "0.3.4"
-  resolved "https://registry.npmmirror.com/@kurkle/color/-/color-0.3.4.tgz#4d4ff677e1609214fc71c580125ddddd86abcabf"
-  integrity sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==
-
 "@rtsao/scc@^1.1.0":
   version "1.1.0"
   resolved "https://registry.npmmirror.com/@rtsao/scc/-/scc-1.1.0.tgz#927dd2fae9bc3361403ac2c7a00c32ddce9ad7e8"
@@ -1659,13 +1654,6 @@ chalk@^2.0.1, chalk@^2.1.0, chalk@^2.3.0, chalk@^2.4.1:
     ansi-styles "^3.2.1"
     escape-string-regexp "^1.0.5"
     supports-color "^5.3.0"
-
-chart.js@^4.5.1:
-  version "4.5.1"
-  resolved "https://registry.npmmirror.com/chart.js/-/chart.js-4.5.1.tgz#19dd1a9a386a3f6397691672231cb5fc9c052c35"
-  integrity sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw==
-  dependencies:
-    "@kurkle/color" "^0.3.0"
 
 check-types@^7.3.0:
   version "7.4.0"
@@ -7523,7 +7511,7 @@ simple-uploader@^2.0.7, "simple-uploader@file:./simple-uploader", "simple-upload
   version "3.0.0"
   dependencies:
     jquery "=3.1.1"
-    simple-module "file:../usr/local/share/.cache/yarn/v6/npm-simple-uploader-3.0.0-ecb6bd42-3528-4692-8898-fcc4eaf976b2-1761749333270/node_modules/simple-module"
+    simple-module "file:../usr/local/share/.cache/yarn/v6/npm-simple-uploader-3.0.0-fd125856-e285-452f-89f4-884ff0c9cf83-1761749735851/node_modules/simple-module"
 
 slash@^1.0.0:
   version "1.0.0"
