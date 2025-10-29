@@ -396,6 +396,35 @@ export default {
       "get"
     );
   },
+  // 作业分析相关API
+  getAssignmentProblemDifficultyStatistics(assignmentId) {
+    return ajax(
+      `admin/assignments/${assignmentId}/problem-difficulty-statistics/`,
+      "get"
+    );
+  },
+
+  getAssignmentStudentPerformanceTrend(assignmentId) {
+    return ajax(
+      `admin/assignments/${assignmentId}/student-performance-trend/`,
+      "get"
+    );
+  },
+
+  getAssignmentTopPerformingStudents(assignmentId) {
+    return ajax(
+      `admin/assignments/${assignmentId}/top-performing-students/`,
+      "get"
+    );
+  },
+
+  getAssignmentProblemStatistics(assignmentId) {
+    return ajax(`admin/assignments/${assignmentId}/problem-statistics/`, "get");
+  },
+
+  exportAssignmentStatistics(assignmentId) {
+    return ajax(`admin/assignments/${assignmentId}/export-statistics/`, "get");
+  },
 
   initializeKnowledgePoints() {
     return ajax("ai/knowledge_point/initialize", "post");

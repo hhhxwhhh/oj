@@ -43,6 +43,13 @@
                     </el-col>
                 </el-row>
             </el-card>
+            <el-card class="analysis-card">
+                <div slot="header">
+                    <span>分析仪表板</span>
+                    <el-button style="float: right; padding: 3px 0" type="text" @click="viewDashboard">查看详情</el-button>
+                </div>
+                <p>查看该作业的详细分析报告，包括学生表现趋势、题目难度分析等。</p>
+            </el-card>
             <el-row :gutter="20">
                 <el-col :span="16">
                     <el-card class="info-card">
@@ -268,6 +275,14 @@ export default {
         handleAssign() {
             this.showAssignDialog = true
         },
+        viewDashboard() {
+            this.$router.push({
+                name: 'assignment-dashboard',
+                params: { assignmentId: this.assignmentId }
+            })
+        },
+
+
         assignToStudents() {
             const data = {
                 all_students: this.assignForm.assignType === 'all',
@@ -318,5 +333,9 @@ export default {
 .stat-label {
     margin: 5px 0 0 0;
     color: #999;
+}
+
+.analysis-card {
+    margin-bottom: 20px;
 }
 </style>

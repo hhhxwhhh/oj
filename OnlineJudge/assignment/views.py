@@ -18,7 +18,8 @@ from utils.api import APIView, validate_serializer
 from account.decorators import super_admin_required, admin_role_required
 import random
 import json
-
+from django.db.models import Count,Sum,Avg,Q,Max
+from django.utils import timezone
 
 class IsAdminOrSuperAdmin(BasePermission):
     """
@@ -173,6 +174,176 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         }
         
         return Response(detailed_stats)
+    
+
+    @action(detail=True, methods=['get'], url_path='problem-difficulty-statistics')
+    def get_problem_difficulty_statistics(self, request, pk=None):
+        """
+        按题目难度获取统计信息
+        """
+        assignment = self.get_object()
+        
+        # 获取作业中的所有题目及其难度
+        assignment_problems = AssignmentProblem.objects.filter(assignment=assignment).select_related('problem')
+        
+        difficulty_stats = {}
+        for ap in assignment_problems:
+            problem = ap.problem
+            difficulty = problem.difficulty if problem.difficulty else 'Unknown'
+            
+            if difficulty not in difficulty_stats:
+                difficulty_stats[difficulty] = {
+                    'difficulty': difficulty,
+                    'total_problems': 0,
+                    'total_submissions': 0,
+                    'accepted_submissions': 0,
+                    'average_score': 0,
+                    'acceptance_rate': 0
+                }
+            
+            difficulty_stats[difficulty]['total_problems'] += 1
+            
+            # 获取该题目的统计数据
+            stats = AssignmentStatistics.objects.filter(
+                assignment=assignment,
+                problem=problem
+            )
+            
+            total_submissions = stats.count()
+            accepted_submissions = stats.filter(accepted_count__gt=0).count()
+            
+            difficulty_stats[difficulty]['total_submissions'] += total_submissions
+            difficulty_stats[difficulty]['accepted_submissions'] += accepted_submissions
+            
+            # 计算平均分
+            avg_score = stats.aggregate(avg=Avg('best_score'))['avg'] or 0
+            difficulty_stats[difficulty]['average_score'] += avg_score
+        
+        # 计算整体统计数据
+        result = []
+        for difficulty, stats in difficulty_stats.items():
+            if stats['total_problems'] > 0:
+                stats['average_score'] = round(stats['average_score'] / stats['total_problems'], 2)
+            if stats['total_submissions'] > 0:
+                stats['acceptance_rate'] = round(
+                    (stats['accepted_submissions'] / stats['total_submissions']) * 100, 2
+                )
+            result.append(stats)
+        
+        return Response(result)
+
+    @action(detail=True, methods=['get'], url_path='student-performance-trend')
+    def get_student_performance_trend(self, request, pk=None):
+        """
+        获取学生表现趋势（按时间）
+        """
+        assignment = self.get_object()
+        
+        # 获取最近一段时间内的统计数据
+        recent_stats = AssignmentStatistics.objects.filter(
+            assignment=assignment,
+            create_time__gte=timezone.now() - timezone.timedelta(days=30)
+        ).extra(select={'date': 'DATE(create_time)'}).values('date').annotate(
+            daily_submissions=Count('id'),
+            daily_accepted=Count('id', filter=Q(accepted_count__gt=0)),
+            avg_score=Avg('best_score')
+        ).order_by('date')
+        
+        trend_data = []
+        for stat in recent_stats:
+            trend_data.append({
+                'date': stat['date'],
+                'submissions': stat['daily_submissions'],
+                'accepted': stat['daily_accepted'],
+                'acceptance_rate': round(
+                    (stat['daily_accepted'] / stat['daily_submissions'] * 100) if stat['daily_submissions'] > 0 else 0, 2
+                ),
+                'average_score': round(stat['avg_score'] or 0, 2)
+            })
+        
+        return Response(trend_data)
+
+    @action(detail=True, methods=['get'], url_path='top-performing-students')
+    def get_top_performing_students(self, request, pk=None):
+        """
+        获取表现最好的学生
+        """
+        assignment = self.get_object()
+        
+        # 获取所有分配给学生的作业
+        student_assignments = StudentAssignment.objects.filter(assignment=assignment)
+        
+        top_students = []
+        for sa in student_assignments:
+            student = sa.student
+            
+            # 获取该学生的统计数据
+            stats = AssignmentStatistics.objects.filter(
+                assignment=assignment,
+                student=student
+            )
+            
+            # 计算总分和解决的题目数
+            total_score = stats.aggregate(total=Sum('best_score'))['total'] or 0
+            solved_problems = stats.filter(accepted_count__gt=0).count()
+            total_submissions = stats.count()
+            
+            # 计算平均分
+            avg_score = stats.aggregate(avg=Avg('best_score'))['avg'] or 0
+            
+            top_students.append({
+                'student_id': student.id,
+                'student_username': student.username,
+                'student_real_name': student.real_name or '',
+                'total_score': round(total_score, 2),
+                'solved_problems': solved_problems,
+                'total_submissions': total_submissions,
+                'average_score': round(avg_score, 2),
+                'completion_rate': round(
+                    (solved_problems / assignment.assignmentproblem_set.count() * 100) 
+                    if assignment.assignmentproblem_set.count() > 0 else 0, 2
+                )
+            })
+        
+        # 按总分排序，取前10名
+        top_students.sort(key=lambda x: x['total_score'], reverse=True)
+        
+        return Response(top_students[:10])
+
+    @action(detail=True, methods=['get'], url_path='export-statistics')
+    def export_statistics(self, request, pk=None):
+        """
+        导出作业统计信息（CSV格式）
+        """
+        assignment = self.get_object()
+        
+        # 获取详细统计信息
+        detailed_stats_response = self.get_detailed_statistics(request, pk)
+        detailed_stats = detailed_stats_response.data
+        
+        # 获取题目统计信息
+        problem_stats_response = self.get_problem_statistics(request, pk)
+        problem_stats = problem_stats_response.data if hasattr(problem_stats_response, 'data') else []
+        
+        # 获取学生排名
+        student_rankings_response = self.get_student_ranking(request, pk)
+        student_rankings = student_rankings_response.data if hasattr(student_rankings_response, 'data') else []
+        
+        # 组合导出数据
+        export_data = {
+            'assignment_info': {
+                'id': assignment.id,
+                'title': assignment.title,
+                'creator': assignment.creator.username,
+                'start_time': assignment.start_time,
+                'end_time': assignment.end_time
+            },
+            'summary': detailed_stats,
+            'problem_statistics': problem_stats,
+            'student_rankings': student_rankings
+        }
+        
+        return Response(export_data)
     
     @action(detail=True, methods=['get'], url_path='problems')
     def get_problems(self, request, pk=None):
