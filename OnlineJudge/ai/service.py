@@ -2093,14 +2093,17 @@ class KnowledgePointService:
                 # 关联题目到知识点
                 kp.related_problems.add(problem)
                 
-                # 更新知识点频率
-                kp.frequency = kp.related_problems.count()
+                # 更新知识点频率和重要性
+                frequency, importance = KnowledgePointService.calculate_knowledge_point_metrics(kp)
+                kp.frequency = frequency
+                kp.importance = importance
                 kp.save()
                 
             return True
         except Exception as e:
             logger.error(f"Failed to create knowledge points from tags: {str(e)}")
             return False
+        
         
     @staticmethod
     def update_knowledge_point_metrics():
@@ -2140,6 +2143,40 @@ class KnowledgePointService:
         except Exception as e:
             logger.error(f"更新知识点指标失败: {str(e)}")
             return False
+
+    @staticmethod
+    def calculate_knowledge_point_metrics(kp):
+        """
+        计算知识点的重要性和频率指标
+        """
+        # 计算频率：关联题目的数量
+        frequency = kp.related_problems.count()
+        
+        # 计算重要性：基于关联题目的难度和通过率
+        importance = 0.0
+        related_problems = kp.related_problems.all()
+        
+        for problem in related_problems:
+            # 难度权重 (1-5映射到0.5-2.0)
+            difficulty_weight = 0.5 + (problem.difficulty - 1) * 0.375
+            
+            # 通过率权重 (避免除零错误)
+            if problem.submission_number > 0:
+                acceptance_rate = problem.accepted_number / problem.submission_number
+                # 通过率越低，说明题目越难，重要性越高 (0.1-2.0映射)
+                acceptance_weight = 2.0 - 1.9 * acceptance_rate
+            else:
+                acceptance_weight = 1.0
+                
+            importance += difficulty_weight * acceptance_weight
+        
+        # 平均重要性值
+        if related_problems.count() > 0:
+            importance = importance / related_problems.count()
+        else:
+            importance = 0.0
+        
+        return frequency, importance
 
     
     @staticmethod
