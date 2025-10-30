@@ -281,5 +281,8 @@ export const m = {
   Completion_Rate: "Completion Rate",
   Student_Progress_Detail: "Student Progress Detail",
   View_Progress: "View Progress",
-  Detail: "Detail"
+  Detail: "Detail",
+  Selected_Problem: "Select Problem",
+  Search_Problems: "Select Problems",
+  Please_select_a_problem: "Please select a problem"
 };

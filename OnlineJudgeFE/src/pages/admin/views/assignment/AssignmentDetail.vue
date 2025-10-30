@@ -1,145 +1,99 @@
 <template>
     <div class="assignment-detail">
-        <el-card class="box-card">
-            <div slot="header" class="clearfix">
-                <span>{{ assignment.title }}</span>
-                <el-button style="float: right; margin-left: 10px;" type="primary" @click="handleAssign">
-                    {{ $t('m.Assign_To_Students') }}
-                </el-button>
-                <el-button style="float: right;" @click="goBack">
-                    {{ $t('m.Back') }}
-                </el-button>
+        <!-- 作业信息卡片 -->
+        <el-card class="info-card">
+            <div slot="header">
+                <span>{{ $t('m.Assignment_Detail') }}</span>
             </div>
-
-            <el-card class="statistics-card">
-                <div slot="header">
-                    <span>统计信息</span>
-                    <el-button style="float: right; padding: 3px 0" type="text" @click="viewStatistics">查看详情</el-button>
-                </div>
-                <el-row :gutter="20">
-                    <el-col :span="6">
-                        <div class="stat-item">
-                            <p class="stat-value">{{ statistics.total_students || 0 }}</p>
-                            <p class="stat-label">总学生数</p>
-                        </div>
-                    </el-col>
-                    <el-col :span="6">
-                        <div class="stat-item">
-                            <p class="stat-value">{{ statistics.submitted_students || 0 }}</p>
-                            <p class="stat-label">已提交</p>
-                        </div>
-                    </el-col>
-                    <el-col :span="6">
-                        <div class="stat-item">
-                            <p class="stat-value">{{ statistics.average_score || 0 }}</p>
-                            <p class="stat-label">平均分</p>
-                        </div>
-                    </el-col>
-                    <el-col :span="6">
-                        <div class="stat-item">
-                            <p class="stat-value">{{ statistics.completion_percentage || 0 }}%</p>
-                            <p class="stat-label">完成率</p>
-                        </div>
-                    </el-col>
-                </el-row>
-            </el-card>
-            <el-card class="analysis-card">
-                <div slot="header">
-                    <span>分析仪表板</span>
-                    <el-button style="float: right; padding: 3px 0" type="text" @click="viewDashboard">查看详情</el-button>
-                </div>
-                <p>查看该作业的详细分析报告，包括学生表现趋势、题目难度分析等。</p>
-            </el-card>
-            <el-row :gutter="20">
-                <el-col :span="16">
-                    <el-card class="info-card">
-                        <div slot="header">
-                            <span>{{ $t('m.Information') }}</span>
-                        </div>
-                        <el-form label-width="120px">
-                            <el-form-item :label="$t('m.Title')">
-                                <span>{{ assignment.title }}</span>
-                            </el-form-item>
-                            <el-form-item :label="$t('m.Description')">
-                                <span>{{ assignment.description }}</span>
-                            </el-form-item>
-                            <el-form-item :label="$t('m.Creator')">
-                                <span>{{ assignment.creator_username }}</span>
-                            </el-form-item>
-                            <el-form-item :label="$t('m.Rule_Type')">
-                                <span>{{ assignment.rule_type }}</span>
-                            </el-form-item>
-                            <el-form-item :label="$t('m.Is_Personalized')">
-                                <el-tag :type="assignment.is_personalized ? 'success' : 'info'">
-                                    {{ assignment.is_personalized ? $t('m.Yes') : $t('m.No') }}
-                                </el-tag>
-                            </el-form-item>
-                            <el-form-item :label="$t('m.Start_Time')">
-                                <span>{{ assignment.start_time }}</span>
-                            </el-form-item>
-                            <el-form-item :label="$t('m.End_Time')">
-                                <span>{{ assignment.end_time }}</span>
-                            </el-form-item>
-                        </el-form>
-                    </el-card>
-
-                    <el-card class="problems-card" style="margin-top: 20px;">
-                        <div slot="header">
-                            <span>{{ $t('m.Problems') }}</span>
-                            <el-button style="float: right;" type="primary" icon="el-icon-plus"
-                                @click="showAddProblemDialog = true">
-                                {{ $t('m.Add_Problem') }}
-                            </el-button>
-                        </div>
-
-                        <el-table :data="problems" style="width: 100%">
-                            <el-table-column prop="problem._id" label="ID" width="80" />
-                            <el-table-column prop="problem.title" :label="$t('m.Title')" />
-                            <el-table-column prop="score" :label="$t('m.Score')" width="100" />
-                            <el-table-column :label="$t('m.Operation')" width="100">
-                                <template slot-scope="scope">
-                                    <el-button size="mini" type="danger" @click="removeProblem(scope.row)">
-                                        {{ $t('m.Delete') }}
-                                    </el-button>
-                                </template>
-                            </el-table-column>
-                        </el-table>
-                    </el-card>
-                </el-col>
-
+            <el-row>
                 <el-col :span="8">
-                    <el-card class="assigned-students-card">
-                        <div slot="header">
-                            <span>{{ $t('m.Assigned_Students') }}</span>
-                            <el-button style="float: right;" type="success" @click="refreshAssignedStudents">
-                                {{ $t('m.Refresh') }}
-                            </el-button>
-                        </div>
-
-                        <el-table :data="assignedStudents" style="width: 100%">
-                            <el-table-column prop="student_username" :label="$t('m.Username')" />
-                            <el-table-column prop="student_realname" :label="$t('m.Real_Name')" />
-                            <el-table-column prop="status" :label="$t('m.Status')" />
-                        </el-table>
-                    </el-card>
+                    <p><strong>{{ $t('m.Title') }}:</strong> {{ assignment.title }}</p>
+                </el-col>
+                <el-col :span="8">
+                    <p><strong>{{ $t('m.Start_Time') }}:</strong> {{ assignment.start_time }}</p>
+                </el-col>
+                <el-col :span="8">
+                    <p><strong>{{ $t('m.End_Time') }}:</strong> {{ assignment.end_time }}</p>
+                </el-col>
+            </el-row>
+            <el-row>
+                <el-col :span="24">
+                    <p><strong>{{ $t('m.Description') }}:</strong> {{ assignment.description }}</p>
                 </el-col>
             </el-row>
         </el-card>
 
+        <!-- 题目卡片 -->
+        <el-card class="problems-card" style="margin-top: 20px;">
+            <div slot="header">
+                <span>{{ $t('m.Problems') }}</span>
+                <el-button style="float: right; padding: 3px 0" type="primary" size="small"
+                    @click="showAddProblemDialog = true">
+                    {{ $t('m.Add_Problem') }}
+                </el-button>
+            </div>
+            <el-table :data="problems" style="width: 100%">
+                <el-table-column prop="problem._id" label="ID" width="80" />
+                <el-table-column prop="problem.title" :label="$t('m.Title')" />
+                <el-table-column prop="score" :label="$t('m.Score')" width="100" />
+                <el-table-column fixed="right" :label="$t('m.Option')" width="100">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="danger" @click="removeProblem(scope.row)">
+                            {{ $t('m.Delete') }}
+                        </el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-card>
+
         <!-- 添加题目对话框 -->
-        <el-dialog :title="$t('m.Add_Problem')" :visible.sync="showAddProblemDialog" width="50%">
-            <el-form :model="newProblem" label-width="100px">
-                <el-form-item :label="$t('m.Problem_ID')">
-                    <el-input v-model="newProblem.problem_id" />
-                </el-form-item>
-                <el-form-item :label="$t('m.Score')">
-                    <el-input-number v-model="newProblem.score" :min="0" :max="100" />
-                </el-form-item>
-            </el-form>
+        <el-dialog :title="$t('m.Add_Problem')" :visible.sync="showAddProblemDialog" width="70%">
+            <el-row :gutter="20">
+                <el-col :span="12">
+                    <el-card>
+                        <div slot="header">
+                            <span>{{ $t('m.Search_Problems') }}</span>
+                        </div>
+                        <el-input v-model="searchKeyword" :placeholder="$t('m.Keyword_Search')"
+                            prefix-icon="el-icon-search" @input="searchProblems">
+                        </el-input>
+                        <el-table :data="searchResults" v-loading="searchLoading" style="width: 100%; margin-top: 10px;"
+                            height="300" @row-click="selectProblem">
+                            <el-table-column prop="_id" label="ID" width="100"></el-table-column>
+                            <el-table-column prop="title" :label="$t('m.Title')"></el-table-column>
+                        </el-table>
+                        <el-pagination layout="prev, pager, next" :current-page="searchPage" :page-size="searchLimit"
+                            :total="searchTotal" @current-change="handlePageChange"
+                            style="margin-top: 10px; text-align: center;">
+                        </el-pagination>
+                    </el-card>
+                </el-col>
+                <el-col :span="12">
+                    <el-card>
+                        <div slot="header">
+                            <span>{{ $t('m.Selected_Problem') }}</span>
+                        </div>
+                        <div v-if="selectedProblem">
+                            <p><strong>ID:</strong> {{ selectedProblem._id }}</p>
+                            <p><strong>{{ $t('m.Title') }}:</strong> {{ selectedProblem.title }}</p>
+                            <el-form :model="newProblem" label-width="100px" style="margin-top: 20px;">
+                                <el-form-item :label="$t('m.Score')">
+                                    <el-input-number v-model="newProblem.score" :min="0" :max="100" />
+                                </el-form-item>
+                            </el-form>
+                        </div>
+                        <div v-else>
+                            <p>{{ $t('m.Please_select_a_problem') }}</p>
+                        </div>
+                    </el-card>
+                </el-col>
+            </el-row>
 
             <span slot="footer" class="dialog-footer">
                 <el-button @click="showAddProblemDialog = false">{{ $t('m.Cancel') }}</el-button>
-                <el-button type="primary" @click="addProblem">{{ $t('m.Submit') }}</el-button>
+                <el-button type="primary" @click="addProblem" :disabled="!selectedProblem">
+                    {{ $t('m.Submit') }}
+                </el-button>
             </span>
         </el-dialog>
 
@@ -198,6 +152,14 @@ export default {
                 average_score: 0,
                 completion_percentage: 0
             },
+            // 新增的搜索相关数据
+            searchKeyword: '',
+            searchResults: [],
+            searchLoading: false,
+            searchPage: 1,
+            searchLimit: 10,
+            searchTotal: 0,
+            selectedProblem: null
         }
     },
     created() {
@@ -243,19 +205,73 @@ export default {
         refreshAssignedStudents() {
             this.getAssignedStudents()
         },
+        // 修改搜索题目方法
+        searchProblems() {
+            this.searchPage = 1;
+            this.fetchProblems();
+        },
+        // 获取题目列表
+        fetchProblems(page = 1) {
+            this.searchLoading = true;
+            const params = {
+                keyword: this.searchKeyword,
+                offset: (page - 1) * this.searchLimit,
+                limit: this.searchLimit,
+                is_public: true  // 只获取公开题目
+            };
+
+            api.getProblemList(params).then(res => {
+                this.searchLoading = false;
+                this.searchTotal = res.data.data.total;
+                this.searchResults = res.data.data.results;
+            }).catch(() => {
+                this.searchLoading = false;
+            });
+        },
+        // 处理分页变化
+        handlePageChange(page) {
+            this.searchPage = page;
+            this.fetchProblems(page);
+        },
+        // 选择题目
+        selectProblem(row) {
+            this.selectedProblem = row;
+            this.newProblem.problem_id = row._id;
+        },
+        // 添加题目
         addProblem() {
+            if (!this.selectedProblem) {
+                this.$message({
+                    type: 'warning',
+                    message: this.$t('m.Please_select_a_problem')
+                });
+                return;
+            }
+
             api.addProblemToAssignment(this.assignmentId, this.newProblem).then(res => {
-                this.showAddProblemDialog = false
+                this.showAddProblemDialog = false;
                 this.newProblem = {
                     problem_id: '',
                     score: 0
-                }
-                this.getAssignmentProblems()
+                };
+                this.selectedProblem = null;
+                this.searchKeyword = '';
+                this.searchResults = [];
+                this.getAssignmentProblems();
                 this.$message({
                     type: 'success',
                     message: this.$t('m.Add_Successfully')
-                })
-            })
+                });
+            }).catch(err => {
+                let errorMessage = this.$t('m.Add_Failed');
+                if (err.response && err.response.data && err.response.data.data) {
+                    errorMessage = err.response.data.data;
+                }
+                this.$message({
+                    type: 'error',
+                    message: errorMessage
+                });
+            });
         },
         removeProblem(row) {
             this.$confirm(this.$t('m.Remove_Problem_Tips'), this.$t('m.Warning'), {
