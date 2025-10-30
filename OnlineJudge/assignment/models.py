@@ -48,6 +48,8 @@ class StudentAssignment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='assigned')
     assigned_time = models.DateTimeField(auto_now_add=True)
     completed_time = models.DateTimeField(blank=True, null=True)
+    score = models.FloatField(blank=True, null=True)  
+    max_score = models.FloatField(blank=True, null=True)  
     
     class Meta:
         db_table = 'student_assignment'

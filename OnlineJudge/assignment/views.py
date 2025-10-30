@@ -147,7 +147,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         # 获取所有分配给学生的作业
         total_students = StudentAssignment.objects.filter(assignment=assignment).count()
         
-        # 获取已提交的学生数（通过查询AssignmentStatistics表）
+        # 获取已提交的学生数
         submitted_students = AssignmentStatistics.objects.filter(
             assignment=assignment,
             submission_count__gt=0
@@ -165,16 +165,17 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             ).filter(solved_problems=assignment_problems.count()).count()
         
         # 平均分计算
-        avg_score = AssignmentStatistics.objects.filter(
+        avg_score_result = AssignmentStatistics.objects.filter(
             assignment=assignment
-        ).aggregate(avg_score=Avg('best_score'))['avg_score'] or 0
+        ).aggregate(avg_score=Avg('best_score'))
+        avg_score = avg_score_result['avg_score'] or 0 if avg_score_result['avg_score'] is not None else 0
         
         detailed_stats = {
             'total_students': total_students,
             'submitted_students': submitted_students,
-            'completion_rate': (submitted_students / total_students * 100) if total_students > 0 else 0,
+            'completion_rate': round((submitted_students / total_students * 100) if total_students > 0 else 0, 2),
             'completed_students': completed_students,
-            'completion_percentage': (completed_students / total_students * 100) if total_students > 0 else 0,
+            'completion_percentage': round((completed_students / total_students * 100) if total_students > 0 else 0, 2),
             'average_score': round(avg_score, 2),
         }
         
@@ -323,33 +324,44 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         """
         assignment = self.get_object()
         
-        # 获取详细统计信息
-        detailed_stats_response = self.get_detailed_statistics(request, pk)
-        detailed_stats = detailed_stats_response.data
-        
-        # 获取题目统计信息
-        problem_stats_response = self.get_problem_statistics(request, pk)
-        problem_stats = problem_stats_response.data if hasattr(problem_stats_response, 'data') else []
-        
-        # 获取学生排名
-        student_rankings_response = self.get_student_ranking(request, pk)
-        student_rankings = student_rankings_response.data if hasattr(student_rankings_response, 'data') else []
-        
-        # 组合导出数据
-        export_data = {
-            'assignment_info': {
-                'id': assignment.id,
-                'title': assignment.title,
-                'creator': assignment.creator.username,
-                'start_time': assignment.start_time,
-                'end_time': assignment.end_time
-            },
-            'summary': detailed_stats,
-            'problem_statistics': problem_stats,
-            'student_rankings': student_rankings
-        }
-        
-        return Response(export_data)
+        try:
+            # 获取详细统计信息
+            detailed_stats_response = self.get_detailed_statistics(request, pk)
+            detailed_stats = detailed_stats_response.data
+            
+            # 获取题目统计信息
+            problem_stats_response = self.get_problem_statistics(request, pk)
+            problem_stats = problem_stats_response.data if hasattr(problem_stats_response, 'data') else []
+            
+            # 获取学生排名
+            student_rankings_response = self.get_student_ranking(request, pk)
+            student_rankings = student_rankings_response.data if hasattr(student_rankings_response, 'data') else []
+            
+            # 组合导出数据
+            export_data = {
+                'assignment_info': {
+                    'id': assignment.id,
+                    'title': assignment.title,
+                    'creator': assignment.creator.username,
+                    'start_time': assignment.start_time,
+                    'end_time': assignment.end_time
+                },
+                'summary': detailed_stats,
+                'problem_statistics': problem_stats,
+                'student_rankings': student_rankings
+            }
+            
+            return Response(export_data)
+        except Exception as e:
+            # 记录错误日志
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"导出统计数据失败: {str(e)}")
+            
+            return Response(
+                {'error': '导出统计数据失败'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['get'], url_path='problems')
     def get_problems(self, request, pk=None):
@@ -867,7 +879,6 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             })
         
         return Response(problem_stats)
-    
     @action(detail=True, methods=['get'], url_path='student-ranking')
     def get_student_ranking(self, request, pk=None):
         """
@@ -882,7 +893,8 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         
         rankings = []
         for i, sa in enumerate(student_assignments):
-            if sa.score is not None:
+            # 只包含有分数的学生
+            if sa.score is not None and sa.max_score is not None:
                 rankings.append({
                     'rank': i + 1,
                     'student_id': sa.student.id,
