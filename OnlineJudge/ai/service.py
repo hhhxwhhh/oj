@@ -31,6 +31,12 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.corpus import stopwords
 from textstat import flesch_reading_ease,flesch_kincaid_grade
 import logging
+import torch
+import torch.nn as nn  
+import torch.nn.functional as F
+from torch_geometric.nn import GCNConv, GATConv
+from torch_geometric.data import Data
+import numpy as np 
 logger = logging.getLogger(__name__)
 
 def setup_nltk_environment():
@@ -2075,7 +2081,6 @@ class KnowledgePointService:
             tags = problem.tags.all()
             
             for tag in tags:
-                # 创建或获取知识点
                 kp, created = KnowledgePoint.objects.get_or_create(
                     name=tag.name,
                     defaults={
@@ -2088,9 +2093,52 @@ class KnowledgePointService:
                 # 关联题目到知识点
                 kp.related_problems.add(problem)
                 
+                # 更新知识点频率
+                kp.frequency = kp.related_problems.count()
+                kp.save()
+                
             return True
         except Exception as e:
             logger.error(f"Failed to create knowledge points from tags: {str(e)}")
+            return False
+        
+    @staticmethod
+    def update_knowledge_point_metrics():
+        """
+        更新知识点的重要性和频率指标
+        """
+        try:
+            from .models import KnowledgePoint
+            from problem.models import Problem
+            
+            # 更新所有知识点的频率
+            for kp in KnowledgePoint.objects.all():
+                kp.frequency = kp.related_problems.count()
+                kp.save()
+            
+            # 计算知识点重要性（基于相关题目的通过率等指标）
+            for kp in KnowledgePoint.objects.all():
+                related_problems = kp.related_problems.all()
+                if related_problems.exists():
+                    # 计算平均通过率
+                    total_accepted = sum(p.accepted_number for p in related_problems)
+                    total_submissions = sum(p.submission_number for p in related_problems)
+                    
+                    if total_submissions > 0:
+                        avg_acceptance_rate = total_accepted / total_submissions
+                        kp.importance = 1 - avg_acceptance_rate
+                    else:
+                        kp.importance = 1.0
+                else:
+                    kp.importance = 1.0
+                
+                kp.save()
+                
+            logger.info("知识点指标更新完成")
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新知识点指标失败: {str(e)}")
             return False
 
     
@@ -3918,3 +3966,246 @@ class AbilityAssessmentService:
             ability.level = 'intermediate'
         else:
             ability.level = 'beginner'
+
+
+class KnowledgeGraphGNN(nn.Module):
+    """基于图神经网络的知识图谱"""
+    def __init__(self,num_features,hidden_num,num_classes,num_layers=2,dropout=0.5):
+        super(KnowledgeGraphGNN, self).__init__()
+        self.num_layers=num_layers
+        self.dropout=dropout
+
+        # 定义图卷积层
+        self.convs=nn.ModuleList()
+        self.convs.append(GCNConv(num_features,hidden_num))
+
+        for _ in range(num_layers-2):
+            self.convs.append(GCNConv(hidden_num,hidden_num))
+
+        self.bns=nn.ModuleList()
+        for _ in range(num_layers-1):
+            self.bns.append(nn.BatchNorm1d(hidden_num))
+
+        self.classifier=nn.Linear(num_classes,num_classes)
+
+    def forward(self,x,edge_index):
+        for i ,conv in enumerate(self.convs[:-1]):
+            x=conv(x,edge_index)
+            x=self.bns[i](x)
+            x=F.relu(x)
+            x=F.dropout(x,p=self.dropout,training=self.training)
+
+        x=self.convs[-1](x,edge_index)
+        x=self.classifier(x)
+        return F.log_softmax(x,dim=1)
+
+
+class KnowledgeGraphGAT(nn.Module):
+    """基于图注意力网络的知识点关系建模"""
+    def __init__(self, num_features, hidden_dim, num_classes, num_heads=4, num_layers=2, dropout=0.5):
+        super(KnowledgeGraphGAT, self).__init__()
+        self.num_layers = num_layers
+        self.dropout=dropout
+        self.convs=nn.ModuleList()
+        self.convs.append(GATConv(num_features,hidden_dim,num_heads,concat=True,dropout=dropout))
+        
+        for _ in range(num_layers-2):
+            self.convs.append(GATConv(hidden_dim*num_heads,hidden_dim,num_heads,concat=True,dropout=dropout))
+        
+        self.convs.append(GATConv(hidden_dim*num_heads,num_classes,heads=1,concat=False,dropout=dropout))
+
+    def forward(self,x,edge_index):
+        for i,conv in enumerate(self.convs[:-1]):
+            x=conv(x,edge_index)
+            x=F.relu(x)
+            x=F.dropout(x,p=self.dropout,training=self.training)
+        x=self.convs[-1](x,edge_index)
+        return F.log_softmax(x,dim=1)
+
+class KnowledgeGraphService:
+    """基于图神经网络的知识点服务"""
+    @staticmethod
+    def build_knowledge_graph():
+        """完成图知识点的结构构建"""
+        from .models import KnowledgePoint
+
+        knowledge_points=KnowledgePoint.objects.all()
+        kp_list=list(knowledge_points)
+        node_features=[]
+
+        for kp in kp_list:
+            features = [
+                kp.difficulty / 5.0,  
+                kp.importance,
+                kp.frequency / (kp.frequency + 1),  
+                len(kp.parent_points.all()) / 10.0,  
+                len(kp.related_problems.all()) / 50.0,  
+                kp.weight
+            ]
+            node_features.append(features)
+
+        if node_features:
+            x=torch.tensor(node_features,dtype=torch.float32)
+        else:
+            x = torch.empty((0, 6), dtype=torch.float32)
+        edge_index = []
+        kp_id_to_index = {kp.id: idx for idx, kp in enumerate(kp_list)}
+        
+        for idx, kp in enumerate(kp_list):
+            for parent_kp in kp.parent_points.all():
+                if parent_kp.id in kp_id_to_index:
+                    parent_idx = kp_id_to_index[parent_kp.id]
+                    edge_index.append([parent_idx, idx])  
+
+        if edge_index:
+            edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+        else:
+            edge_index = torch.empty((2, 0), dtype=torch.long)
+
+        data=Data(x=x,edge_index=edge_index)
+        return data,kp_list,kp_id_to_index
+
+
+    @staticmethod
+    def train_gnn_model(epochs=100,lr=0.01,hidden_dim=64,model_type='gcn'):
+        try:
+            # 构建知识图谱
+            data, kp_list, kp_id_to_index = KnowledgeGraphService.build_knowledge_graph()
+            
+            if data.x.size(0) == 0 or data.edge_index.size(1) == 0:
+                logger.warning("知识图谱为空，无法训练GNN模型")
+                return None
+            
+            # 初始化模型
+            num_features = data.x.size(1)
+            num_classes = max(5, len(kp_list))  
+            
+            if model_type == 'gat':
+                model = KnowledgeGraphGAT(num_features, hidden_dim, num_classes)
+            else:
+                model = KnowledgeGraphGNN(num_features, hidden_dim, num_classes)
+            
+            # 优化器
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+            
+            # 训练模型
+            model.train()
+            for epoch in range(epochs):
+                optimizer.zero_grad()
+                out = model(data.x, data.edge_index)
+            
+                loss = F.mse_loss(out, data.x)  # 简单的重构损失
+                
+                loss.backward()
+                optimizer.step()
+                
+                if epoch % 20 == 0:
+                    logger.info(f'Epoch {epoch}, Loss: {loss.item()}')
+            
+            # 保存模型
+            model_path = 'ai/dl_models/gnn/knowledge_graph_model.pth'
+            import os
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            torch.save(model.state_dict(), model_path)
+            
+            # 生成并保存节点嵌入
+            model.eval()
+            with torch.no_grad():
+                embeddings = model(data.x, data.edge_index)
+                
+            # 更新知识点的嵌入表示
+            for idx, kp in enumerate(kp_list):
+                embedding_str = ','.join([str(x) for x in embeddings[idx].tolist()])
+                kp.embedding = embedding_str
+                kp.save()
+            
+            logger.info("GNN模型训练完成")
+            return model
+            
+        except Exception as e:
+            logger.error(f"GNN模型训练失败: {str(e)}")
+            return None
+        
+    @staticmethod
+    def get_knowledge_similarity(kp1_id, kp2_id):
+        """
+        计算两个知识点之间的相似度
+        """
+        try:
+            from .models import KnowledgePoint
+            
+            kp1 = KnowledgePoint.objects.get(id=kp1_id)
+            kp2 = KnowledgePoint.objects.get(id=kp2_id)
+            
+            if not kp1.embedding or not kp2.embedding:
+                return KnowledgeGraphService._calculate_traditional_similarity(kp1, kp2)
+            
+            # 解析嵌入向量
+            emb1 = np.array([float(x) for x in kp1.embedding.split(',')])
+            emb2 = np.array([float(x) for x in kp2.embedding.split(',')])
+            
+            # 计算余弦相似度
+            similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
+            return float(similarity)
+            
+        except Exception as e:
+            logger.error(f"计算知识点相似度失败: {str(e)}")
+            return 0.0
+        
+    @staticmethod
+    def _calculate_traditional_similarity(kp1, kp2):
+        """
+        使用传统方法计算知识点相似度
+        """
+        # 基于难度的相似度
+        difficulty_sim = 1 - abs(kp1.difficulty - kp2.difficulty) / 5.0
+        
+        # 基于类别的相似度
+        category_sim = 1.0 if kp1.category == kp2.category else 0.0
+        
+        # 基于共同前置知识点的相似度
+        kp1_parents = set(kp1.parent_points.values_list('id', flat=True))
+        kp2_parents = set(kp2.parent_points.values_list('id', flat=True))
+        if kp1_parents or kp2_parents:
+            common_parents = len(kp1_parents.intersection(kp2_parents))
+            total_parents = len(kp1_parents.union(kp2_parents))
+            parent_sim = common_parents / total_parents if total_parents > 0 else 0
+        else:
+            parent_sim = 0
+        
+        # 综合相似度
+        similarity = 0.4 * difficulty_sim + 0.3 * category_sim + 0.3 * parent_sim
+        return similarity
+    
+    @staticmethod
+    def recommend_related_knowledge_points(knowledge_point_id, top_k=5):
+        """
+        基于GNN推荐相关的知识点
+        """
+        try:
+            from .models import KnowledgePoint
+            
+            # 获取目标知识点
+            target_kp = KnowledgePoint.objects.get(id=knowledge_point_id)
+            
+            # 获取所有知识点
+            all_kps = KnowledgePoint.objects.exclude(id=knowledge_point_id)
+            
+            # 计算相似度
+            similarities = []
+            for kp in all_kps:
+                similarity = KnowledgeGraphService.get_knowledge_similarity(knowledge_point_id, kp.id)
+                similarities.append((kp, similarity))
+            
+            # 按相似度排序
+            similarities.sort(key=lambda x: x[1], reverse=True)
+            
+            return similarities[:top_k]
+            
+        except Exception as e:
+            logger.error(f"推荐相关知识点失败: {str(e)}")
+            return []
+
+
+
+

@@ -20,7 +20,7 @@ from .serializers import (
 from .service import( 
     AIService,AIRecommendationService,AILearningPathService,
     AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService,
-    AIProgrammingAbilityService,AIProgrammingAbility,NLPProblemAnalyzer)
+    AIProgrammingAbilityService,AIProgrammingAbility,NLPProblemAnalyzer,KnowledgeGraphGAT,KnowledgeGraphGNN,KnowledgeGraphService,)
 from submission.models import Submission
 from account.models import User,UserProfile
 from problem.models import Problem
@@ -1258,3 +1258,122 @@ class AINLPAnalysisAPI(APIView):
             return self.error("Problem not found")
         except Exception as e:
             return self.error(str(e))
+class DLModelTrainingAPI(APIView):
+    """
+    深度学习模型训练API
+    """
+    
+    def post(self, request):
+        """
+        触发深度学习模型训练
+        """
+        try:
+            from .service import AIProgrammingAbilityService
+            ability_model = AIProgrammingAbilityService._train_dl_ability_model()
+            
+            from .service import AIRecommendationService
+            recommendation_model = AIRecommendationService._train_dl_recommendation_model()
+            
+            # 训练知识点图神经网络模型
+            from .service import KnowledgeGraphService
+            gnn_model = KnowledgeGraphService.train_gnn_model()
+            
+            return self.success({
+                "message": "深度学习模型训练完成",
+                "ability_model_trained": ability_model is not None,
+                "recommendation_model_trained": recommendation_model is not None,
+                "knowledge_graph_model_trained": gnn_model is not None
+            })
+        except Exception as e:
+            logger.error(f"深度学习模型训练失败: {str(e)}")
+            return self.error("模型训练失败")
+        
+
+class KnowledgeGraphAPI(APIView):
+    @admin_role_required
+    def post(self, request):
+        """
+        训练知识点图神经网络模型
+        """
+        try:
+            model_type = request.data.get('model_type', 'gcn')  # 'gcn' 或 'gat'
+            epochs = request.data.get('epochs', 100)
+            hidden_dim = request.data.get('hidden_dim', 64)
+            lr = request.data.get('learning_rate', 0.01)
+            
+            from .service import KnowledgeGraphService
+            model = KnowledgeGraphService.train_gnn_model(
+                epochs=epochs,
+                lr=lr,
+                hidden_dim=hidden_dim,
+                model_type=model_type
+            )
+            
+            if model:
+                return self.success({
+                    "message": "知识点图神经网络模型训练成功",
+                    "model_type": model_type
+                })
+            else:
+                return self.error("模型训练失败")
+                
+        except Exception as e:
+            logger.error(f"知识点图神经网络模型训练失败: {str(e)}")
+            return self.error("模型训练失败")
+    
+    @login_required
+    def get(self, request):
+        """
+        获取知识点相似度
+        """
+        try:
+            kp1_id = request.GET.get('kp1_id')
+            kp2_id = request.GET.get('kp2_id')
+            
+            if not kp1_id or not kp2_id:
+                return self.error("参数错误")
+            
+            from .service import KnowledgeGraphService
+            similarity = KnowledgeGraphService.get_knowledge_similarity(int(kp1_id), int(kp2_id))
+            
+            return self.success({
+                "similarity": similarity
+            })
+            
+        except Exception as e:
+            logger.error(f"计算知识点相似度失败: {str(e)}")
+            return self.error("计算失败")
+    
+    @login_required
+    def post(self, request):
+        """
+        推荐相关知识点
+        """
+        try:
+            knowledge_point_id = request.data.get('knowledge_point_id')
+            top_k = request.data.get('top_k', 5)
+            
+            if not knowledge_point_id:
+                return self.error("参数错误")
+            
+            from .service import KnowledgeGraphService
+            recommendations = KnowledgeGraphService.recommend_related_knowledge_points(
+                int(knowledge_point_id), top_k
+            )
+            
+            result = []
+            for kp, similarity in recommendations:
+                result.append({
+                    'id': kp.id,
+                    'name': kp.name,
+                    'description': kp.description,
+                    'similarity': similarity,
+                    'difficulty': kp.difficulty,
+                    'category': kp.category
+                })
+            
+            return self.success(result)
+            
+        except Exception as e:
+            logger.error(f"推荐相关知识点失败: {str(e)}")
+            return self.error("推荐失败")

@@ -32,3 +32,4 @@ torch==2.0.1
 jieba==0.42.1
 nltk==3.6.5
 textstat==0.7.3
+torch_geometric==2.7.0

@@ -132,6 +132,10 @@ class KnowledgePoint(models.Model):
     create_time = models.DateTimeField(auto_now_add=True)
     # 推荐权重字段，默认为1.0
     weight = models.FloatField(default=1.0, help_text="推荐权重")
+
+    embedding = models.TextField(blank=True, help_text="知识点的向量表示")
+    importance = models.FloatField(default=1.0, help_text="知识点重要性")
+    frequency = models.IntegerField(default=0, help_text="知识点在题目中出现的频率")
     
     class Meta:
         db_table = 'ai_knowledge_point'
