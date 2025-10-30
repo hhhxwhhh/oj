@@ -145,25 +145,23 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         assignment = self.get_object()
         
         # 获取所有分配给学生的作业
-        student_assignments = StudentAssignment.objects.filter(assignment=assignment)
-        total_students = student_assignments.count()
+        total_students = StudentAssignment.objects.filter(assignment=assignment).count()
         
-        # 获取已提交的学生数
-        submitted_students = student_assignments.filter(
-            assignmentstatistics__submission_count__gt=0
-        ).distinct().count()
+        # 获取已提交的学生数（通过查询AssignmentStatistics表）
+        submitted_students = AssignmentStatistics.objects.filter(
+            assignment=assignment,
+            submission_count__gt=0
+        ).values('student').distinct().count()
         
         # 获取已完成的学生数 (所有题目都已通过)
         assignment_problems = AssignmentProblem.objects.filter(assignment=assignment)
         completed_students = 0
         if assignment_problems.exists():
-            completed_students = student_assignments.filter(
-                assignmentstatistics__accepted_count__gt=0
-            ).annotate(
-                solved_problems=Count(
-                    'assignmentstatistics', 
-                    filter=Q(assignmentstatistics__accepted_count__gt=0)
-                )
+            completed_students = AssignmentStatistics.objects.filter(
+                assignment=assignment,
+                accepted_count__gt=0
+            ).values('student').annotate(
+                solved_problems=Count('id')
             ).filter(solved_problems=assignment_problems.count()).count()
         
         # 平均分计算
@@ -181,6 +179,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         }
         
         return Response(detailed_stats)
+
     
 
     @action(detail=True, methods=['get'], url_path='problem-difficulty-statistics')
