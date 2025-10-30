@@ -791,11 +791,8 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         })
     @action(detail=True, methods=['get'], url_path='export-report')
     def export_report(self, request, pk=None):
-        """
-        导出详细的作业报告（Excel格式数据）
-        """
         assignment = self.get_object()
-        
+    
         # 获取作业基本信息
         assignment_info = {
             'id': assignment.id,
@@ -819,13 +816,21 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         
         # 获取学生作业信息
         student_assignments = StudentAssignment.objects.filter(assignment=assignment).select_related('student')
+        
+        all_stats = AssignmentStatistics.objects.filter(
+            assignment=assignment
+        ).select_related('problem')
+        
+        # 将统计数据按照学生进行分组
+        from collections import defaultdict
+        student_stats = defaultdict(list)
+        for stat in all_stats:
+            student_stats[stat.student_id].append(stat)
+        
         students_data = []
         for sa in student_assignments:
             # 获取该学生的题目完成情况
-            stats = AssignmentStatistics.objects.filter(
-                assignment=assignment,
-                student=sa.student
-            )
+            stats = student_stats.get(sa.student.id, [])
             
             problem_details = []
             for stat in stats:
