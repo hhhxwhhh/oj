@@ -359,7 +359,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         serializer = AssignmentProblemSerializer(problems, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], url_path='problems')
+    @action(detail=True, methods=['post'], url_path='add-problem')
     def add_problem(self, request, pk=None):
         assignment = self.get_object()
         problem_id = request.data.get('problem_id')
@@ -380,6 +380,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Problem.DoesNotExist:
             return Response({'error': '题目不存在'}, status=status.HTTP_404_NOT_FOUND)
+    
     
     @action(detail=True, methods=['delete'], url_path='problems/(?P<problem_id>[^/.]+)')
     def remove_problem(self, request, pk=None, problem_id=None):
@@ -828,6 +829,72 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         }
         
         return Response(export_data)
+
+    @action(detail=True, methods=['get'], url_path='problem-statistics')
+    def get_problem_statistics(self, request, pk=None):
+        """
+        获取题目的统计信息
+        """
+        assignment = self.get_object()
+        
+        # 获取作业中的所有题目
+        assignment_problems = AssignmentProblem.objects.filter(assignment=assignment).select_related('problem')
+        
+        problem_stats = []
+        for ap in assignment_problems:
+            problem = ap.problem
+            
+            # 获取这道题的所有提交统计
+            stats = AssignmentStatistics.objects.filter(
+                assignment=assignment,
+                problem=problem
+            )
+            
+            total_submissions = stats.count()
+            accepted_submissions = stats.filter(accepted_count__gt=0).count()
+            
+            # 计算平均分
+            avg_score = stats.aggregate(avg=Avg('best_score'))['avg'] or 0
+            
+            acceptance_rate = (accepted_submissions / total_submissions * 100) if total_submissions > 0 else 0
+            
+            problem_stats.append({
+                'problem_id': problem._id,
+                'problem_title': problem.title,
+                'total_submissions': total_submissions,
+                'accepted_submissions': accepted_submissions,
+                'acceptance_rate': round(acceptance_rate, 2),
+                'average_score': round(avg_score, 2)
+            })
+        
+        return Response(problem_stats)
+    
+    @action(detail=True, methods=['get'], url_path='student-ranking')
+    def get_student_ranking(self, request, pk=None):
+        """
+        获取学生排名
+        """
+        assignment = self.get_object()
+        
+        # 获取所有学生作业
+        student_assignments = StudentAssignment.objects.filter(
+            assignment=assignment
+        ).select_related('student').order_by('-score')
+        
+        rankings = []
+        for i, sa in enumerate(student_assignments):
+            if sa.score is not None:
+                rankings.append({
+                    'rank': i + 1,
+                    'student_id': sa.student.id,
+                    'student_username': sa.student.username,
+                    'student_real_name': sa.student.real_name or '',
+                    'score': sa.score,
+                    'max_score': sa.max_score,
+                    'percentage': round((sa.score / sa.max_score) * 100, 2) if sa.max_score and sa.max_score > 0 else 0
+                })
+        
+        return Response(rankings)
 
 
 

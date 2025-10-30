@@ -280,5 +280,6 @@ export const m = {
   Solved_Problems_Count: "Solved Problems",
   Completion_Rate: "Completion Rate",
   Student_Progress_Detail: "Student Progress Detail",
-  View_Progress: "View Progress"
+  View_Progress: "View Progress",
+  Detail: "Detail"
 };
