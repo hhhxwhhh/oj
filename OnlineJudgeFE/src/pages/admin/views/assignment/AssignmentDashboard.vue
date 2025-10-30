@@ -130,7 +130,7 @@
                             <el-table-column prop="average_score" label="平均分" width="100" sortable align="center">
                                 <template slot-scope="scope">
                                     <span :class="getScoreClass(scope.row.average_score)">{{ scope.row.average_score
-                                        }}</span>
+                                    }}</span>
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -369,14 +369,69 @@ export default {
             this.$router.go(-1)
         },
         exportData() {
-            api.exportAssignmentStatistics(this.assignmentId).then(res => {
-                // 这里可以实现导出功能，比如生成CSV文件
-                const data = res.data.data
-                console.log('导出数据:', data)
-                this.$message.success('数据导出成功（模拟）')
+            // 获取所有需要导出的数据
+            Promise.all([
+                api.getAssignment(this.assignmentId),
+                api.getAssignmentDetailedStatistics(this.assignmentId),
+                api.getAssignmentTopPerformingStudents(this.assignmentId),
+                api.getAssignmentProblemStatistics(this.assignmentId)
+            ]).then(responses => {
+                const assignment = responses[0].data.data;
+                const statistics = responses[1].data.data;
+                const topStudents = responses[2].data.data;
+                const problemStats = responses[3].data.data;
+
+                // 构造CSV内容
+                let csvContent = '\uFEFF'; // 添加BOM以支持中文
+
+                // 作业信息
+                csvContent += '作业分析报告\n';
+                csvContent += `作业名称: ${assignment.title}\n`;
+                csvContent += `创建者: ${assignment.creator_username}\n`;
+                csvContent += `开始时间: ${assignment.start_time}\n`;
+                csvContent += `结束时间: ${assignment.end_time}\n`;
+                csvContent += `规则类型: ${assignment.rule_type}\n`;
+                csvContent += '\n';
+
+                // 统计概览
+                csvContent += '统计概览\n';
+                csvContent += '总学生数,已提交学生,平均分,完成率\n';
+                csvContent += `${statistics.total_students},${statistics.submitted_students},${statistics.average_score},${statistics.completion_percentage}%\n`;
+                csvContent += '\n';
+
+                // 表现最好的学生
+                csvContent += '表现最好的学生(Top 10)\n';
+                csvContent += '用户名,姓名,总分,解决题目数,完成率\n';
+                topStudents.forEach(student => {
+                    csvContent += `${student.student_username},${student.student_real_name},${student.total_score},${student.solved_problems},${student.completion_rate}%\n`;
+                });
+                csvContent += '\n';
+
+                // 题目统计
+                csvContent += '题目统计\n';
+                csvContent += '题目ID,题目名称,通过率,平均分\n';
+                problemStats.forEach(problem => {
+                    csvContent += `${problem.problem_id},"${problem.problem_title}",${problem.acceptance_rate}%,${problem.average_score}\n`;
+                });
+
+                // 创建并下载CSV文件
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+
+                const fileName = `作业分析_${assignment.title}_${new Date().toISOString().slice(0, 10)}.csv`;
+                link.setAttribute('href', url);
+                link.setAttribute('download', fileName);
+                link.style.visibility = 'hidden';
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                this.$message.success('数据导出成功');
             }).catch(() => {
-                this.$message.error('数据导出失败')
-            })
+                this.$message.error('数据导出失败');
+            });
         },
         getAcceptanceRateType(rate) {
             const rateValue = parseFloat(rate);
