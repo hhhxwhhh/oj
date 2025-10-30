@@ -10,9 +10,11 @@
             <!-- 统计概览卡片 -->
             <el-row :gutter="20" class="summary-cards">
                 <el-col :span="6">
-                    <el-card class="summary-card">
+                    <el-card class="summary-card" shadow="hover">
                         <div class="summary-content">
-                            <i class="el-icon-user summary-icon"></i>
+                            <div class="summary-icon bg-blue">
+                                <i class="el-icon-user"></i>
+                            </div>
                             <div class="summary-text">
                                 <p class="summary-value">{{ summary.total_students }}</p>
                                 <p class="summary-label">总学生数</p>
@@ -21,9 +23,11 @@
                     </el-card>
                 </el-col>
                 <el-col :span="6">
-                    <el-card class="summary-card">
+                    <el-card class="summary-card" shadow="hover">
                         <div class="summary-content">
-                            <i class="el-icon-upload summary-icon"></i>
+                            <div class="summary-icon bg-green">
+                                <i class="el-icon-upload"></i>
+                            </div>
                             <div class="summary-text">
                                 <p class="summary-value">{{ summary.submitted_students }}</p>
                                 <p class="summary-label">已提交学生</p>
@@ -32,9 +36,11 @@
                     </el-card>
                 </el-col>
                 <el-col :span="6">
-                    <el-card class="summary-card">
+                    <el-card class="summary-card" shadow="hover">
                         <div class="summary-content">
-                            <i class="el-icon-star-on summary-icon"></i>
+                            <div class="summary-icon bg-yellow">
+                                <i class="el-icon-star-on"></i>
+                            </div>
                             <div class="summary-text">
                                 <p class="summary-value">{{ summary.average_score }}</p>
                                 <p class="summary-label">平均分</p>
@@ -43,9 +49,11 @@
                     </el-card>
                 </el-col>
                 <el-col :span="6">
-                    <el-card class="summary-card">
+                    <el-card class="summary-card" shadow="hover">
                         <div class="summary-content">
-                            <i class="el-icon-check summary-icon"></i>
+                            <div class="summary-icon bg-purple">
+                                <i class="el-icon-check"></i>
+                            </div>
                             <div class="summary-text">
                                 <p class="summary-value">{{ summary.completion_percentage }}%</p>
                                 <p class="summary-label">完成率</p>
@@ -58,17 +66,17 @@
             <!-- 图表区域 -->
             <el-row :gutter="20" class="chart-section">
                 <el-col :span="12">
-                    <el-card class="chart-card">
-                        <div slot="header">
-                            <span>题目难度分析</span>
+                    <el-card class="chart-card" shadow="hover">
+                        <div slot="header" class="card-header">
+                            <span class="card-title">题目难度分析</span>
                         </div>
                         <div ref="difficultyChart" class="chart-container"></div>
                     </el-card>
                 </el-col>
                 <el-col :span="12">
-                    <el-card class="chart-card">
-                        <div slot="header">
-                            <span>学生表现趋势</span>
+                    <el-card class="chart-card" shadow="hover">
+                        <div slot="header" class="card-header">
+                            <span class="card-title">学生表现趋势</span>
                         </div>
                         <div ref="trendChart" class="chart-container"></div>
                     </el-card>
@@ -78,37 +86,53 @@
             <!-- 排名和统计数据 -->
             <el-row :gutter="20" class="data-section">
                 <el-col :span="12">
-                    <el-card class="data-card">
-                        <div slot="header">
-                            <span>表现最好的学生（Top 10）</span>
+                    <el-card class="data-card" shadow="hover">
+                        <div slot="header" class="card-header">
+                            <span class="card-title">表现最好的学生（Top 10）</span>
                         </div>
-                        <el-table :data="topStudents" style="width: 100%">
-                            <el-table-column prop="student_username" label="用户名"></el-table-column>
-                            <el-table-column prop="student_real_name" label="姓名"></el-table-column>
-                            <el-table-column prop="total_score" label="总分" sortable></el-table-column>
-                            <el-table-column prop="solved_problems" label="解决题目数" sortable></el-table-column>
-                            <el-table-column prop="completion_rate" label="完成率(%)" sortable>
+                        <el-table :data="topStudents" style="width: 100%" stripe
+                            :header-cell-style="{ background: '#f5f7fa' }">
+                            <el-table-column prop="student_username" label="用户名" width="120"></el-table-column>
+                            <el-table-column prop="student_real_name" label="姓名" width="120"></el-table-column>
+                            <el-table-column prop="total_score" label="总分" width="100" sortable
+                                align="center"></el-table-column>
+                            <el-table-column prop="solved_problems" label="解决题目数" width="120" sortable
+                                align="center"></el-table-column>
+                            <el-table-column prop="completion_rate" label="完成率(%)" width="120" sortable align="center">
                                 <template slot-scope="scope">
-                                    {{ scope.row.completion_rate }}%
+                                    <el-progress :percentage="parseFloat(scope.row.completion_rate)" :show-text="false"
+                                        :stroke-width="10">
+                                    </el-progress>
+                                    <div class="completion-text">{{ scope.row.completion_rate }}%</div>
                                 </template>
                             </el-table-column>
                         </el-table>
                     </el-card>
                 </el-col>
                 <el-col :span="12">
-                    <el-card class="data-card">
-                        <div slot="header">
-                            <span>题目统计</span>
+                    <el-card class="data-card" shadow="hover">
+                        <div slot="header" class="card-header">
+                            <span class="card-title">题目统计</span>
                         </div>
-                        <el-table :data="problemStats" style="width: 100%">
-                            <el-table-column prop="problem_id" label="题目ID" width="100"></el-table-column>
-                            <el-table-column prop="problem_title" label="题目名称"></el-table-column>
-                            <el-table-column prop="acceptance_rate" label="通过率(%)" width="100" sortable>
+                        <el-table :data="problemStats" style="width: 100%" stripe
+                            :header-cell-style="{ background: '#f5f7fa' }">
+                            <el-table-column prop="problem_id" label="题目ID" width="100"
+                                align="center"></el-table-column>
+                            <el-table-column prop="problem_title" label="题目名称" min-width="150"
+                                show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="acceptance_rate" label="通过率(%)" width="120" sortable align="center">
                                 <template slot-scope="scope">
-                                    {{ scope.row.acceptance_rate }}%
+                                    <el-tag :type="getAcceptanceRateType(scope.row.acceptance_rate)">
+                                        {{ scope.row.acceptance_rate }}%
+                                    </el-tag>
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="average_score" label="平均分" width="100" sortable></el-table-column>
+                            <el-table-column prop="average_score" label="平均分" width="100" sortable align="center">
+                                <template slot-scope="scope">
+                                    <span :class="getScoreClass(scope.row.average_score)">{{ scope.row.average_score
+                                        }}</span>
+                                </template>
+                            </el-table-column>
                         </el-table>
                     </el-card>
                 </el-col>
@@ -224,7 +248,14 @@ export default {
                         }
                     },
                     legend: {
-                        data: ['通过率', '平均分']
+                        data: ['通过率', '平均分'],
+                        top: '5%'
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
                     },
                     xAxis: {
                         type: 'category',
@@ -248,13 +279,21 @@ export default {
                             name: '通过率',
                             type: 'bar',
                             data: acceptanceRates,
-                            yAxisIndex: 0
+                            yAxisIndex: 0,
+                            barGap: '0%',
+                            itemStyle: {
+                                color: '#409EFF'
+                            }
                         },
                         {
                             name: '平均分',
                             type: 'line',
                             data: avgScores,
-                            yAxisIndex: 1
+                            yAxisIndex: 1,
+                            smooth: true,
+                            itemStyle: {
+                                color: '#67C23A'
+                            }
                         }
                     ]
                 }
@@ -273,7 +312,14 @@ export default {
                         trigger: 'axis'
                     },
                     legend: {
-                        data: ['提交数', '通过率']
+                        data: ['提交数', '通过率'],
+                        top: '5%'
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
                     },
                     xAxis: {
                         type: 'category',
@@ -297,13 +343,21 @@ export default {
                             name: '提交数',
                             type: 'line',
                             data: submissions,
-                            yAxisIndex: 0
+                            yAxisIndex: 0,
+                            smooth: true,
+                            itemStyle: {
+                                color: '#E6A23C'
+                            }
                         },
                         {
                             name: '通过率',
                             type: 'line',
                             data: acceptanceRates,
-                            yAxisIndex: 1
+                            yAxisIndex: 1,
+                            smooth: true,
+                            itemStyle: {
+                                color: '#67C23A'
+                            }
                         }
                     ]
                 }
@@ -323,6 +377,19 @@ export default {
             }).catch(() => {
                 this.$message.error('数据导出失败')
             })
+        },
+        getAcceptanceRateType(rate) {
+            const rateValue = parseFloat(rate);
+            if (rateValue >= 80) return 'success';
+            if (rateValue >= 60) return 'warning';
+            return 'danger';
+        },
+        getScoreClass(score) {
+            const scoreValue = parseFloat(score);
+            if (scoreValue >= 90) return 'high-score';
+            if (scoreValue >= 70) return 'medium-score';
+            if (scoreValue >= 60) return 'low-score';
+            return 'fail-score';
         }
     }
 }
@@ -350,33 +417,66 @@ export default {
 
 .summary-card {
     height: 120px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .summary-content {
     display: flex;
     align-items: center;
     height: 100%;
+    padding: 20px;
 }
 
 .summary-icon {
-    font-size: 36px;
-    color: #409EFF;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
     margin-right: 20px;
+}
+
+.bg-blue {
+    background: linear-gradient(135deg, #409EFF, #1a73e8);
+}
+
+.bg-green {
+    background: linear-gradient(135deg, #67C23A, #43a047);
+}
+
+.bg-yellow {
+    background: linear-gradient(135deg, #E6A23C, #ef9a2a);
+}
+
+.bg-purple {
+    background: linear-gradient(135deg, #909399, #7b7b7b);
 }
 
 .summary-text {
     text-align: center;
+    flex: 1;
 }
 
 .summary-value {
-    font-size: 24px;
+    font-size: 28px;
     font-weight: bold;
     margin: 0;
+    color: #303133;
 }
 
 .summary-label {
     margin: 5px 0 0 0;
-    color: #999;
+    color: #909399;
+    font-size: 14px;
 }
 
 .chart-section,
@@ -386,11 +486,51 @@ export default {
 
 .chart-card,
 .data-card {
-    height: 400px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-title {
+    font-weight: bold;
+    font-size: 16px;
+    color: #303133;
 }
 
 .chart-container {
     width: 100%;
     height: 300px;
+}
+
+.completion-text {
+    text-align: center;
+    font-size: 12px;
+    color: #606266;
+    margin-top: 5px;
+}
+
+.high-score {
+    color: #67C23A;
+    font-weight: bold;
+}
+
+.medium-score {
+    color: #E6A23C;
+    font-weight: bold;
+}
+
+.low-score {
+    color: #F56C6C;
+    font-weight: bold;
+}
+
+.fail-score {
+    color: #909399;
+    font-weight: bold;
 }
 </style>
