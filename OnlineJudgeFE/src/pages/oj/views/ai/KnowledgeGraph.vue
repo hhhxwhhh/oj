@@ -212,9 +212,8 @@ export default {
             selectedNodeDetail: null,
             nodeDetailModalVisible: false,
             zoomLevel: 1,
-            colorMode: 'proficiency', // 默认使用掌握状态着色
+            colorMode: 'proficiency',
 
-            // 新增GNN相关数据
             similarPoints: [],
             similarPointsLoading: false,
             similarPointsModalVisible: false,
@@ -296,6 +295,15 @@ export default {
                     return
                 }
 
+                // 检查节点中的embedding数据
+                console.log('获取到的节点数量:', this.graphData.nodes.length);
+                const nodesWithEmbedding = this.graphData.nodes.filter(node => node.embedding).length;
+                console.log('包含embedding数据的节点数量:', nodesWithEmbedding);
+
+                if (this.graphData.nodes.length > 0) {
+                    console.log('第一个节点的embedding:', this.graphData.nodes[0].embedding);
+                }
+
                 // 确保节点ID为字符串类型
                 this.graphData.nodes = this.graphData.nodes.map(node => ({
                     ...node,
@@ -318,7 +326,6 @@ export default {
                 this.$error('获取知识点图谱数据失败: ' + (err.message || err))
             }
         },
-
         renderGraph() {
             const chartDom = document.getElementById('knowledge-graph')
             if (!chartDom) {
@@ -330,7 +337,6 @@ export default {
                 this.chart.dispose()
             }
 
-            console.log('初始化图表容器...')
             this.chart = echarts.init(chartDom)
 
             // 根据着色模式为节点分配颜色
@@ -429,11 +435,11 @@ export default {
                     type: 'graph',
                     layout: 'force',
                     force: {
-                        repulsion: repulsion,  // 根据节点数量动态调整斥力
+                        repulsion: repulsion,
                         gravity: 0.1,
-                        edgeLength: edgeLength,  // 根据节点数量动态调整边长度
+                        edgeLength: edgeLength,
                         layoutAnimation: true,
-                        preventOverlap: true  // 防止节点重叠
+                        preventOverlap: true
                     },
                     data: nodesWithColors,
                     links: this.graphData.edges,
@@ -468,13 +474,23 @@ export default {
                 }]
             }
 
-            console.log('设置图表配置...')
             this.chart.setOption(option)
-
             // 监听节点点击事件
             this.chart.on('click', (params) => {
                 if (params.dataType === 'node') {
-                    this.showNodeDetail(params.data)
+                    const selectedNode = this.graphData.nodes.find(node => node.id === params.data.id);
+                    if (selectedNode) {
+                        this.showNodeDetail(selectedNode);
+                    } else {
+                        this.showNodeDetail(params.data);
+                    }
+
+                    // 如果当前处于相似度着色模式，重新加载相似节点数据
+                    if (this.colorMode === 'similarity') {
+                        this.findSimilarPointsWithoutUI();
+                        // 重新渲染以更新颜色
+                        this.renderGraph();
+                    }
                 }
             })
 
@@ -485,12 +501,10 @@ export default {
 
             // 添加图表渲染完成事件监听
             this.chart.on('rendered', () => {
-                console.log('图表渲染完成')
             })
 
             // 强制重新渲染
             setTimeout(() => {
-                console.log('强制重新渲染图表...')
                 this.chart.resize()
             }, 100)
         },
@@ -609,10 +623,9 @@ export default {
             })
         },
 
-        // 按掌握状态着色
         getNodesColoredByProficiency() {
             return this.graphData.nodes.map((node) => {
-                let color = '#ee6666'; // 默认红色，表示未掌握
+                let color = '#ee6666';
                 let category = '未掌握'; // 默认分类
 
                 if (node.proficiency_level !== undefined) {
@@ -634,21 +647,35 @@ export default {
                 }
             })
         },
-
-        // 按相似度着色（新增）
         getNodesColoredBySimilarity() {
             // 如果没有选中节点，则使用默认颜色
             if (!this.selectedNodeDetail) {
                 return this.graphData.nodes.map(node => ({
                     ...node,
+                    category: '未选择节点',
                     itemStyle: {
                         color: '#5470c6'
                     }
                 }));
             }
 
+            // 检查选中节点是否有embedding数据
+            if (!this.selectedNodeDetail.embedding) {
+                this.$Message.warning('当前选中节点缺少向量数据，无法计算相似度');
+
+                return this.graphData.nodes.map(node => ({
+                    ...node,
+                    category: '数据缺失',
+                    itemStyle: {
+                        color: '#cccccc'
+                    }
+                }));
+            }
+
+
+
             // 为每个节点计算与选中节点的相似度
-            return this.graphData.nodes.map(node => {
+            const nodesWithSimilarity = this.graphData.nodes.map(node => {
                 let color = '#cccccc'; // 默认灰色
                 let category = '低相似度';
 
@@ -656,20 +683,33 @@ export default {
                     // 选中节点使用特殊颜色
                     color = '#1890ff';
                     category = '当前节点';
-                } else if (node.embedding && this.selectedNodeDetail.embedding) {
+                } else if (node.embedding) {
                     // 计算基于嵌入向量的相似度
-                    const similarity = this.calculateEmbeddingSimilarity(
-                        node.embedding,
-                        this.selectedNodeDetail.embedding
-                    );
+                    try {
+                        const similarity = this.calculateEmbeddingSimilarity(
+                            node.embedding,
+                            this.selectedNodeDetail.embedding
+                        );
 
-                    if (similarity > 0.8) {
-                        color = '#91cc75'; // 高相似度 - 绿色
-                        category = '高相似度';
-                    } else if (similarity > 0.5) {
-                        color = '#fac858'; // 中相似度 - 黄色
-                        category = '中相似度';
+                        console.log(`节点 ${node.id} 相似度:`, similarity);
+
+                        if (similarity > 0.8) {
+                            color = '#91cc75'; // 高相似度 - 绿色
+                            category = '高相似度';
+                        } else if (similarity > 0.5) {
+                            color = '#fac858'; // 中相似度 - 黄色
+                            category = '中相似度';
+                        } else {
+                            category = '低相似度';
+                        }
+                    } catch (e) {
+                        console.error('计算节点相似度时出错:', node.id, e);
+                        category = '计算错误';
                     }
+                } else {
+                    // 如果没有嵌入向量数据，则使用默认分类
+                    console.warn('节点缺少向量数据:', node.id);
+                    category = '无向量数据';
                 }
 
                 return {
@@ -680,15 +720,34 @@ export default {
                     }
                 }
             });
+
+            console.log('相似度计算完成，节点分类:',
+                [...new Set(nodesWithSimilarity.map(n => n.category))]);
+
+            return nodesWithSimilarity;
         },
 
-        // 计算嵌入向量相似度（新增）
+
         calculateEmbeddingSimilarity(embedding1, embedding2) {
             try {
+                // 检查输入数据
+                if (!embedding1 || !embedding2) {
+                    throw new Error('向量数据为空');
+                }
+
                 const vec1 = embedding1.split(',').map(Number);
                 const vec2 = embedding2.split(',').map(Number);
 
-                if (vec1.length !== vec2.length) return 0;
+                // 检查向量维度是否一致
+                if (vec1.length !== vec2.length) {
+                    console.warn('向量维度不一致:', vec1.length, 'vs', vec2.length);
+                    return 0;
+                }
+
+                // 检查是否有非数字值
+                if (vec1.some(isNaN) || vec2.some(isNaN)) {
+                    throw new Error('向量包含非数字值');
+                }
 
                 // 计算余弦相似度
                 let dotProduct = 0;
@@ -701,14 +760,20 @@ export default {
                     norm2 += vec2[i] * vec2[i];
                 }
 
-                if (norm1 === 0 || norm2 === 0) return 0;
+                if (norm1 === 0 || norm2 === 0) {
+                    console.warn('向量模长为0');
+                    return 0;
+                }
 
-                return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+                const similarity = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+                console.log('计算得到的相似度:', similarity);
+                return similarity;
             } catch (e) {
                 console.error('计算嵌入向量相似度失败:', e);
                 return 0;
             }
         },
+
 
         // 获取带颜色的分类
         getCategoriesWithColors() {
@@ -747,9 +812,16 @@ export default {
         },
 
         // 改变着色模式
-        changeColorMode() {
-            this.renderGraph()
+        async changeColorMode() {
+            console.log('切换着色模式到:', this.colorMode);
+            // 如果切换到相似度模式并且已有选中节点，则自动加载相似节点数据
+            if (this.colorMode === 'similarity' && this.selectedNodeDetail) {
+                console.log('加载相似节点数据...');
+                await this.findSimilarPointsWithoutUI();
+            }
+            this.renderGraph();
         },
+
 
         filterGraph() {
             // 根据选中的分类过滤图谱数据
@@ -813,7 +885,7 @@ export default {
             }
         },
 
-        // 添加到学习路径
+
         addToLearningPath() {
             if (this.selectedNodeDetail) {
                 this.$Message.success(`已将 "${this.selectedNodeDetail.name}" 添加到学习路径`)
@@ -821,15 +893,10 @@ export default {
             }
         },
 
-        // 新增：查找相似知识点
-        async findSimilarPoints() {
+        async findSimilarPointsWithoutUI() {
             if (!this.selectedNodeDetail) {
-                this.$Message.warning('请先选择一个知识点');
                 return;
             }
-
-            this.similarPointsLoading = true;
-            this.similarPointsModalVisible = true;
 
             try {
                 const res = await api.getRelatedKnowledgePoints({
@@ -845,9 +912,7 @@ export default {
                 // 高亮显示相似节点
                 this.highlightSimilarNodes();
             } catch (err) {
-                this.$error('获取相似知识点失败: ' + (err.message || err));
-            } finally {
-                this.similarPointsLoading = false;
+                console.error('获取相似知识点失败:', err);
             }
         },
 

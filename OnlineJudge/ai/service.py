@@ -3985,8 +3985,7 @@ class KnowledgeGraphGNN(nn.Module):
         self.bns=nn.ModuleList()
         for _ in range(num_layers-1):
             self.bns.append(nn.BatchNorm1d(hidden_num))
-
-        self.classifier=nn.Linear(num_classes,num_classes)
+        self.classifier=nn.Linear(hidden_num,num_features)
 
     def forward(self,x,edge_index):
         for i ,conv in enumerate(self.convs[:-1]):
@@ -3996,8 +3995,8 @@ class KnowledgeGraphGNN(nn.Module):
             x=F.dropout(x,p=self.dropout,training=self.training)
 
         x=self.convs[-1](x,edge_index)
-        x=self.classifier(x)
-        return F.log_softmax(x,dim=1)
+        x=self.classifier(x)  
+        return x 
 
 
 class KnowledgeGraphGAT(nn.Module):
@@ -4064,26 +4063,39 @@ class KnowledgeGraphService:
 
         data=Data(x=x,edge_index=edge_index)
         return data,kp_list,kp_id_to_index
-
-
     @staticmethod
-    def train_gnn_model(epochs=100,lr=0.01,hidden_dim=64,model_type='gcn'):
+    def train_gnn_model(epochs=100, lr=0.01, hidden_dim=64, model_type='gcn'):
         try:
             # 构建知识图谱
             data, kp_list, kp_id_to_index = KnowledgeGraphService.build_knowledge_graph()
             
-            if data.x.size(0) == 0 or data.edge_index.size(1) == 0:
-                logger.warning("知识图谱为空，无法训练GNN模型")
+            # 检查数据是否足够训练
+            if data.x.size(0) == 0:
+                logger.warning("没有知识点数据，无法训练GNN模型")
                 return None
+                
+            if data.edge_index.size(1) == 0:
+                logger.warning("知识点之间没有关系数据，无法训练GNN模型")
+                return None
+            
+            logger.info(f"开始训练GNN模型，共{data.x.size(0)}个节点，{data.edge_index.size(1)}条边")
             
             # 初始化模型
             num_features = data.x.size(1)
-            num_classes = max(5, len(kp_list))  
+            num_classes = num_features 
             
             if model_type == 'gat':
                 model = KnowledgeGraphGAT(num_features, hidden_dim, num_classes)
+                logger.info("使用GAT模型进行训练")
             else:
                 model = KnowledgeGraphGNN(num_features, hidden_dim, num_classes)
+                logger.info("使用GCN模型进行训练")
+            
+            # 检查是否有GPU可用
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            model = model.to(device)
+            data.x = data.x.to(device)
+            data.edge_index = data.edge_index.to(device)
             
             # 优化器
             optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
@@ -4094,19 +4106,21 @@ class KnowledgeGraphService:
                 optimizer.zero_grad()
                 out = model(data.x, data.edge_index)
             
-                loss = F.mse_loss(out, data.x)  # 简单的重构损失
+                # 使用重构损失进行无监督训练
+                loss = F.mse_loss(out, data.x)  
                 
                 loss.backward()
                 optimizer.step()
                 
                 if epoch % 20 == 0:
-                    logger.info(f'Epoch {epoch}, Loss: {loss.item()}')
+                    logger.info(f'Epoch {epoch}, Loss: {loss.item():.6f}')
             
             # 保存模型
             model_path = 'ai/dl_models/gnn/knowledge_graph_model.pth'
             import os
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             torch.save(model.state_dict(), model_path)
+            logger.info(f"模型已保存到 {model_path}")
             
             # 生成并保存节点嵌入
             model.eval()
@@ -4114,18 +4128,21 @@ class KnowledgeGraphService:
                 embeddings = model(data.x, data.edge_index)
                 
             # 更新知识点的嵌入表示
+            embedding_saved_count = 0
             for idx, kp in enumerate(kp_list):
-                embedding_str = ','.join([str(x) for x in embeddings[idx].tolist()])
+                embedding_str = ','.join([f"{x:.6f}" for x in embeddings[idx].tolist()])
                 kp.embedding = embedding_str
                 kp.save()
+                embedding_saved_count += 1
             
-            logger.info("GNN模型训练完成")
+            logger.info(f"GNN模型训练完成，已为{embedding_saved_count}个知识点生成嵌入表示")
             return model
             
         except Exception as e:
             logger.error(f"GNN模型训练失败: {str(e)}")
             return None
-        
+
+
     @staticmethod
     def get_knowledge_similarity(kp1_id, kp2_id):
         """
@@ -4205,7 +4222,3 @@ class KnowledgeGraphService:
         except Exception as e:
             logger.error(f"推荐相关知识点失败: {str(e)}")
             return []
-
-
-
-

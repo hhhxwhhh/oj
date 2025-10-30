@@ -849,6 +849,9 @@ class KnowledgePointGraphAPI(APIView):
                     'proficiency_level': proficiency_level,  # 添加掌握程度
                     'correct_attempts': correct_attempts,  # 添加正确尝试次数
                     'total_attempts': total_attempts,  # 添加总尝试次数
+                    'importance': float(kp.importance),  # GNN增强字段
+                    'frequency': kp.frequency,  # GNN增强字段
+                    'embedding': str(kp.embedding) if kp.embedding else '',  # GNN嵌入向量
                     'itemStyle': {
                         'color': item_color  # 根据掌握程度设置颜色
                     }
@@ -1338,7 +1341,7 @@ class KnowledgeGraphAPI(APIView):
                     'total_attempts': total_attempts,
                     'importance': kp.importance,  
                     'frequency': kp.frequency,    
-                    'embedding': kp.embedding,    
+                    'embedding': str(kp.embedding) if kp.embedding else '',     
                 })
             
             # 构建边数据（前置知识点关系）
