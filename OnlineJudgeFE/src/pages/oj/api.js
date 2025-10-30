@@ -388,6 +388,12 @@ export default {
   getKnowledgePointGraph() {
     return ajax("ai/knowledge_point/graph", "get");
   },
+  getRelatedKnowledgePoints(data) {
+    return ajax("ai/knowledge_graph/recommend", "post", {
+      data
+    });
+  },
+
   getKnowledgePoint(knowledgePointId) {
     return ajax("ai/knowledge_point", "get", {
       params: {

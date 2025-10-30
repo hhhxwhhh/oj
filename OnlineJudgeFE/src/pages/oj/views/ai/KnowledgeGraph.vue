@@ -46,7 +46,22 @@
                                 <Radio label="difficulty">按难度着色</Radio>
                                 <Radio label="weight">按权重着色</Radio>
                                 <Radio label="proficiency">按掌握状态着色</Radio>
+                                <Radio label="similarity">按相似度着色</Radio> <!-- 新增 -->
                             </RadioGroup>
+                        </div>
+
+                        <!-- 新增GNN功能控制 -->
+                        <div class="control-group">
+                            <div class="control-title">GNN功能</div>
+                            <div class="gnn-controls">
+                                <Button @click="findSimilarPoints" :disabled="!selectedNodeDetail" size="small">
+                                    <Icon type="md-git-compare" /> 相似知识点
+                                </Button>
+                                <Button @click="showLearningPath" :disabled="!selectedNodeDetail" size="small"
+                                    style="margin-left: 5px;">
+                                    <Icon type="md-git-network" /> 学习路径
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
@@ -67,7 +82,7 @@
                                     <div class="detail-item">
                                         <span class="label">难度等级:</span>
                                         <span class="value">{{ getDifficultyText(selectedNodeDetail.difficulty)
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="label">推荐权重:</span>
@@ -94,6 +109,16 @@
                                         <span class="label">答题情况:</span>
                                         <span class="value">{{ selectedNodeDetail.correct_attempts }}/{{
                                             selectedNodeDetail.total_attempts }}</span>
+                                    </div>
+
+                                    <!-- 新增GNN信息 -->
+                                    <div class="detail-item" v-if="selectedNodeDetail.importance !== undefined">
+                                        <span class="label">重要性:</span>
+                                        <span class="value">{{ selectedNodeDetail.importance.toFixed(2) }}</span>
+                                    </div>
+                                    <div class="detail-item" v-if="selectedNodeDetail.frequency !== undefined">
+                                        <span class="label">出现频率:</span>
+                                        <span class="value">{{ selectedNodeDetail.frequency }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -123,10 +148,35 @@
                                 </div>
                             </div>
 
+                            <!-- 新增相似知识点推荐 -->
+                            <div class="detail-section" v-if="similarPoints.length > 0">
+                                <h4>相似知识点 (基于GNN)</h4>
+                                <div class="relations-list">
+                                    <Tag v-for="point in similarPoints" :key="point.id"
+                                        @click.native="showRelatedNodeDetail(point.id)" class="relation-tag"
+                                        :color="getSimilarityColor(point.similarity)">
+                                        {{ point.name }} ({{ (point.similarity * 100).toFixed(1) }}%)
+                                    </Tag>
+                                </div>
+                            </div>
+
                             <div class="detail-actions">
                                 <Button type="primary" @click="goToRelatedProblems">查看相关题目</Button>
                                 <Button @click="addToLearningPath">添加到学习路径</Button>
+                                <Button @click="findSimilarPoints" :loading="similarPointsLoading">查找相似知识点</Button>
                             </div>
+                        </div>
+                    </Modal>
+
+                    <!-- 新增相似知识点弹窗 -->
+                    <Modal v-model="similarPointsModalVisible" title="相似知识点推荐" width="800" :footer-hide="true">
+                        <div v-if="similarPoints.length > 0">
+                            <p>基于图神经网络计算的相似知识点：</p>
+                            <Table :columns="similarPointsColumns" :data="similarPoints" />
+                        </div>
+                        <div v-else>
+                            <p v-if="!similarPointsLoading">暂无相似知识点推荐</p>
+                            <p v-else>正在计算相似知识点...</p>
                         </div>
                     </Modal>
                 </div>
@@ -140,13 +190,14 @@
 import api from '@oj/api'
 import Panel from '@oj/components/Panel.vue'
 import echarts from 'echarts'
-import { Progress } from 'iview'
+import { Progress, Table } from 'iview'
 
 export default {
     name: 'KnowledgeGraph',
     components: {
         Panel,
-        Progress
+        Progress,
+        Table
     },
     data() {
         return {
@@ -161,7 +212,36 @@ export default {
             selectedNodeDetail: null,
             nodeDetailModalVisible: false,
             zoomLevel: 1,
-            colorMode: 'proficiency' // 默认使用掌握状态着色
+            colorMode: 'proficiency', // 默认使用掌握状态着色
+
+            // 新增GNN相关数据
+            similarPoints: [],
+            similarPointsLoading: false,
+            similarPointsModalVisible: false,
+            similarPointsColumns: [
+                {
+                    title: '知识点',
+                    key: 'name'
+                },
+                {
+                    title: '相似度',
+                    key: 'similarity',
+                    render: (h, params) => {
+                        return h('span', `${(params.row.similarity * 100).toFixed(1)}%`)
+                    }
+                },
+                {
+                    title: '难度',
+                    key: 'difficulty',
+                    render: (h, params) => {
+                        return h('span', this.getDifficultyText(params.row.difficulty))
+                    }
+                },
+                {
+                    title: '分类',
+                    key: 'category'
+                }
+            ]
         }
     },
     computed: {
@@ -194,7 +274,7 @@ export default {
         }
     },
     methods: {
-        andleResize() {
+        handleResize() {
             // 确保图表实例存在且容器有效
             if (this.chart && this.chart.getDom()) {
                 try {
@@ -309,6 +389,15 @@ export default {
                                 }
                             }
 
+                            // 新增GNN信息
+                            let gnnInfo = '';
+                            if (params.data.importance !== undefined) {
+                                gnnInfo = `<div class="tooltip-item">重要性: ${params.data.importance.toFixed(2)}</div>`;
+                            }
+                            if (params.data.frequency !== undefined) {
+                                gnnInfo += `<div class="tooltip-item">出现频率: ${params.data.frequency}</div>`;
+                            }
+
                             return `
                                 <div class="tooltip-content">
                                     <div class="tooltip-title">${params.data.name}</div>
@@ -316,6 +405,7 @@ export default {
                                     <div class="tooltip-item">难度: ${this.getDifficultyText(params.data.difficulty)}</div>
                                     <div class="tooltip-item">相关题目数: ${params.data.size - 20}</div>
                                     ${proficiencyInfo}
+                                    ${gnnInfo}
                                 </div>
                             `
                         } else {
@@ -326,7 +416,9 @@ export default {
                 legend: [{
                     data: this.colorMode === 'proficiency' ?
                         ['未掌握', '部分掌握', '已掌握'] :
-                        this.categories,
+                        (this.colorMode === 'similarity' ?
+                            ['低相似度', '中相似度', '高相似度'] :
+                            this.categories),
                     bottom: 10,
                     left: 'center'
                 }],
@@ -407,6 +499,9 @@ export default {
         showNodeDetail(nodeData) {
             this.selectedNodeDetail = nodeData
             this.nodeDetailModalVisible = true
+
+            // 清空之前的相似知识点
+            this.similarPoints = []
         },
 
         // 显示相关节点详情
@@ -443,6 +538,8 @@ export default {
                     return this.getNodesColoredByWeight()
                 case 'proficiency':
                     return this.getNodesColoredByProficiency()
+                case 'similarity': // 新增
+                    return this.getNodesColoredBySimilarity()
                 case 'category':
                 default:
                     return this.getNodesColoredByCategory()
@@ -538,6 +635,81 @@ export default {
             })
         },
 
+        // 按相似度着色（新增）
+        getNodesColoredBySimilarity() {
+            // 如果没有选中节点，则使用默认颜色
+            if (!this.selectedNodeDetail) {
+                return this.graphData.nodes.map(node => ({
+                    ...node,
+                    itemStyle: {
+                        color: '#5470c6'
+                    }
+                }));
+            }
+
+            // 为每个节点计算与选中节点的相似度
+            return this.graphData.nodes.map(node => {
+                let color = '#cccccc'; // 默认灰色
+                let category = '低相似度';
+
+                if (node.id === this.selectedNodeDetail.id) {
+                    // 选中节点使用特殊颜色
+                    color = '#1890ff';
+                    category = '当前节点';
+                } else if (node.embedding && this.selectedNodeDetail.embedding) {
+                    // 计算基于嵌入向量的相似度
+                    const similarity = this.calculateEmbeddingSimilarity(
+                        node.embedding,
+                        this.selectedNodeDetail.embedding
+                    );
+
+                    if (similarity > 0.8) {
+                        color = '#91cc75'; // 高相似度 - 绿色
+                        category = '高相似度';
+                    } else if (similarity > 0.5) {
+                        color = '#fac858'; // 中相似度 - 黄色
+                        category = '中相似度';
+                    }
+                }
+
+                return {
+                    ...node,
+                    category: category,
+                    itemStyle: {
+                        color: color
+                    }
+                }
+            });
+        },
+
+        // 计算嵌入向量相似度（新增）
+        calculateEmbeddingSimilarity(embedding1, embedding2) {
+            try {
+                const vec1 = embedding1.split(',').map(Number);
+                const vec2 = embedding2.split(',').map(Number);
+
+                if (vec1.length !== vec2.length) return 0;
+
+                // 计算余弦相似度
+                let dotProduct = 0;
+                let norm1 = 0;
+                let norm2 = 0;
+
+                for (let i = 0; i < vec1.length; i++) {
+                    dotProduct += vec1[i] * vec2[i];
+                    norm1 += vec1[i] * vec1[i];
+                    norm2 += vec2[i] * vec2[i];
+                }
+
+                if (norm1 === 0 || norm2 === 0) return 0;
+
+                return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+            } catch (e) {
+                console.error('计算嵌入向量相似度失败:', e);
+                return 0;
+            }
+        },
+
         // 获取带颜色的分类
         getCategoriesWithColors() {
             if (this.colorMode === 'proficiency') {
@@ -545,6 +717,15 @@ export default {
                     { name: '未掌握', itemStyle: { color: '#ee6666' } },
                     { name: '部分掌握', itemStyle: { color: '#fac858' } },
                     { name: '已掌握', itemStyle: { color: '#91cc75' } }
+                ]
+            }
+
+            if (this.colorMode === 'similarity') {
+                return [
+                    { name: '当前节点', itemStyle: { color: '#1890ff' } },
+                    { name: '高相似度', itemStyle: { color: '#91cc75' } },
+                    { name: '中相似度', itemStyle: { color: '#fac858' } },
+                    { name: '低相似度', itemStyle: { color: '#cccccc' } }
                 ]
             }
 
@@ -638,6 +819,92 @@ export default {
                 this.$Message.success(`已将 "${this.selectedNodeDetail.name}" 添加到学习路径`)
                 // 这里可以调用API将知识点添加到用户的学习路径中
             }
+        },
+
+        // 新增：查找相似知识点
+        async findSimilarPoints() {
+            if (!this.selectedNodeDetail) {
+                this.$Message.warning('请先选择一个知识点');
+                return;
+            }
+
+            this.similarPointsLoading = true;
+            this.similarPointsModalVisible = true;
+
+            try {
+                const res = await api.getRelatedKnowledgePoints({
+                    knowledge_point_id: this.selectedNodeDetail.id,
+                    top_k: 10
+                });
+
+                this.similarPoints = res.data.data.map(point => ({
+                    ...point,
+                    id: String(point.id) // 确保ID为字符串
+                }));
+
+                // 高亮显示相似节点
+                this.highlightSimilarNodes();
+            } catch (err) {
+                this.$error('获取相似知识点失败: ' + (err.message || err));
+            } finally {
+                this.similarPointsLoading = false;
+            }
+        },
+
+        // 高亮显示相似节点（新增）
+        highlightSimilarNodes() {
+            if (!this.chart || !this.similarPoints.length) return;
+
+            // 重置所有节点样式
+            this.chart.setOption({
+                series: [{
+                    data: this.getNodesWithColors()
+                }]
+            });
+
+            // 高亮相似节点
+            const option = {
+                series: [{
+                    data: this.graphData.nodes.map(node => {
+                        const isSimilar = this.similarPoints.some(point => point.id === node.id);
+                        const isSelected = this.selectedNodeDetail && this.selectedNodeDetail.id === node.id;
+
+                        if (isSimilar || isSelected) {
+                            return {
+                                ...node,
+                                symbolSize: node.symbolSize * 1.5,
+                                itemStyle: {
+                                    ...node.itemStyle,
+                                    borderWidth: isSelected ? 3 : 2,
+                                    borderColor: isSelected ? '#1890ff' : '#52c41a'
+                                }
+                            };
+                        }
+                        return node;
+                    })
+                }]
+            };
+
+            this.chart.setOption(option);
+        },
+
+        // 获取相似度颜色（新增）
+        getSimilarityColor(similarity) {
+            if (similarity > 0.8) return 'green';
+            if (similarity > 0.6) return 'blue';
+            if (similarity > 0.4) return 'orange';
+            return 'red';
+        },
+
+        // 显示学习路径（新增）
+        showLearningPath() {
+            if (!this.selectedNodeDetail) {
+                this.$Message.warning('请先选择一个知识点');
+                return;
+            }
+
+            this.$Message.info('学习路径功能将在后续版本中实现');
+            // 这里可以调用API获取学习路径建议
         }
     }
 }
@@ -730,6 +997,11 @@ export default {
                         border-color: #2d8cf0;
                         color: white;
                     }
+                }
+
+                .gnn-controls {
+                    display: flex;
+                    gap: 5px;
                 }
             }
         }

@@ -1288,66 +1288,86 @@ class DLModelTrainingAPI(APIView):
             logger.error(f"深度学习模型训练失败: {str(e)}")
             return self.error("模型训练失败")
         
-
 class KnowledgeGraphAPI(APIView):
-    @admin_role_required
-    def post(self, request):
-        """
-        训练知识点图神经网络模型
-        """
-        try:
-            model_type = request.data.get('model_type', 'gcn')  # 'gcn' 或 'gat'
-            epochs = request.data.get('epochs', 100)
-            hidden_dim = request.data.get('hidden_dim', 64)
-            lr = request.data.get('learning_rate', 0.01)
-            
-            from .service import KnowledgeGraphService
-            model = KnowledgeGraphService.train_gnn_model(
-                epochs=epochs,
-                lr=lr,
-                hidden_dim=hidden_dim,
-                model_type=model_type
-            )
-            
-            if model:
-                return self.success({
-                    "message": "知识点图神经网络模型训练成功",
-                    "model_type": model_type
-                })
-            else:
-                return self.error("模型训练失败")
-                
-        except Exception as e:
-            logger.error(f"知识点图神经网络模型训练失败: {str(e)}")
-            return self.error("模型训练失败")
+    """
+    知识点图神经网络API
+    """
     
     @login_required
     def get(self, request):
         """
-        获取知识点相似度
+        获取知识图谱数据
         """
         try:
-            kp1_id = request.GET.get('kp1_id')
-            kp2_id = request.GET.get('kp2_id')
+            # 获取所有知识点
+            knowledge_points = KnowledgePoint.objects.all()
             
-            if not kp1_id or not kp2_id:
-                return self.error("参数错误")
+            # 获取用户的知识点掌握状态
+            user = request.user
+            user_knowledge_states = KnowledgePointService.get_user_knowledge_state(user.id)
             
-            from .service import KnowledgeGraphService
-            similarity = KnowledgeGraphService.get_knowledge_similarity(int(kp1_id), int(kp2_id))
+            # 构建节点数据
+            nodes = []
+            # 构建边数据
+            edges = []
+            
+            # 构建节点数据
+            for kp in knowledge_points:
+                # 获取用户对该知识点的掌握状态
+                user_state = user_knowledge_states.get(kp.name)
+                proficiency_level = 0.0
+                correct_attempts = 0
+                total_attempts = 0
+                
+                if user_state:
+                    proficiency_level = user_state.proficiency_level
+                    correct_attempts = user_state.correct_attempts
+                    total_attempts = user_state.total_attempts
+                
+                nodes.append({
+                    'id': str(kp.id),
+                    'name': kp.name,
+                    'category': kp.category,
+                    'difficulty': kp.difficulty,
+                    'description': kp.description,
+                    'size': 20 + kp.related_problems.count() * 2,  
+                    'symbolSize': 20 + kp.related_problems.count() * 2,
+                    'value': kp.weight,
+                    'proficiency_level': proficiency_level,
+                    'correct_attempts': correct_attempts,
+                    'total_attempts': total_attempts,
+                    'importance': kp.importance,  
+                    'frequency': kp.frequency,    
+                    'embedding': kp.embedding,    
+                })
+            
+            # 构建边数据（前置知识点关系）
+            for kp in knowledge_points:
+                target_id = str(kp.id)
+                for parent_point in kp.parent_points.all():
+                    source_id = str(parent_point.id)
+                    edges.append({
+                        'source': source_id,
+                        'target': target_id,
+                        'relation': '依赖',
+                        'lineStyle': {
+                            'width': 2,
+                            'type': 'solid'
+                        }
+                    })
             
             return self.success({
-                "similarity": similarity
+                'nodes': nodes,
+                'edges': edges
             })
-            
         except Exception as e:
-            logger.error(f"计算知识点相似度失败: {str(e)}")
-            return self.error("计算失败")
-    
+            logger.error(f"Failed to get knowledge point graph data: {str(e)}")
+            return self.error("Failed to get knowledge point graph data")
+
     @login_required
     def post(self, request):
         """
-        推荐相关知识点
+        获取基于GNN的相关知识点推荐
         """
         try:
             knowledge_point_id = request.data.get('knowledge_point_id')
@@ -1369,7 +1389,8 @@ class KnowledgeGraphAPI(APIView):
                     'description': kp.description,
                     'similarity': similarity,
                     'difficulty': kp.difficulty,
-                    'category': kp.category
+                    'category': kp.category,
+                    'proficiency_level': 0.0  
                 })
             
             return self.success(result)
