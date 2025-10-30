@@ -122,7 +122,7 @@ export default {
             this.$router.push({
                 name: 'student-progress',
                 params: {
-                    assignmentId: this.assignmentId,
+                    assignmentId: row.id,  // 修复：使用row.id而不是this.assignmentId
                     studentAssignmentId: row.id
                 }
             })

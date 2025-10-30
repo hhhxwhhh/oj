@@ -93,7 +93,7 @@ export default {
     },
     created() {
         this.assignmentId = this.$route.params.assignmentId
-        this.studentAssignmentId = this.$route.params.studentAssignmentId
+        this.studentAssignmentId = this.$route.params.studentAssignmentId  // 确保正确获取参数
         this.getAssignmentDetail()
         this.getStudentAssignmentDetail()
         this.getProgressData()

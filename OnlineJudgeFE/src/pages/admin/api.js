@@ -386,7 +386,7 @@ export default {
   },
   getStudentAssignmentProgress(studentAssignmentId) {
     return ajax(
-      `admin/student-assignments/${studentAssignmentId}/progress/`,
+      `admin/student-assignments/${studentAssignmentId}/progress`, // 修复：移除末尾的斜杠
       "get"
     );
   },
