@@ -147,7 +147,9 @@ export default {
         this.loadData()
     },
     mounted() {
-        this.initCharts()
+        this.$nextTick(() => {
+            this.initCharts()
+        })
     },
     beforeDestroy() {
         if (this.difficultyChart) {
@@ -185,8 +187,13 @@ export default {
             })
         },
         initCharts() {
-            this.difficultyChart = echarts.init(this.$refs.difficultyChart)
-            this.trendChart = echarts.init(this.$refs.trendChart)
+            // 确保元素存在再初始化图表
+            if (this.$refs.difficultyChart) {
+                this.difficultyChart = echarts.init(this.$refs.difficultyChart)
+            }
+            if (this.$refs.trendChart) {
+                this.trendChart = echarts.init(this.$refs.trendChart)
+            }
 
             // 监听窗口大小变化，重新调整图表大小
             window.addEventListener('resize', this.resizeCharts)

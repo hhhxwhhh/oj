@@ -70,6 +70,8 @@ class AssignmentStatistics(models.Model):
     accepted_count = models.IntegerField(default=0)
     best_score = models.IntegerField(default=0)  # 仅用于OI模式
     first_ac_time = models.DateTimeField(blank=True, null=True)
+    create_time = models.DateTimeField(auto_now_add=True)  
+    
     
     class Meta:
         db_table = 'assignment_statistics'
