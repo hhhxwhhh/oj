@@ -136,11 +136,9 @@ export default {
             })
         },
         getStudentAssignmentDetail() {
-            // 获取学生作业详情
-            api.getStudentAssignment(this.studentAssignmentId).then(res => {
+            api.$http.get(`/api/admin/student-assignments/${this.studentAssignmentId}/`).then(res => {
                 this.studentAssignment = res.data.data
             }).catch(() => {
-                // 错误处理
             })
         },
         getProgressData() {
