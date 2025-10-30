@@ -6,19 +6,42 @@
         </div>
 
         <el-card class="student-info-card">
+            <div slot="header">
+                <span>学生信息</span>
+            </div>
             <div class="student-info">
-                <h3>学生: {{ studentAssignment.student_username }} ({{ studentAssignment.student_realname }})</h3>
-                <p>状态: {{ studentAssignment.status }}</p>
-                <p>分配时间: {{ studentAssignment.assigned_time | localtime }}</p>
-                <p v-if="studentAssignment.completed_time">
-                    完成时间: {{ studentAssignment.completed_time | localtime }}
-                </p>
+                <el-row :gutter="20">
+                    <el-col :span="8">
+                        <p><strong>学生:</strong> {{ studentAssignment.student_username }} ({{
+                            studentAssignment.student_realname }})</p>
+                    </el-col>
+                    <el-col :span="8">
+                        <p><strong>状态:</strong>
+                            <el-tag :type="getStatusType(studentAssignment.status)">
+                                {{ formatStatus(studentAssignment.status) }}
+                            </el-tag>
+                        </p>
+                    </el-col>
+                    <el-col :span="8">
+                        <p><strong>分配时间:</strong> {{ studentAssignment.assigned_time | localtime }}</p>
+                    </el-col>
+                </el-row>
+                <el-row :gutter="20" v-if="studentAssignment.completed_time">
+                    <el-col :span="8">
+                        <p><strong>完成时间:</strong> {{ studentAssignment.completed_time | localtime }}</p>
+                    </el-col>
+                    <el-col :span="8" v-if="studentAssignment.score !== null">
+                        <p><strong>得分:</strong> {{ studentAssignment.score }} / {{ studentAssignment.max_score }}</p>
+                    </el-col>
+                </el-row>
             </div>
         </el-card>
 
         <el-card class="progress-summary-card">
+            <div slot="header">
+                <span>进度概览</span>
+            </div>
             <div class="progress-summary">
-                <h3>进度概览</h3>
                 <el-row :gutter="20">
                     <el-col :span="6">
                         <div class="summary-item">
@@ -38,14 +61,22 @@
                             <p class="summary-label">完成率</p>
                         </div>
                     </el-col>
+                    <el-col :span="6">
+                        <div class="summary-item">
+                            <el-progress type="circle" :percentage="parseFloat(progressData.completion_rate)"
+                                :width="80"></el-progress>
+                        </div>
+                    </el-col>
                 </el-row>
             </div>
         </el-card>
 
         <el-card class="problems-progress-card">
+            <div slot="header">
+                <span>题目详情</span>
+            </div>
             <div class="problems-progress">
-                <h3>题目详情</h3>
-                <el-table :data="progressData.problems" style="width: 100%" v-loading="loading">
+                <el-table :data="progressData.problems" style="width: 100%" v-loading="loading" stripe>
                     <el-table-column prop="id" label="题目ID" width="100"></el-table-column>
                     <el-table-column prop="title" label="题目名称"></el-table-column>
                     <el-table-column prop="submission_count" label="提交次数" width="100"></el-table-column>
@@ -93,7 +124,7 @@ export default {
     },
     created() {
         this.assignmentId = this.$route.params.assignmentId
-        this.studentAssignmentId = this.$route.params.studentAssignmentId  // 确保正确获取参数
+        this.studentAssignmentId = this.$route.params.studentAssignmentId
         this.getAssignmentDetail()
         this.getStudentAssignmentDetail()
         this.getProgressData()
@@ -105,8 +136,12 @@ export default {
             })
         },
         getStudentAssignmentDetail() {
-            // 这里需要添加获取学生作业详情的API
-            // 暂时留空，可以根据需要实现
+            // 获取学生作业详情
+            api.getStudentAssignment(this.studentAssignmentId).then(res => {
+                this.studentAssignment = res.data.data
+            }).catch(() => {
+                // 错误处理
+            })
         },
         getProgressData() {
             api.getStudentAssignmentProgress(this.studentAssignmentId).then(res => {
@@ -118,6 +153,22 @@ export default {
         },
         goBack() {
             this.$router.go(-1)
+        },
+        formatStatus(status) {
+            const statusMap = {
+                'assigned': '已分配',
+                'in_progress': '进行中',
+                'completed': '已完成'
+            }
+            return statusMap[status] || status
+        },
+        getStatusType(status) {
+            const typeMap = {
+                'assigned': 'info',
+                'in_progress': 'warning',
+                'completed': 'success'
+            }
+            return typeMap[status] || 'info'
         }
     }
 }
@@ -154,12 +205,17 @@ export default {
 
 .summary-item {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .summary-value {
     font-size: 24px;
     font-weight: bold;
     margin: 0;
+    color: #409EFF;
 }
 
 .summary-label {
@@ -169,5 +225,9 @@ export default {
 
 .problems-progress {
     padding: 10px 0;
+}
+
+.el-progress {
+    margin-top: 10px;
 }
 </style>
