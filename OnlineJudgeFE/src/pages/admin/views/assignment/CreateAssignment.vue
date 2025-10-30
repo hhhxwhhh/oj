@@ -1,52 +1,122 @@
 <template>
     <div class="create-assignment">
-        <el-card class="box-card">
-            <div slot="header" class="clearfix">
-                <span>{{ isEdit ? $t('m.Edit_Assignment') : $t('m.Create_Assignment') }}</span>
-                <el-button style="float: right;" @click="goBack">
-                    {{ $t('m.Back') }}
-                </el-button>
+        <div class="page-header">
+            <el-page-header @back="goBack" :content="isEdit ? $t('m.Edit_Assignment') : $t('m.Create_Assignment')">
+            </el-page-header>
+        </div>
+
+        <el-card class="form-card" shadow="hover">
+            <div slot="header" class="card-header">
+                <span class="card-title">{{ isEdit ? $t('m.Edit_Assignment') : $t('m.Create_Assignment') }}</span>
             </div>
 
-            <el-form :model="assignmentForm" :rules="rules" ref="assignmentForm" label-width="120px">
-                <el-form-item :label="$t('m.Title')" prop="title">
-                    <el-input v-model="assignmentForm.title" :placeholder="$t('m.Title')" />
-                </el-form-item>
+            <el-form :model="assignmentForm" :rules="rules" ref="assignmentForm" label-width="120px"
+                class="assignment-form">
 
-                <el-form-item :label="$t('m.Description')" prop="description">
-                    <el-input v-model="assignmentForm.description" type="textarea" :rows="4"
-                        :placeholder="$t('m.Description')" />
-                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="24">
+                        <el-form-item :label="$t('m.Title')" prop="title">
+                            <el-input v-model="assignmentForm.title" :placeholder="$t('m.Title_Placeholder')"
+                                prefix-icon="el-icon-edit-outline" clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
 
-                <el-form-item :label="$t('m.Rule_Type')" prop="rule_type">
-                    <el-select v-model="assignmentForm.rule_type" :placeholder="$t('m.Rule_Type')">
-                        <el-option label="ACM" value="ACM" />
-                        <el-option label="OI" value="OI" />
-                    </el-select>
-                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="24">
+                        <el-form-item :label="$t('m.Description')" prop="description">
+                            <el-input v-model="assignmentForm.description" type="textarea" :rows="4"
+                                :placeholder="$t('m.Description_Placeholder')" resize="vertical">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
 
-                <el-form-item :label="$t('m.Is_Personalized')" prop="is_personalized">
-                    <el-switch v-model="assignmentForm.is_personalized" active-color="#13ce66"
-                        inactive-color="#ff4949" />
-                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item :label="$t('m.Rule_Type')" prop="rule_type">
+                            <el-select v-model="assignmentForm.rule_type" :placeholder="$t('m.Rule_Type_Placeholder')"
+                                style="width: 100%;">
+                                <el-option label="ACM" value="ACM">
+                                    <span class="rule-option">
+                                        <el-tag type="primary" size="small">ACM</el-tag>
+                                        <span class="rule-desc">以通过题目数量计分</span>
+                                    </span>
+                                </el-option>
+                                <el-option label="OI" value="OI">
+                                    <span class="rule-option">
+                                        <el-tag type="success" size="small">OI</el-tag>
+                                        <span class="rule-desc">以题目得分总和计分</span>
+                                    </span>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
 
-                <el-form-item :label="$t('m.Start_Time')" prop="start_time">
-                    <el-date-picker v-model="assignmentForm.start_time" type="datetime"
-                        :placeholder="$t('m.Start_Time')" style="width: 100%" />
-                </el-form-item>
+                    <el-col :span="12">
+                        <el-form-item :label="$t('m.Is_Personalized')" prop="is_personalized">
+                            <el-switch v-model="assignmentForm.is_personalized" active-color="#13ce66"
+                                inactive-color="#ff4949" active-text="开启" inactive-text="关闭">
+                            </el-switch>
+                            <el-tooltip class="item" effect="dark" :content="$t('m.Personalized_Tip')" placement="top">
+                                <i class="el-icon-info tooltip-icon"></i>
+                            </el-tooltip>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
 
-                <el-form-item :label="$t('m.End_Time')" prop="end_time">
-                    <el-date-picker v-model="assignmentForm.end_time" type="datetime" :placeholder="$t('m.End_Time')"
-                        style="width: 100%" />
-                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item :label="$t('m.Start_Time')" prop="start_time">
+                            <el-date-picker v-model="assignmentForm.start_time" type="datetime"
+                                :placeholder="$t('m.Start_Time_Placeholder')" value-format="yyyy-MM-dd HH:mm:ss"
+                                format="yyyy-MM-dd HH:mm:ss" style="width: 100%;">
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
 
-                <el-form-item>
-                    <el-button type="primary" @click="submitForm('assignmentForm')" :loading="loading">
-                        {{ isEdit ? $t('m.Update') : $t('m.Create') }}
-                    </el-button>
-                    <el-button @click="resetForm('assignmentForm')">{{ $t('m.Reset') }}</el-button>
-                </el-form-item>
+                    <el-col :span="12">
+                        <el-form-item :label="$t('m.End_Time')" prop="end_time">
+                            <el-date-picker v-model="assignmentForm.end_time" type="datetime"
+                                :placeholder="$t('m.End_Time_Placeholder')" value-format="yyyy-MM-dd HH:mm:ss"
+                                format="yyyy-MM-dd HH:mm:ss" style="width: 100%;">
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
+                    <el-col :span="24">
+                        <div class="form-actions">
+                            <el-button type="primary" @click="submitForm('assignmentForm')" :loading="loading"
+                                icon="el-icon-check">
+                                {{ isEdit ? $t('m.Update') : $t('m.Create') }}
+                            </el-button>
+                            <el-button @click="resetForm('assignmentForm')" icon="el-icon-refresh">
+                                {{ $t('m.Reset') }}
+                            </el-button>
+                            <el-button @click="goBack" icon="el-icon-arrow-left">
+                                {{ $t('m.Back') }}
+                            </el-button>
+                        </div>
+                    </el-col>
+                </el-row>
             </el-form>
+        </el-card>
+
+        <el-card class="info-card" shadow="hover">
+            <div slot="header" class="card-header">
+                <span class="card-title">作业说明</span>
+            </div>
+            <div class="info-content">
+                <ul>
+                    <li><strong>ACM模式：</strong>按照通过的题目数量进行排名，所有题目分值相等</li>
+                    <li><strong>OI模式：</strong>每道题目有具体分数，按照总得分进行排名</li>
+                    <li><strong>个性化作业：</strong>开启后可为不同学生分配不同的题目</li>
+                    <li><strong>时间设置：</strong>请确保结束时间晚于开始时间</li>
+                </ul>
+            </div>
         </el-card>
     </div>
 </template>
@@ -187,5 +257,72 @@ export default {
 <style scoped>
 .create-assignment {
     margin: 20px;
+}
+
+.page-header {
+    margin-bottom: 20px;
+}
+
+.form-card,
+.info-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-title {
+    font-weight: bold;
+    font-size: 16px;
+    color: #303133;
+}
+
+.assignment-form {
+    padding: 20px 0;
+}
+
+.rule-option {
+    display: flex;
+    align-items: center;
+}
+
+.rule-desc {
+    margin-left: 10px;
+    color: #606266;
+}
+
+.tooltip-icon {
+    margin-left: 10px;
+    color: #909399;
+    cursor: pointer;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.form-actions .el-button {
+    margin: 0 10px;
+}
+
+.info-content ul {
+    padding-left: 20px;
+}
+
+.info-content li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+    color: #606266;
+}
+
+.el-page-header__content {
+    font-weight: bold;
+    font-size: 18px;
 }
 </style>
