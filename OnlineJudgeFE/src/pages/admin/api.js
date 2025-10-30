@@ -366,7 +366,7 @@ export default {
     return ajax(`admin/assignments/${assignmentId}/problems/`, "get");
   },
   addProblemToAssignment(assignmentId, data) {
-    return ajax(`admin/assignments/${assignmentId}/problems/`, "post", {
+    return ajax(`admin/assignments/${assignmentId}/problems/add/`, "post", {
       data
     });
   },

@@ -370,14 +370,29 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         serializer = AssignmentProblemSerializer(problems, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], url_path='add-problem')
+    @action(detail=True, methods=['post'], url_path='problems/add')
     def add_problem(self, request, pk=None):
         assignment = self.get_object()
         problem_id = request.data.get('problem_id')
         score = request.data.get('score', 0)
         
         try:
-            problem = Problem.objects.get(_id=problem_id)
+            try:
+                problem = Problem.objects.get(_id=problem_id, contest=None)
+            except Problem.DoesNotExist:
+                problems = Problem.objects.filter(_id=problem_id)
+                if problems.count() == 0:
+                    raise Problem.DoesNotExist
+                elif problems.count() == 1:
+                    problem = problems.first()
+                else:
+                    public_problems = problems.filter(contest=None)
+                    if public_problems.exists():
+                        problem = public_problems.first()
+                    else:
+                        # 如果没有公开题目，返回第一个
+                        problem = problems.first()
+            
             assignment_problem, created = AssignmentProblem.objects.get_or_create(
                 assignment=assignment,
                 problem=problem,
