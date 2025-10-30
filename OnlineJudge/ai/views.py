@@ -838,22 +838,22 @@ class KnowledgePointGraphAPI(APIView):
                     item_color = '#52c41a'  # 绿色
                 
                 nodes.append({
-                    'id': str(kp.id),  # 使用字符串格式的知识点ID
+                    'id': str(kp.id),  
                     'name': kp.name,
                     'category': kp.category,
                     'difficulty': kp.difficulty,
                     'description': kp.description,
                     'size': 20 + kp.related_problems.count() * 2,  
                     'symbolSize': 20 + kp.related_problems.count() * 2,
-                    'value': kp.weight,  # 使用权重作为节点值
-                    'proficiency_level': proficiency_level,  # 添加掌握程度
-                    'correct_attempts': correct_attempts,  # 添加正确尝试次数
-                    'total_attempts': total_attempts,  # 添加总尝试次数
-                    'importance': float(kp.importance),  # GNN增强字段
-                    'frequency': kp.frequency,  # GNN增强字段
-                    'embedding': str(kp.embedding) if kp.embedding else '',  # GNN嵌入向量
+                    'value': kp.weight,  
+                    'proficiency_level': proficiency_level,  
+                    'correct_attempts': correct_attempts,  
+                    'total_attempts': total_attempts,  
+                    'importance': float(kp.importance),  
+                    'frequency': kp.frequency,  
+                    'embedding': str(kp.embedding) if kp.embedding else '',  
                     'itemStyle': {
-                        'color': item_color  # 根据掌握程度设置颜色
+                        'color': item_color  
                     }
                 })
             

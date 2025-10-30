@@ -82,7 +82,7 @@
                                     <div class="detail-item">
                                         <span class="label">难度等级:</span>
                                         <span class="value">{{ getDifficultyText(selectedNodeDetail.difficulty)
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="label">推荐权重:</span>
@@ -476,8 +476,10 @@ export default {
 
             this.chart.setOption(option)
             // 监听节点点击事件
-            this.chart.on('click', (params) => {
+            this.chart.on('click', async (params) => {
                 if (params.dataType === 'node') {
+                    console.log('点击节点:', params.data);
+                    // 确保选中的节点数据完整（从graphData中获取最新的数据）
                     const selectedNode = this.graphData.nodes.find(node => node.id === params.data.id);
                     if (selectedNode) {
                         this.showNodeDetail(selectedNode);
@@ -487,7 +489,8 @@ export default {
 
                     // 如果当前处于相似度着色模式，重新加载相似节点数据
                     if (this.colorMode === 'similarity') {
-                        this.findSimilarPointsWithoutUI();
+                        console.log('重新计算相似度...');
+                        await this.findSimilarPointsWithoutUI();
                         // 重新渲染以更新颜色
                         this.renderGraph();
                     }
@@ -648,8 +651,11 @@ export default {
             })
         },
         getNodesColoredBySimilarity() {
+            console.log('开始按相似度着色，选中节点:', this.selectedNodeDetail);
+
             // 如果没有选中节点，则使用默认颜色
             if (!this.selectedNodeDetail) {
+                console.log('未选择节点，使用默认颜色');
                 return this.graphData.nodes.map(node => ({
                     ...node,
                     category: '未选择节点',
@@ -660,9 +666,13 @@ export default {
             }
 
             // 检查选中节点是否有embedding数据
-            if (!this.selectedNodeDetail.embedding) {
-                this.$Message.warning('当前选中节点缺少向量数据，无法计算相似度');
+            console.log('选中节点所有字段:', Object.keys(this.selectedNodeDetail));
+            console.log('选中节点embedding字段:', this.selectedNodeDetail.embedding);
+            console.log('选中节点embedding类型:', typeof this.selectedNodeDetail.embedding);
 
+            if (!this.selectedNodeDetail.embedding || this.selectedNodeDetail.embedding.length === 0) {
+                this.$Message.warning('当前选中节点缺少向量数据，无法计算相似度');
+                console.warn('当前选中节点缺少向量数据:', this.selectedNodeDetail);
                 return this.graphData.nodes.map(node => ({
                     ...node,
                     category: '数据缺失',
@@ -672,7 +682,10 @@ export default {
                 }));
             }
 
-
+            console.log('开始计算相似度，选中节点ID:', this.selectedNodeDetail.id);
+            const embeddingVector = this.selectedNodeDetail.embedding.split(',');
+            console.log('选中节点embedding向量:', embeddingVector);
+            console.log('选中节点embedding维度:', embeddingVector.length);
 
             // 为每个节点计算与选中节点的相似度
             const nodesWithSimilarity = this.graphData.nodes.map(node => {
@@ -683,7 +696,7 @@ export default {
                     // 选中节点使用特殊颜色
                     color = '#1890ff';
                     category = '当前节点';
-                } else if (node.embedding) {
+                } else if (node.embedding && node.embedding.length > 0) {
                     // 计算基于嵌入向量的相似度
                     try {
                         const similarity = this.calculateEmbeddingSimilarity(
@@ -726,6 +739,7 @@ export default {
 
             return nodesWithSimilarity;
         },
+
 
 
         calculateEmbeddingSimilarity(embedding1, embedding2) {
@@ -815,12 +829,17 @@ export default {
         async changeColorMode() {
             console.log('切换着色模式到:', this.colorMode);
             // 如果切换到相似度模式并且已有选中节点，则自动加载相似节点数据
-            if (this.colorMode === 'similarity' && this.selectedNodeDetail) {
-                console.log('加载相似节点数据...');
-                await this.findSimilarPointsWithoutUI();
+            if (this.colorMode === 'similarity') {
+                if (this.selectedNodeDetail) {
+                    console.log('加载相似节点数据...');
+                    await this.findSimilarPointsWithoutUI();
+                } else {
+                    this.$Message.info('请先选择一个节点以查看相似度着色');
+                }
             }
             this.renderGraph();
         },
+
 
 
         filterGraph() {
