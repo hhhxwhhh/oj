@@ -4,6 +4,12 @@
         <el-card class="info-card">
             <div slot="header">
                 <span>{{ $t('m.Assignment_Detail') }}</span>
+                <div style="float: right;">
+                    <el-button size="mini" type="primary" @click="viewDashboard">分析仪表板</el-button>
+                    <el-button size="mini" type="success" @click="viewStatistics">统计详情</el-button>
+                    <el-button size="mini" type="info" @click="viewAllStudentProgress">所有学生进度</el-button>
+                    <el-button size="mini" @click="goBack">返回</el-button>
+                </div>
             </div>
             <el-row>
                 <el-col :span="8">
@@ -17,14 +23,62 @@
                 </el-col>
             </el-row>
             <el-row>
+                <el-col :span="8">
+                    <p><strong>{{ $t('m.Rule_Type') }}:</strong> {{ assignment.rule_type }}</p>
+                </el-col>
+                <el-col :span="8">
+                    <p><strong>{{ $t('m.Is_Personalized') }}:</strong>
+                        <el-tag :type="assignment.is_personalized ? 'success' : 'info'">
+                            {{ assignment.is_personalized ? $t('m.Yes') : $t('m.No') }}
+                        </el-tag>
+                    </p>
+                </el-col>
+                <el-col :span="8">
+                    <p><strong>{{ $t('m.Creator') }}:</strong> {{ assignment.creator_username }}</p>
+                </el-col>
+            </el-row>
+            <el-row>
                 <el-col :span="24">
                     <p><strong>{{ $t('m.Description') }}:</strong> {{ assignment.description }}</p>
                 </el-col>
             </el-row>
         </el-card>
 
+        <!-- 统计卡片 -->
+        <el-card class="statistics-card">
+            <div slot="header">
+                <span>统计概览</span>
+            </div>
+            <el-row :gutter="20">
+                <el-col :span="6">
+                    <div class="stat-item">
+                        <p class="stat-value">{{ statistics.total_students }}</p>
+                        <p class="stat-label">总学生数</p>
+                    </div>
+                </el-col>
+                <el-col :span="6">
+                    <div class="stat-item">
+                        <p class="stat-value">{{ statistics.submitted_students }}</p>
+                        <p class="stat-label">已提交学生</p>
+                    </div>
+                </el-col>
+                <el-col :span="6">
+                    <div class="stat-item">
+                        <p class="stat-value">{{ statistics.average_score }}</p>
+                        <p class="stat-label">平均分</p>
+                    </div>
+                </el-col>
+                <el-col :span="6">
+                    <div class="stat-item">
+                        <p class="stat-value">{{ statistics.completion_percentage }}%</p>
+                        <p class="stat-label">完成率</p>
+                    </div>
+                </el-col>
+            </el-row>
+        </el-card>
+
         <!-- 题目卡片 -->
-        <el-card class="problems-card" style="margin-top: 20px;">
+        <el-card class="problems-card">
             <div slot="header">
                 <span>{{ $t('m.Problems') }}</span>
                 <el-button style="float: right; padding: 3px 0" type="primary" size="small"
@@ -41,6 +95,44 @@
                         <el-button size="mini" type="danger" @click="removeProblem(scope.row)">
                             {{ $t('m.Delete') }}
                         </el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-card>
+
+        <!-- 已分配学生卡片 -->
+        <el-card class="assigned-students-card">
+            <div slot="header">
+                <span>已分配学生</span>
+                <el-button style="float: right; padding: 3px 0" type="success" size="small" @click="handleAssign">
+                    {{ $t('m.Assign') }}
+                </el-button>
+            </div>
+            <el-table :data="assignedStudents" style="width: 100%">
+                <el-table-column prop="student_username" label="用户名" width="150" />
+                <el-table-column prop="student_realname" label="姓名" width="150" />
+                <el-table-column label="状态" width="120">
+                    <template slot-scope="scope">
+                        <el-tag :type="getStatusType(scope.row.status)">
+                            {{ formatStatus(scope.row.status) }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="分配时间" width="180">
+                    <template slot-scope="scope">
+                        {{ scope.row.assigned_time | localtime }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="完成时间" width="180">
+                    <template slot-scope="scope">
+                        {{ scope.row.completed_time | localtime }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="score" label="得分" width="100" />
+                <el-table-column prop="max_score" label="总分" width="100" />
+                <el-table-column label="操作" width="150">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="primary" @click="viewStudentProgress(scope.row)">查看进度</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -126,9 +218,16 @@
 
 <script>
 import api from '../../api.js'
+import moment from 'moment'
 
 export default {
     name: 'AssignmentDetail',
+    filters: {
+        localtime(date) {
+            if (!date) return ''
+            return moment(date).format('YYYY-MM-DD HH:mm')
+        }
+    },
     data() {
         return {
             assignmentId: '',
@@ -189,6 +288,18 @@ export default {
         viewStatistics() {
             this.$router.push({
                 name: 'assignment-statistics',
+                params: { assignmentId: this.assignmentId }
+            })
+        },
+        viewDashboard() {
+            this.$router.push({
+                name: 'assignment-dashboard',
+                params: { assignmentId: this.assignmentId }
+            })
+        },
+        viewAllStudentProgress() {
+            this.$router.push({
+                name: 'assignment-student-progress-list',
                 params: { assignmentId: this.assignmentId }
             })
         },
@@ -291,14 +402,6 @@ export default {
         handleAssign() {
             this.showAssignDialog = true
         },
-        viewDashboard() {
-            this.$router.push({
-                name: 'assignment-dashboard',
-                params: { assignmentId: this.assignmentId }
-            })
-        },
-
-
         assignToStudents() {
             const data = {
                 all_students: this.assignForm.assignType === 'all',
@@ -314,8 +417,33 @@ export default {
                 })
             })
         },
+        viewStudentProgress(row) {
+            this.$router.push({
+                name: 'student-progress',
+                params: {
+                    assignmentId: this.assignmentId,
+                    studentAssignmentId: row.id
+                }
+            })
+        },
         goBack() {
             this.$router.push({ name: 'assignment-list' })
+        },
+        formatStatus(status) {
+            const statusMap = {
+                'assigned': '已分配',
+                'in_progress': '进行中',
+                'completed': '已完成'
+            }
+            return statusMap[status] || status
+        },
+        getStatusType(status) {
+            const typeMap = {
+                'assigned': 'info',
+                'in_progress': 'warning',
+                'completed': 'success'
+            }
+            return typeMap[status] || 'info'
         }
     }
 }

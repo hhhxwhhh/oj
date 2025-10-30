@@ -145,6 +145,7 @@ export default {
             })
         },
         viewProgress(row) {
+            // 跳转到作业详情页面，然后在详情页面中可以查看已分配学生的进度
             this.$router.push({
                 name: 'assignment-detail',
                 params: { assignmentId: row.id }
