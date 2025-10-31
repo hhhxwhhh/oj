@@ -70,7 +70,7 @@ class DeepLearningRecommender:
             logger.info(f'Recommendation Model Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
         
         # 保存模型
-        torch.save(self.model.state_dict(), 'ai/models/deep_learning/recommendation_model.pth')
+        torch.save(self.model.state_dict(), 'ai/dl_models/cnn/recommendation_model.pth')
     
     def predict_score(self, user_features, problem_features):
         """预测用户对题目的兴趣分数"""

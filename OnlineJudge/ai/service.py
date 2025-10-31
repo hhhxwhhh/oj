@@ -1437,10 +1437,9 @@ class AIRecommendationService:
         try:
             user_features = []
             problem_features = []
-            labels = []  # 1表示解决，0表示未解决或失败
+            labels = []  
             
-            # 获取所有提交记录
-            submissions = Submission.objects.select_related('user', 'problem')
+            submissions = Submission.objects.select_related('problem')
             
             for submission in submissions:
                 user_id = submission.user_id
@@ -1471,6 +1470,7 @@ class AIRecommendationService:
         except Exception as e:
             logger.error(f"Error training deep learning recommendation model: {str(e)}")
             return None
+
     @staticmethod
     def _extract_problem_features(problem_id):
         """
@@ -1479,14 +1479,17 @@ class AIRecommendationService:
         try:
             problem = Problem.objects.get(id=problem_id)
             
-            # 题目难度特征
             difficulty_map = {'Low': [1, 0, 0], 'Mid': [0, 1, 0], 'High': [0, 0, 1]}
             difficulty_features = difficulty_map.get(problem.difficulty, [0, 0, 1])
             
             # 通过率特征
             acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
             
+            # 标签数量
             tag_count = problem.tags.count()
+            
+            # 提交数量
+            submission_number = float(problem.submission_number)
             
             # 知识点特征
             from .models import KnowledgePoint
@@ -1498,18 +1501,35 @@ class AIRecommendationService:
                 avg_kp_importance = sum(kp.importance for kp in knowledge_points) / len(knowledge_points)
                 avg_kp_frequency = sum(kp.frequency for kp in knowledge_points) / len(knowledge_points)
             
+
+            from django.utils import timezone
+            days_since_created = (timezone.now() - problem.create_time).days if problem.create_time else 0
+            time_feature = min(1.0, days_since_created / 3650.0)
+            
+            # 题目是否为原创题目标记
+            is_spj = 1.0 if problem.spj else 0.0
+            
+            # 题目时限和内存限制的归一化特征
+            time_limit_normalized = min(1.0, problem.time_limit / 10000.0) if problem.time_limit else 0.5
+            memory_limit_normalized = min(1.0, problem.memory_limit / 1024.0) if problem.memory_limit else 0.5
+            
+            # 综合特征
             features = difficulty_features + [
-                acceptance_rate, 
-                tag_count, 
-                problem.submission_number,
-                avg_kp_importance,
-                avg_kp_frequency
+                acceptance_rate,           
+                float(tag_count),         
+                submission_number,        
+                avg_kp_importance,        
+                avg_kp_frequency,                           
+                time_limit_normalized,   
+                memory_limit_normalized   
             ]
             
             return features
         except Exception as e:
             logger.error(f"Error extracting problem features for problem {problem_id}: {str(e)}")
-            return [0, 0, 1, 0, 0, 0, 0, 0]  
+            # 返回10维默认特征向量
+            return [0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5]
+
 
     @staticmethod
     def deep_learning_recommendations(user_id, count=10):
