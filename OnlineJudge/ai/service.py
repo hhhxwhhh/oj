@@ -798,29 +798,27 @@ class AIRecommendationService:
         """
         混合推荐算法，结合协同过滤和内容推荐，并考虑用户行为数据
         """
-        # 获取各种推荐结果
         cf_recommendations = AIRecommendationService.collaborative_filtering_recommendations(user_id=user_id, count=count*2)
         cb_recommendations = AIRecommendationService.content_based_recommendations(user_id=user_id, count=count*2)
         
-        # 获取用户行为数据
         behavior_weights = AIRecommendationService._get_user_behavior_weights(user_id)
+        
+        cf_weight, cb_weight = AIRecommendationService._calculate_algorithm_weights(
+            user_id, cf_recommendations, cb_recommendations)
         
         problem_scores = defaultdict(list)
         for problem_id, score, reason in cf_recommendations:
-            problem_scores[problem_id].append((score, reason))
+            problem_scores[problem_id].append((score * cf_weight, reason))
         for problem_id, score, reason in cb_recommendations:
-            problem_scores[problem_id].append((score, reason))
+            problem_scores[problem_id].append((score * cb_weight, reason))
             
         final_recommendations = []
         for problem_id, scores_reasons in problem_scores.items():
-            # 计算平均分数
-            avg_score = sum(score for score, _ in scores_reasons) / len(scores_reasons)
-            
-            # 获取该题目的行为权重
+            weighted_score = sum(score for score, _ in scores_reasons)
             behavior_weight = behavior_weights.get(problem_id, 1.0)
             
-            # 综合分数 = 平均分数 * 行为权重
-            final_score = avg_score * behavior_weight
+            # 综合分数 = 加权分数 * 行为权重
+            final_score = weighted_score * behavior_weight
             
             reasons = list(set(reason for _, reason in scores_reasons))
             combined_reason = ", ".join(reasons)
@@ -830,6 +828,53 @@ class AIRecommendationService:
         # 按分数排序
         final_recommendations.sort(key=lambda x: x[1], reverse=True)
         return final_recommendations[:count]
+    
+    @staticmethod
+    def _calculate_algorithm_weights(user_id, cf_recommendations, cb_recommendations):
+        """
+        根据用户历史反馈动态计算算法权重
+        """
+        try:
+            # 获取用户反馈数据
+            from .models import AIRecommendationFeedback
+            feedbacks = AIRecommendationFeedback.objects.filter(user_id=user_id)
+            
+            if not feedbacks.exists():
+                # 没有反馈数据，使用默认权重
+                return 0.5, 0.5
+            
+            # 统计各算法推荐的接受情况
+            cf_accepted = 0
+            cf_total = 0
+            cb_accepted = 0
+            cb_total = 0
+            
+            for feedback in feedbacks:
+                if "协同过滤" in feedback.recommendation.reason or "相似用户" in feedback.recommendation.reason:
+                    cf_total += 1
+                    if feedback.accepted:
+                        cf_accepted += 1
+                elif "内容" in feedback.recommendation.reason:
+                    cb_total += 1
+                    if feedback.accepted:
+                        cb_accepted += 1
+            
+            # 计算接受率
+            cf_acceptance_rate = cf_accepted / cf_total if cf_total > 0 else 0.5
+            cb_acceptance_rate = cb_accepted / cb_total if cb_total > 0 else 0.5
+            
+            total_rate = cf_acceptance_rate + cb_acceptance_rate
+            if total_rate > 0:
+                cf_weight = (cf_acceptance_rate + 0.1) / (total_rate + 0.2)
+                cb_weight = (cb_acceptance_rate + 0.1) / (total_rate + 0.2)
+            else:
+                cf_weight, cb_weight = 0.5, 0.5
+            
+            return cf_weight, cb_weight
+            
+        except Exception as e:
+            logger.error(f"Error calculating algorithm weights: {e}")
+            return 0.5, 0.5
     
     @staticmethod
     def _get_user_behavior_weights(user_id):
