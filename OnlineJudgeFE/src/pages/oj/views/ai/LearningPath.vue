@@ -9,6 +9,15 @@
                         AI Learning Path Generator
                     </div>
                     <div class="setup-content">
+
+                        <div class="online-learning-entry">
+                            <h3>想要更个性化的题目推荐？</h3>
+                            <p>我们的在线学习系统会根据您的实时反馈不断优化推荐算法</p>
+                            <Button type="primary" @click="goToOnlineLearningRecommendation">
+                                <Icon type="md-rocket" /> 尝试在线学习推荐
+                            </Button>
+                        </div>
+
                         <Form :model="pathConfig" :label-width="140" ref="pathConfigForm">
                             <FormItem label="Learning Goal">
                                 <Select v-model="pathConfig.goal" placeholder="Select your learning goal">
@@ -346,6 +355,10 @@ export default {
                 this.$Message.warning('Problem not available');
             }
         },
+        goToOnlineLearningRecommendation() {
+            this.$router.push({ name: 'online-learning-recommendation' });
+        },
+
 
         goToConcept(conceptId) {
             if (conceptId) {
@@ -596,6 +609,24 @@ export default {
                 }
             }
         }
+    }
+}
+
+.online-learning-entry {
+    background-color: #f0f8ff;
+    border: 1px solid #2d8cf0;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+
+    h3 {
+        margin-top: 0;
+        color: #2d8cf0;
+    }
+
+    p {
+        color: #657180;
+        margin-bottom: 15px;
     }
 }
 

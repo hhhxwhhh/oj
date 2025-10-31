@@ -5,6 +5,7 @@ import KnowledgePoints from "../views/ai/KnowledgePoints.vue";
 import KnowledgeGraph from "../views/ai/KnowledgeGraph.vue";
 import KnowledgePointProblems from "../views/ai/KnowledgePointProblems.vue";
 import AbilityDashboard from "../views/user/AbilityDashboard.vue";
+import OnlineLearningRecommendation from "../views/ai/OnlineLearningRecommendation.vue";
 import {
   About,
   ACMRank,
@@ -167,6 +168,13 @@ export default [
     meta: { requiresAuth: true, title: "Learning Path" },
     component: LearningPath
   },
+  {
+    path: "/online-learning-recommendation",
+    name: "online-learning-recommendation",
+    component: OnlineLearningRecommendation,
+    meta: { requiresAuth: true, title: "Online Learning Recommendation" }
+  },
+
   {
     path: "/setting",
     component: Setting.Settings,
