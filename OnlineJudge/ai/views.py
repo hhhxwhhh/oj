@@ -336,6 +336,7 @@ class AIRecommendationFeedbackAPI(APIView):
         user = request.user
         try:
             from .models import AIRecommendation, AIRecommendationFeedback
+            from .service import KnowledgePointService,ql_recommender
             
             # 获取推荐记录
             try:
@@ -354,7 +355,6 @@ class AIRecommendationFeedbackAPI(APIView):
             )
             
             # 处理反馈以优化推荐算法
-            from .service import KnowledgePointService
             KnowledgePointService.process_recommendation_feedback(
                 user_id=user.id,
                 recommendation_id=data["recommendation_id"],
@@ -362,6 +362,16 @@ class AIRecommendationFeedbackAPI(APIView):
                 solved=data.get("solved", False),
                 feedback_text=data.get("feedback", "")
             )
+            if hasattr(recommendation, 'algorithm') and recommendation.algorithm == 'reinforcement_learning':
+                # 计算奖励值
+                if feedback.accepted:
+                    reward = 1.0 if feedback.solved else 0.5
+                else:
+                    reward = -0.5
+                
+                # 更新强化学习模型
+                ql_recommender.update(user.id, 'reinforcement_learning', reward)
+
             
             return self.success(AIRecommendationFeedbackSerializer(feedback).data)
         except Exception as e:

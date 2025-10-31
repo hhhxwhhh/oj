@@ -8,7 +8,10 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import logging
 from .recommendation_model import ProblemRecommendationNet
-
+import json
+import os
+from collections import defaultdict
+from ai.models import AIProgrammingAbility
 logger = logging.getLogger(__name__)
 
 class UserAbilityDataset(Dataset):
@@ -238,3 +241,87 @@ class OnlineLearningRecommender:
         """保存模型"""
         torch.save(self.model.state_dict(), model_path)
         logger.info(f"Model saved to {model_path}")
+
+class QLearningRecommender:
+    def __init__(self):
+        self.q_table = defaultdict(lambda: defaultdict(float))
+        self.model_path = 'ai/dl_models/rl/q_table.json'
+        self._load_model()
+        
+    def _state_to_key(self, state):
+        """将状态转换为字符串键"""
+        return ','.join([f"{s:.1f}" for s in state])
+    
+    def _load_model(self):
+        """加载Q表模型"""
+        try:
+            if os.path.exists(self.model_path):
+                with open(self.model_path, 'r') as f:
+                    data = json.load(f)
+                    for state, actions in data.items():
+                        for action, value in actions.items():
+                            self.q_table[state][action] = value
+        except Exception as e:
+            logger.info(f"Failed to load Q-table model: {e}")
+    
+    def _save_model(self):
+        """保存Q表模型"""
+        try:
+            os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
+            data = {}
+            for state, actions in self.q_table.items():
+                data[state] = dict(actions)
+            with open(self.model_path, 'w') as f:
+                json.dump(data, f)
+        except Exception as e:
+            logger.error(f"Failed to save Q-table model: {e}")
+    
+    def get_user_state(self, user_id):
+        """获取用户状态"""
+        try:
+            # 获取用户能力评估
+            ability = AIProgrammingAbility.objects.get(user_id=user_id)
+            state = [
+                min(1.0, ability.basic_programming_score / 40.0),
+                min(1.0, ability.data_structure_score / 40.0),
+                min(1.0, ability.algorithm_design_score / 40.0),
+                min(1.0, ability.problem_solving_score / 40.0)
+            ]
+            return state
+        except:
+            # 默认状态
+            return [0.5, 0.5, 0.5, 0.5]
+    
+    def select_algorithm(self, user_id):
+        """选择推荐算法"""
+        state = self.get_user_state(user_id)
+        state_key = self._state_to_key(state)
+        
+        # epsilon-贪婪策略
+        if random.random() < 0.2: 
+            algorithms = ['hybrid', 'content', 'collaborative', 'ml_enhanced', 'deep_learning', 'online_learning']
+            return random.choice(algorithms)
+        else:
+            # 根据Q值选择最佳算法
+            actions = dict(self.q_table[state_key])
+            if actions:
+                return max(actions, key=actions.get)
+            else:
+                return 'hybrid'
+    
+    def update(self, user_id, algorithm, reward):
+        """更新Q值"""
+        state = self.get_user_state(user_id)
+        state_key = self._state_to_key(state)
+        
+        # Q-Learning更新公式: Q(s,a) = Q(s,a) + α[r + γ max Q(s',a') - Q(s,a)]
+        alpha = 0.1  # 学习率
+        gamma = 0.9  # 折扣因子
+        
+        current_q = self.q_table[state_key][algorithm]
+        max_next_q = 0
+        new_q = current_q + alpha * (reward + gamma * max_next_q - current_q)
+        self.q_table[state_key][algorithm] = new_q
+        
+        self._save_model()
+

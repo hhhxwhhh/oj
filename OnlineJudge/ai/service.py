@@ -23,7 +23,7 @@ from urllib3.util.retry import Retry
 import hashlib
 from account.models import User
 import torch
-from .dl_models.deep_learning import DeepLearningAbilityAssessor,OnlineLearningRecommender
+from .dl_models.deep_learning import DeepLearningAbilityAssessor,OnlineLearningRecommender,QLearningRecommender
 from .dl_models.recommendation_model import DeepLearningRecommender
 import jieba
 import jieba.analyse
@@ -40,6 +40,7 @@ from torch_geometric.data import Data
 import numpy as np 
 logger = logging.getLogger(__name__)
 online_recommender=OnlineLearningRecommender()
+ql_recommender=QLearningRecommender()
 def setup_nltk_environment():
     """
     配置NLTK环境以使用本地数据
@@ -1663,7 +1664,7 @@ class AIRecommendationService:
             # 添加强化学习算法选项
             if algorithm == 'reinforcement_learning':
                 # 使用强化学习选择推荐算法
-                selected_algorithm = RLRecommendationService.select_algorithm_by_rl(user_id)
+                selected_algorithm = ql_recommender.select_algorithm(user_id)
                 logger.info(f"RL selected algorithm: {selected_algorithm} for user {user_id}")
                 
                 if selected_algorithm == 'collaborative':
@@ -4611,119 +4612,4 @@ class KnowledgeGraphService:
             logger.error(f"推荐相关知识点失败: {str(e)}")
 
 
-class RLRecommendationService:
-    @staticmethod
-    def get_user_state(user_id):
-        try:
-            # 获取用户能力评估
-            ability_record = AIProgrammingAbility.objects.get(user_id=user_id)
-            
-            # 获取用户历史推荐反馈
-            feedback_count = AIRecommendationFeedback.objects.filter(
-                user_id=user_id
-            ).count()
-            
-            accepted_feedback_count = AIRecommendationFeedback.objects.filter(
-                user_id=user_id,
-                accepted=True
-            ).count()
-            
-            feedback_rate = accepted_feedback_count / feedback_count if feedback_count > 0 else 0.5
-            
-            state = [
-                ability_record.basic_programming_score / 40.0,  # 归一化到0-1
-                ability_record.data_structure_score / 40.0,
-                ability_record.algorithm_design_score / 40.0,
-                ability_record.problem_solving_score / 40.0,
-                feedback_rate
-            ]
-            
-            return state
-        except Exception as e:
-            logger.error(f"Error getting user state for RL: {str(e)}")
-            # 返回默认状态
-            return [0.5, 0.5, 0.5, 0.5, 0.5]
-    
-    @staticmethod
-    def get_available_actions():
-        """
-        获取可用的动作空间
-        动作包括：使用不同的推荐算法
-        """
-        return [
-            'hybrid',           
-            'collaborative',    
-            'content',          
-            'deep_learning',    
-            'ml_enhanced',      
-            'online_learning'  
-        ]
-    
-    @staticmethod
-    def calculate_reward(user_id, recommendation_feedback):
-        """
-        根据用户反馈计算奖励值
-        """
-        if recommendation_feedback.accepted:
-            if recommendation_feedback.solved:
-                return 1.0
-            else:
-                return 0.5
-        else:
-            return -0.5
-    
-    @staticmethod
-    def select_algorithm_by_rl(user_id):
-        import random
-        import numpy as np
-        
-        # 获取用户状态
-        state = RLRecommendationService.get_user_state(user_id)
-        
-        # 简单的ε-贪婪策略示例
-        epsilon = 0.2  # 探索率
-        
-        if random.random() < epsilon:
-            available_algorithms = RLRecommendationService.get_available_actions()
-            return random.choice(available_algorithms)
-        else:
-            # 基于用户状态选择算法（利用）
-            # 这里使用简单的启发式规则，实际应用中应使用训练好的RL模型
-            basic_score, ds_score, algo_score, ps_score, feedback_rate = state
-            
-            # 根据用户能力水平选择推荐算法
-            if basic_score < 0.3:
-                # 基础较弱，使用内容推荐帮助巩固基础
-                return 'content'
-            elif ds_score < 0.4 and algo_score < 0.4:
-                # 数据结构和算法能力较弱，使用混合推荐
-                return 'hybrid'
-            elif feedback_rate > 0.7:
-                # 用户反馈良好，使用机器学习增强推荐
-                return 'ml_enhanced'
-            else:
-                # 默认使用混合推荐
-                return 'hybrid'
-    
-    @staticmethod
-    def update_rl_model(user_id, algorithm, feedback):
-        """
-        根据用户反馈更新强化学习模型
-        """
-        try:
-            # 计算奖励
-            reward = RLRecommendationService.calculate_reward(user_id, feedback)
-            
-            # 获取状态
-            state = RLRecommendationService.get_user_state(user_id)
-            
-            # 这里应该更新Q-table或神经网络参数
-            # 由于是简化版本，我们只记录日志
-            logger.info(f"RL Update - User: {user_id}, Algorithm: {algorithm}, Reward: {reward}")
-            
-            # 实际实现中，这里会更新强化学习模型参数
-            # 例如更新Q值: Q(s,a) = Q(s,a) + α[r + γ max Q(s',a') - Q(s,a)]
-            
-        except Exception as e:
-            logger.error(f"Error updating RL model: {str(e)}")
 
