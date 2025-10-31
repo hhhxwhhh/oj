@@ -590,5 +590,16 @@ export const m = {
   Online_Learning_Recommendation: "Online Learning Recommendation",
   Recommendations_based_on_your_interactions:
     "Recommendations based on your interactions",
-  Select_Recommendation_Algorithm: "Select Recommendation Algorithm"
+  Select_Recommendation_Algorithm: "Select Recommendation Algorithm",
+  Not_Helpful: "Not Helpful",
+  Helpful: "Helpful",
+  Acceptance: "Acceptance",
+  Collaborative_Filtering: "Collabrative Filtering",
+  Content_Based: "Content Based",
+  Online_Learning: "Online Learning",
+  Hybrid_Recommendation: "Hybrid Recommendation",
+  Recommend_Problem: "Recommend Problem",
+  Recommend_Knowledge_Point: "Recommend Knowledge Point",
+  No_recommendations_available: "No recommendations available",
+  Loading_recommendations: "Loading recommendations"
 };
