@@ -586,5 +586,9 @@ export const m = {
   No: "No",
   Assignment_List: "Assignment List",
   Assignment: "Assignment",
-  Rule_Type: "Rule Type"
+  Rule_Type: "Rule Type",
+  Online_Learning_Recommendation: "Online Learning Recommendation",
+  Recommendations_based_on_your_interactions:
+    "Recommendations based on your interactions",
+  Select_Recommendation_Algorithm: "Select Recommendation Algorithm"
 };

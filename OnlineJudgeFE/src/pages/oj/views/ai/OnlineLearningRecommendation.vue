@@ -9,20 +9,20 @@
             <div class="algorithm-selector">
                 <div class="selector-label">{{ $t('m.Select_Recommendation_Algorithm') }}:</div>
                 <RadioGroup v-model="selectedAlgorithm" @on-change="onAlgorithmChange" type="button">
-                    <Radio label="hybrid">{{ $t('m.Hybrid_Recommendation') }}</Radio>
-                    <Radio label="collaborative">{{ $t('m.Collaborative_Filtering') }}</Radio>
-                    <Radio label="content">{{ $t('m.Content_Based') }}</Radio>
-                    <Radio label="online_learning">{{ $t('m.Online_Learning') }}</Radio>
+                    <Radio label="hybrid">{{ $t('Hybrid Recommendation') }}</Radio>
+                    <Radio label="collaborative">{{ $t('Collaborative Filtering') }}</Radio>
+                    <Radio label="content">{{ $t('Content Based') }}</Radio>
+                    <Radio label="online_learning">{{ $t('Online Learning') }}</Radio>
                 </RadioGroup>
             </div>
 
             <div class="recommendations-container">
                 <div v-if="loading" class="loading">
-                    <Spin size="large">{{ $t('m.Loading_recommendations') }}</Spin>
+                    <Spin size="large">{{ $t('Loading recommendations') }}</Spin>
                 </div>
 
                 <div v-else-if="recommendations.length === 0" class="no-recommendations">
-                    <p>{{ $t('m.No_recommendations_available') }}</p>
+                    <p>{{ $t('No recommendations available') }}</p>
                 </div>
 
                 <div v-else class="recommendations-list">
@@ -42,7 +42,7 @@
                                 {{ problem.difficulty }}
                             </Tag>
                             <span class="acceptance-rate">
-                                {{ $t('m.Acceptance') }}: {{ (problem.acceptance_rate * 100).toFixed(1) }}%
+                                {{ $t('Acceptance') }}: {{ (problem.acceptance_rate * 100).toFixed(1) }}%
                             </span>
                         </div>
 
@@ -52,10 +52,10 @@
 
                         <div class="feedback-buttons">
                             <Button size="small" type="success" @click.stop="submitFeedback(problem, true)">
-                                {{ $t('m.Helpful') }}
+                                {{ $t('Helpful') }}
                             </Button>
                             <Button size="small" type="error" @click.stop="submitFeedback(problem, false)">
-                                {{ $t('m.Not_Helpful') }}
+                                {{ $t('Not Helpful') }}
                             </Button>
                         </div>
                     </div>
