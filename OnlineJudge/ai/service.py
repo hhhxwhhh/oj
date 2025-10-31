@@ -1026,7 +1026,7 @@ class AIRecommendationService:
             logger.error(f"New user recommendation failed: {str(e)}")
             popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
             return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
-    @staticmethod
+@staticmethod
     def _beginner_user_recommendations(user_id, count):
         """
         初级用户推荐策略
