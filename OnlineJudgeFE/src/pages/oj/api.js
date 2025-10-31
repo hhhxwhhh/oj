@@ -325,9 +325,14 @@ export default {
       data
     });
   },
-  getRecommendedProblems() {
-    return ajax("ai/problems/recommend", "get");
+  getRecommendedProblems(count = 10, algorithm = null) {
+    const params = { count };
+    if (algorithm) {
+      params.algorithm = algorithm;
+    }
+    return ajax("ai/problems/recommend", "get", { params });
   },
+
   submitRecommendationFeedback(data) {
     return ajax("ai/recommendation/feedback", "post", {
       data

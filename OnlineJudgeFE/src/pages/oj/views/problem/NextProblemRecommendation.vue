@@ -52,6 +52,19 @@
                         {{ $t('m.Back_to_Problem') }}
                     </Button>
                 </div>
+
+                <!-- 添加反馈区域 -->
+                <div class="feedback-section">
+                    <div class="feedback-label">{{ $t('m.Is_this_recommendation_helpful') }}</div>
+                    <div class="feedback-buttons">
+                        <Button type="success" @click="submitFeedback(true)" size="large">
+                            {{ $t('m.Yes_It_is_helpful') }}
+                        </Button>
+                        <Button type="error" @click="submitFeedback(false)" size="large" style="margin-left: 10px;">
+                            {{ $t('m.No_It_is_not_helpful') }}
+                        </Button>
+                    </div>
+                </div>
             </Card>
         </div>
 
@@ -178,6 +191,32 @@ export default {
                 this.$router.push({ name: 'problem-list' })
             }
         },
+
+        // 添加反馈提交方法
+        async submitFeedback(accepted) {
+            if (!this.recommendedProblem || !this.recommendedProblem.recommendation_id) {
+                this.$Message.warning(this.$t('m.No_recommendation_to_feedback'));
+                return;
+            }
+
+            try {
+                await api.submitRecommendationFeedback({
+                    recommendation_id: this.recommendedProblem.recommendation_id,
+                    accepted: accepted,
+                    solved: false // 可以根据实际情况设置
+                });
+
+                this.$Message.success(this.$t('m.Feedback_submitted'));
+
+                // 如果反馈为无用，获取新的推荐
+                if (!accepted) {
+                    this.getNewRecommendation();
+                }
+            } catch (error) {
+                console.error('Failed to submit feedback:', error);
+                this.$error(this.$t('m.Failed_to_submit_feedback'));
+            }
+        },
     }
 }
 </script>
@@ -207,17 +246,15 @@ export default {
         margin: 0 auto;
 
         .problem-card {
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
-
             .problem-header {
                 margin-bottom: 20px;
 
                 .problem-title-section {
                     .problem-title {
                         font-size: 20px;
-                        margin-bottom: 15px;
-                        color: #2d8cf0;
+                        margin-bottom: 10px;
                         cursor: pointer;
+                        color: #2d8cf0;
 
                         &:hover {
                             text-decoration: underline;
@@ -227,12 +264,7 @@ export default {
                     .problem-meta {
                         display: flex;
                         align-items: center;
-                        gap: 15px;
-
-                        .ac-rate {
-                            font-size: 14px;
-                            color: #808695;
-                        }
+                        gap: 10px;
                     }
                 }
             }
@@ -242,14 +274,13 @@ export default {
 
                 .tags-label {
                     font-weight: bold;
-                    margin-bottom: 8px;
-                    color: #515a6e;
+                    margin-bottom: 5px;
                 }
 
                 .tags-container {
                     display: flex;
                     flex-wrap: wrap;
-                    gap: 8px;
+                    gap: 5px;
                 }
             }
 
@@ -258,73 +289,78 @@ export default {
 
                 .description-label {
                     font-weight: bold;
-                    margin-bottom: 8px;
-                    color: #515a6e;
+                    margin-bottom: 5px;
                 }
 
                 .description-content {
-                    padding: 15px;
+                    padding: 10px;
                     background-color: #f8f8f9;
                     border-radius: 4px;
-                    max-height: 200px;
-                    overflow-y: auto;
-
-                    /deep/ p {
-                        margin: 0 0 10px 0;
-                    }
                 }
             }
 
             .recommendation-reason {
-                margin-bottom: 25px;
-                padding: 15px;
+                margin-bottom: 20px;
+                padding: 10px;
                 background-color: #e6f7ff;
                 border-radius: 4px;
-                border-left: 4px solid #1890ff;
 
                 .reason-label {
                     font-weight: bold;
-                    margin-bottom: 8px;
-                    color: #515a6e;
+                    margin-bottom: 5px;
                 }
 
                 .reason-content {
-                    color: #515a6e;
-                    line-height: 1.5;
+                    color: #555;
                 }
             }
 
             .actions {
-                text-align: center;
-                padding-top: 20px;
+                display: flex;
+                justify-content: center;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .feedback-section {
+                padding: 20px;
                 border-top: 1px solid #e8eaec;
+                text-align: center;
+
+                .feedback-label {
+                    margin-bottom: 15px;
+                    font-weight: bold;
+                    color: #555;
+                }
+
+                .feedback-buttons {
+                    display: flex;
+                    justify-content: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                }
             }
         }
     }
 
     .loading-container {
         text-align: center;
-        padding: 50px 0;
+        padding: 40px 20px;
 
         p {
-            margin-top: 20px;
+            margin-top: 15px;
             color: #808695;
         }
     }
 
     .no-recommendation {
         text-align: center;
-        padding: 50px 20px;
-
-        i {
-            color: #e8eaec;
-            margin-bottom: 20px;
-        }
+        padding: 40px 20px;
 
         p {
-            font-size: 16px;
+            margin: 15px 0;
             color: #808695;
-            margin-bottom: 20px;
         }
     }
 }

@@ -297,10 +297,13 @@ class AIRecommendProblemsAPI(APIView):
     def get(self, request):
         user = request.user
         count = int(request.GET.get("count", 10))
+        algorithm = request.GET.get("algorithm", "hybrid")  
         
         try:
             active_model_exists = AIModel.objects.filter(is_active=True).exists()
-            recommendations = AIRecommendationService.recommend_problems(user.id, count)
+            # 使用指定的算法获取推荐
+            recommendations = AIRecommendationService.recommend_problems(
+                user.id, count, algorithm=algorithm)
             result = []
             for problem_id, score, reason in recommendations:
                 try:
@@ -312,6 +315,7 @@ class AIRecommendProblemsAPI(APIView):
                         "title": problem.title,
                         "difficulty": problem.difficulty,
                         "score": score,
+                        "algorithm_score": score,  # 为前端显示保留算法分数
                         "reason": reason,
                         "acceptance_rate": problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0,
                         "tags": tags

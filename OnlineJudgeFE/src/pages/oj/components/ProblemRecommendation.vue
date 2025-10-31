@@ -37,6 +37,11 @@
                         <div class="recommendation-reason">
                             <Icon type="md-information-circle" /> {{ problem.reason }}
                         </div>
+                        <!-- 添加反馈按钮 -->
+                        <div class="feedback-buttons">
+                            <Button size="small" type="success" @click.stop="submitFeedback(problem, true)">有用</Button>
+                            <Button size="small" type="error" @click.stop="submitFeedback(problem, false)">无用</Button>
+                        </div>
                     </div>
 
                     <div class="recommendation-footer">
@@ -95,6 +100,29 @@ export default {
 
         goToProblem(problemID) {
             this.$router.push({ name: 'problem-details', params: { problemID } })
+        },
+
+        // 添加反馈提交方法
+        async submitFeedback(problem, accepted) {
+            try {
+                // 查找推荐记录ID
+                const recommendationId = problem.recommendation_id || problem.id;
+
+                await api.submitRecommendationFeedback({
+                    recommendation_id: recommendationId,
+                    accepted: accepted,
+                    solved: false
+                });
+
+                this.$Message.success(this.$t('m.Feedback_submitted'));
+
+                if (!accepted) {
+                    this.refreshRecommendations();
+                }
+            } catch (error) {
+                console.error('Failed to submit feedback:', error);
+                this.$error(this.$t('m.Failed_to_submit_feedback'));
+            }
         }
     }
 }
@@ -170,10 +198,17 @@ export default {
         .recommendation-reason {
             font-size: 12px;
             color: #808695;
+            margin-bottom: 8px;
 
             i {
                 margin-right: 4px;
             }
+        }
+
+        .feedback-buttons {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
         }
     }
 
