@@ -1026,7 +1026,7 @@ class AIRecommendationService:
             logger.error(f"New user recommendation failed: {str(e)}")
             popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
             return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
-@staticmethod
+    @staticmethod
     def _beginner_user_recommendations(user_id, count):
         """
         初级用户推荐策略
@@ -1067,27 +1067,46 @@ class AIRecommendationService:
         """
         try:
             # 基于知识点掌握情况推荐
-            knowledge_recommendations = KnowledgePointService.get_knowledge_recommendations(user_id, count)
+            from .models import AIUserKnowledgeState
+            weak_knowledge_points = AIUserKnowledgeState.objects.filter(
+                user_id=user_id,
+                proficiency_level__lt=0.5
+            ).order_by('proficiency_level')[:5]
             
-            # 获取用户频繁错误的知识点相关题目
+            if not weak_knowledge_points.exists():
+                return AIRecommendationService.content_based_recommendations(user_id, count)
+            
+            # 获取针对薄弱知识点的题目
             recommended_problems = []
-            for rec in knowledge_recommendations:
-                knowledge_point = rec['knowledge_point']
-                problems = rec['recommended_problems']
-                score = rec['score']
+            for knowledge_state in weak_knowledge_points:
+                knowledge_point = knowledge_state.knowledge_point
+                # 获取相关题目，优先推荐通过率适中的题目
+                problems = knowledge_point.related_problems.filter(
+                    visible=True
+                ).order_by('accepted_number')[:3]
                 
                 for problem in problems:
-                    recommended_problems.append((problem['id'], score, f"知识点强化: {knowledge_point}"))
+                    # 避免重复推荐已解决的题目
+                    if Submission.objects.filter(
+                        user_id=user_id, 
+                        problem_id=problem.id, 
+                        result=0
+                    ).exists():
+                        continue
+                    
+                    score = (1.0 - knowledge_state.proficiency_level) * 0.7
+                    recommended_problems.append((problem.id, score, f"知识点强化: {knowledge_point.name}"))
             
-            if recommended_problems:
-                recommended_problems.sort(key=lambda x: x[1], reverse=True)
-                return recommended_problems[:count]
-            else:
-                # 回退到内容推荐
+            if not recommended_problems:
                 return AIRecommendationService.content_based_recommendations(user_id, count)
-                
+            
+            # 按分数排序并返回
+            recommended_problems.sort(key=lambda x: x[1], reverse=True)
+            return recommended_problems[:count]
+            
         except Exception as e:
             logger.error(f"Struggling user recommendation failed: {str(e)}")
+            # 回退到内容推荐
             return AIRecommendationService.content_based_recommendations(user_id, count)
         
     @staticmethod
