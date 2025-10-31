@@ -237,5 +237,15 @@ export const m = {
   Complex: "复杂",
   Moderate: "中等",
   Simple: "简单",
-  Very_Simple: "非常简单"
+  Very_Simple: "非常简单",
+  Select_Recommendation_Algorithm: "选择推荐算法",
+  Not_Helpful: "没有帮助",
+  Helpful: "有帮助",
+  Acceptance: "通过率",
+  Collaborative_Filtering: "协同过滤",
+  Content_Based: "内容推荐",
+  Deep_Learning: "深度学习",
+  ML_Enhanced: "机器学习增强",
+  Online_Learning: "在线学习",
+  Hybrid_Recommendation: "混合推荐"
 };

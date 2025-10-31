@@ -601,5 +601,16 @@ export const m = {
   Recommend_Problem: "Recommend Problem",
   Recommend_Knowledge_Point: "Recommend Knowledge Point",
   No_recommendations_available: "No recommendations available",
-  Loading_recommendations: "Loading recommendations"
+  Loading_recommendations: "Loading recommendations",
+  Online_learning_description: "Online learning description",
+  Select_Recommendation_Algorithm: "Select Recommendation Algorithm",
+  Not_Helpful: "Not Helpful",
+  Helpful: "Helpful",
+  Acceptance: "Acceptance",
+  Collaborative_Filtering: "Collaborative Filtering",
+  Content_Based: "Content Based",
+  Deep_Learning: "Deep Learning",
+  ML_Enhanced: "ML Enhanced",
+  Online_Learning: "Online Learning",
+  Hybrid_Recommendation: "Hybrid Recommendation"
 };

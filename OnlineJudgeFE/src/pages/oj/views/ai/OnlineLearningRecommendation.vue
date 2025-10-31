@@ -18,9 +18,12 @@
                             <Radio label="hybrid">{{ $t('m.Hybrid_Recommendation') }}</Radio>
                             <Radio label="collaborative">{{ $t('m.Collaborative_Filtering') }}</Radio>
                             <Radio label="content">{{ $t('m.Content_Based') }}</Radio>
+                            <Radio label="deep_learning">{{ $t('m.Deep_Learning') }}</Radio>
+                            <Radio label="ml_enhanced">{{ $t('m.ML_Enhanced') }}</Radio>
                             <Radio label="online_learning">{{ $t('m.Online_Learning') }}</Radio>
                         </RadioGroup>
                     </div>
+
 
                     <div class="recommendations-container">
                         <div v-if="loading" class="loading">

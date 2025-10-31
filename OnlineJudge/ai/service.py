@@ -314,58 +314,6 @@ class AIService:
     
 
     @staticmethod
-    def recommend_problems(user_id,count=5):
-        from django.db.models import Count
-        from account.models import User
-        try:
-            user=User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            raise Exception("User not found")
-        solved_submissions=Submission.objects.filter(
-            user_id=user_id,
-            result=0
-        ).select_related("problem")
-        solved_problems=[sub.problem for sub in solved_submissions]
-        solved_tags=[]
-        for problem in solved_problems:
-            solved_tags.extend(problem.tags.all())
-
-        from problem.models import Problem
-
-        recommended_problems=Problem.objects.filter(
-            tags__in=solved_tags,
-            visible=True
-        ).exclude(
-            id__in=[problem.id for problem in solved_problems]
-        ).distinct().order_by('?')[:count]
-
-        problem_list = "\n".join([
-            f"{i+1}. {problem.title}" for i, problem in enumerate(recommended_problems)
-        ])
-
-        prompt = f"""
-                    根据用户已完成的题目和掌握的知识点，推荐{count}道适合练习的OJ题目。
-
-                    用户已完成的题目涉及知识点包括：{', '.join([tag.name for tag in set(solved_tags)])}
-
-                    推荐的题目列表：
-                    {problem_list}
-
-                    请为这些题目写一段推荐理由，说明为什么这些题目适合该用户进一步提升。
-                    """.strip()
-        
-        messages = [{"role": "user", "content": prompt}]
-        
-        ai_model = AIService.get_active_ai_model()
-        if not ai_model:
-            raise Exception("No active AI model found")
-            
-        recommendation = AIService.call_ai_model(messages, ai_model)
-        return {
-            "problems": [{"id": p.id, "title": p.title} for p in recommended_problems],
-            "recommendation": recommendation
-        }
-    @staticmethod
     def generate_code_explanation(code, language):
         try:
             prompt = f"请用中文详细解释以下{language}代码的功能和逻辑:\n\n{code}\n\n解释:"
@@ -1448,7 +1396,7 @@ class AIRecommendationService:
         """
         try:
             # 检查推荐模型是否存在
-            model_path = 'ai/models/ml_models/recommendation_model.pkl'
+            model_path = 'ai/ml_models/recommendation_model.pkl'
             if not os.path.exists(model_path):
                 # 如果模型不存在，训练模型
                 AIRecommendationService.train_recommendation_model()
@@ -1456,6 +1404,7 @@ class AIRecommendationService:
             # 加载模型
             if os.path.exists(model_path):
                 model = joblib.load(model_path)
+                model_loaded = True
             else:
                 # 如果无法加载模型，回退到混合推荐
                 return AIRecommendationService.ml_hybrid_recommendations(user_id, count)
@@ -1474,22 +1423,28 @@ class AIRecommendationService:
                 if problem.id in solved_problem_ids:
                     continue
                 
-                # 提取特征
-                features = AIRecommendationService._extract_user_problem_features(user_id, problem.id)
-                
-                # 使用模型预测
+                # 使用模型预测或回退到基于内容的相似度
                 import numpy as np
                 try:
-                    score = model.predict_proba([features])[0][1]  # 获取正类概率
+                    if model_loaded:
+                        features = AIRecommendationService._extract_user_problem_features(user_id, problem.id)
+                        score = model.predict_proba([features])[0][1]  # 获取正类概率
+                        reason = "基于机器学习推荐"
+                    else:
+                        # 模型未加载，使用基于内容的相似度
+                        user_features = AIRecommendationService._build_user_features(user_id)
+                        problem_features = AIRecommendationService._build_problem_features(problem)
+                        score = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
+                        reason = "基于内容相似性推荐（机器学习模型不可用）"
                 except Exception as e:
                     logger.error(f"Error predicting for user {user_id}, problem {problem.id}: {str(e)}")
                     # 如果预测失败，使用简单的启发式方法
                     user_features = AIRecommendationService._build_user_features(user_id)
                     problem_features = AIRecommendationService._build_problem_features(problem)
-                    similarity = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
-                    score = similarity
+                    score = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
+                    reason = "基于内容相似性推荐（预测出错回退）"
                 
-                problem_scores.append((problem.id, score, "基于机器学习推荐"))
+                problem_scores.append((problem.id, score, reason))
             
             # 按分数排序并返回前count个
             problem_scores.sort(key=lambda x: x[1], reverse=True)
@@ -1609,7 +1564,7 @@ class AIRecommendationService:
         """
         try:
             # 检查模型是否存在
-            model_path = 'ai/models/deep_learning/recommendation_model.pth'
+            model_path = 'ai/dl_models/cnn/recommendation_model.pth'
             import os
             if not os.path.exists(model_path):
                 # 训练模型
@@ -1773,62 +1728,6 @@ class AIRecommendationService:
         except Exception as e:
             logger.error(f"Error in generate_code_explanation: {str(e)}")
             raise Exception(f"Failed to generate code explanation: {str(e)}")
-        
-
-    @staticmethod
-    def deep_learning_recommendations(user_id, count=10):
-        """
-        基于用户行为模式的深度学习推荐算法
-        使用简单的神经网络思想进行推荐
-        """
-        try:
-            from sklearn.preprocessing import StandardScaler
-            import numpy as np
-            
-            # 获取用户历史行为数据
-            submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
-            
-            if not submissions:
-                # 如果没有提交记录，返回热门题目
-                popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
-                return [(problem.id, 0.5, "热门题目推荐") for problem in popular_problems]
-            
-            # 构建用户特征向量
-            user_features = AIRecommendationService._build_user_features(user_id)
-            
-            # 获取所有可见题目
-            all_problems = Problem.objects.filter(visible=True)
-            
-            # 为每个题目计算匹配分数
-            problem_scores = []
-            for problem in all_problems:
-                # 检查用户是否已解决该题目
-                solved = submissions.filter(problem_id=problem.id, result=0).exists()
-                if solved:
-                    continue  # 跳过已解决的题目
-                
-                # 构建题目特征向量
-                problem_features = AIRecommendationService._build_problem_features(problem)
-                
-                # 计算用户与题目的匹配分数（简化版余弦相似度）
-                similarity = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
-                
-                # 考虑题目的热度因素
-                popularity_factor = min(1.0, problem.accepted_number / 1000.0) if problem.accepted_number else 0.1
-                
-                # 综合分数
-                final_score = similarity * (0.7 + 0.3 * popularity_factor)
-                
-                problem_scores.append((problem.id, final_score, "基于深度学习推荐"))
-            
-            # 按分数排序并返回前count个
-            problem_scores.sort(key=lambda x: x[1], reverse=True)
-            return problem_scores[:count]
-            
-        except Exception as e:
-            logger.error(f"Deep learning recommendation failed: {str(e)}")
-            # 出错时回退到混合推荐
-            return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
         
     @staticmethod
     def _build_user_features(user_id):
@@ -3746,7 +3645,7 @@ class AIProgrammingAbilityService:
         """
         try:
             # 检查模型是否存在
-            model_dir = 'ai/models/ml_models'
+            model_dir = 'ai/ml_models'
             if not os.path.exists(f'{model_dir}/ability_model_0.pkl'):
                 # 如果模型不存在，训练模型
                 result = AIProgrammingAbilityService._train_ability_assessment_model()
