@@ -945,45 +945,88 @@ class AIRecommendationService:
             return {}
 
     @staticmethod
-    def ml_hybrid_recommendations(user_id, count=10):
+    def ml_enhanced_recommendations(user_id, count=10):
         """
-        基于机器学习的混合推荐算法
+        使用机器学习增强的推荐算法
         """
         try:
-            # 获取协同过滤和内容推荐的结果
-            cf_recommendations = AIRecommendationService.collaborative_filtering_recommendations(user_id, count*2)
-            cb_recommendations = AIRecommendationService.content_based_recommendations(user_id, count*2)
+            # 检查推荐模型是否存在
+            model_path = 'ai/ml_models/recommendation_model.pkl'
+            logger.info(f"Checking for model at path: {model_path}")
+            logger.info(f"Model file exists: {os.path.exists(model_path)}")
             
-            # 构建训练数据用于学习最佳组合权重
-            train_data = []
-            for problem_id, score, reason in cf_recommendations:
-                train_data.append((problem_id, score, 'cf', reason))
-            for problem_id, score, reason in cb_recommendations:
-                train_data.append((problem_id, score, 'cb', reason))
+            if not os.path.exists(model_path):
+                # 如果模型不存在，训练模型
+                logger.info("Model not found, training new model...")
+                AIRecommendationService.train_recommendation_model()
             
-            problem_scores = defaultdict(list)
-            for problem_id, score, method, reason in train_data:
-                problem_scores[problem_id].append((score, method, reason))
+            # 加载模型
+            model_loaded = False
+            model = None
+            if os.path.exists(model_path):
+                try:
+                    logger.info("Attempting to load model...")
+                    model = joblib.load(model_path)
+                    model_loaded = True
+                    logger.info("Model loaded successfully")
+                except Exception as load_error:
+                    logger.error(f"Failed to load model: {str(load_error)}")
+                    model_loaded = False
+            else:
+                logger.info("Model file does not exist")
+                # 如果无法加载模型，回退到混合推荐
+                return AIRecommendationService.hybrid_recommendations(user_id, count)
             
-            # 计算综合得分
-            final_recommendations = []
-            for problem_id, scores_reasons in problem_scores.items():
-                # 简单平均
-                avg_score = sum(score for score, _, _ in scores_reasons) / len(scores_reasons)
+            # 获取用户提交记录
+            submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
+            solved_problem_ids = set(sub.problem.problem.id for sub in submissions if sub.result == 0)
+            
+            # 获取所有可见题目
+            all_problems = Problem.objects.filter(visible=True)
+            
+            # 为每个题目计算推荐分数
+            problem_scores = []
+            for problem in all_problems:
+                # 跳过已解决的题目
+                if problem.id in solved_problem_ids:
+                    continue
                 
-                # 收集推荐理由
-                reasons = list(set(reason for _, _, reason in scores_reasons))
-                combined_reason = ", ".join(reasons)
+                # 使用模型预测或回退到基于内容的相似度
+                import numpy as np
+                try:
+                    if model_loaded:
+                        logger.info(f"Predicting for user {user_id}, problem {problem.id}")
+                        features = AIRecommendationService._extract_user_problem_features(user_id, problem.id)
+                        logger.info(f"Features extracted: {features}")
+                        score = model.predict_proba([features])[0][1]  # 获取正类概率
+                        logger.info(f"Prediction score: {score}")
+                        reason = "基于机器学习推荐"
+                        logger.info(f"Using ML prediction for user {user_id}, problem {problem.id}")
+                    else:
+                        # 模型未加载，使用基于内容的相似度
+                        logger.info("Model not loaded, using content-based similarity")
+                        user_features = AIRecommendationService._build_user_features(user_id)
+                        problem_features = AIRecommendationService._build_problem_features(problem)
+                        score = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
+                        reason = "基于内容相似性推荐（机器学习模型不可用）"
+                except Exception as e:
+                    logger.error(f"Error predicting for user {user_id}, problem {problem.id}: {str(e)}")
+                    # 如果预测失败，使用简单的启发式方法
+                    user_features = AIRecommendationService._build_user_features(user_id)
+                    problem_features = AIRecommendationService._build_problem_features(problem)
+                    score = AIRecommendationService._calculate_feature_similarity(user_features, problem_features)
+                    reason = "基于内容相似性推荐（预测出错回退）"
                 
-                final_recommendations.append((problem_id, avg_score, combined_reason))
+                problem_scores.append((problem.id, score, reason))
             
-            # 按分数排序
-            final_recommendations.sort(key=lambda x: x[1], reverse=True)
-            return final_recommendations[:count]
+            # 按分数排序并返回前count个
+            problem_scores.sort(key=lambda x: x[1], reverse=True)
+            logger.info(f"Returning {len(problem_scores[:count])} recommendations")
+            return problem_scores[:count]
             
         except Exception as e:
-            logger.error(f"ML hybrid recommendation failed: {str(e)}")
-            # 回退到传统的混合推荐
+            logger.error(f"ML enhanced recommendation failed: {str(e)}")
+            # 回退到混合推荐
             return AIRecommendationService.hybrid_recommendations(user_id, count)
 
     @staticmethod
@@ -1407,11 +1450,11 @@ class AIRecommendationService:
                 model_loaded = True
             else:
                 # 如果无法加载模型，回退到混合推荐
-                return AIRecommendationService.ml_hybrid_recommendations(user_id, count)
+                return AIRecommendationService.hybrid_recommendations(user_id, count)
             
             # 获取用户提交记录
             submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
-            solved_problem_ids = set(sub.problem.problem.id for sub in submissions if sub.result == 0)
+            solved_problem_ids = set(sub.problem.id for sub in submissions if sub.result == 0)
             
             # 获取所有可见题目
             all_problems = Problem.objects.filter(visible=True)
@@ -1453,7 +1496,8 @@ class AIRecommendationService:
         except Exception as e:
             logger.error(f"ML enhanced recommendation failed: {str(e)}")
             # 回退到混合推荐
-            return AIRecommendationService.ml_hybrid_recommendations(user_id, count)
+            return AIRecommendationService.hybrid_recommendations(user_id, count)
+
 
     @staticmethod
     def _train_dl_recommendation_model():
