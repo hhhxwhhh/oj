@@ -1467,16 +1467,31 @@ class AIRecommendationService:
             # 通过率特征
             acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
             
-            # 标签特征（简化为标签数量）
             tag_count = problem.tags.count()
             
-            # 组合特征
-            features = difficulty_features + [acceptance_rate, tag_count, problem.submission_number]
+            # 知识点特征
+            from .models import KnowledgePoint
+            knowledge_points = problem.knowledgepoint_set.all()
+            avg_kp_importance = 0.0
+            avg_kp_frequency = 0.0
+            
+            if knowledge_points.exists():
+                avg_kp_importance = sum(kp.importance for kp in knowledge_points) / len(knowledge_points)
+                avg_kp_frequency = sum(kp.frequency for kp in knowledge_points) / len(knowledge_points)
+            
+            features = difficulty_features + [
+                acceptance_rate, 
+                tag_count, 
+                problem.submission_number,
+                avg_kp_importance,
+                avg_kp_frequency
+            ]
             
             return features
         except Exception as e:
             logger.error(f"Error extracting problem features for problem {problem_id}: {str(e)}")
-            return [0, 0, 1, 0, 0, 0]  
+            return [0, 0, 1, 0, 0, 0, 0, 0]  
+
     @staticmethod
     def deep_learning_recommendations(user_id, count=10):
         """
