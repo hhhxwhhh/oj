@@ -612,5 +612,6 @@ export const m = {
   Deep_Learning: "Deep Learning",
   ML_Enhanced: "ML Enhanced",
   Online_Learning: "Online Learning",
+  Reinforcement_Learning: "Reinforcement Learning",
   Hybrid_Recommendation: "Hybrid Recommendation"
 };

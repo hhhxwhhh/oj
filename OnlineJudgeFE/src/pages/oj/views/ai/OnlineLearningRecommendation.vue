@@ -21,6 +21,7 @@
                             <Radio label="deep_learning">{{ $t('m.Deep_Learning') }}</Radio>
                             <Radio label="ml_enhanced">{{ $t('m.ML_Enhanced') }}</Radio>
                             <Radio label="online_learning">{{ $t('m.Online_Learning') }}</Radio>
+                            <Radio label="reinforcement_learning">{{ $t('m.Reinforcement_Learning') }}</Radio>
                         </RadioGroup>
                     </div>
 
