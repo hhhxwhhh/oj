@@ -1285,26 +1285,26 @@ class AIRecommendationService:
         训练推荐模型
         """
         try:
-            from sklearn.linear_model import LogisticRegression
+            from sklearn.ensemble import RandomForestClassifier
             from sklearn.model_selection import train_test_split
+            from sklearn.metrics import accuracy_score, precision_score, recall_score
             
-            # 准备训练数据
-            X = []  # 特征
-            y = []  # 标签（用户是否解决了题目）
+            X = []  
+            y = []  
             
             # 获取所有提交记录作为训练数据
-            submissions = Submission.objects.all()[:10000]  # 限制数据量以避免内存问题
+            submissions = Submission.objects.all()[:10000]  
             
             for submission in submissions:
                 features = AIRecommendationService._extract_user_problem_features(
                     submission.user_id, submission.problem_id
                 )
-                label = 1 if submission.result == 0 else 0  # 0表示正确解决
+                label = 1 if submission.result == 0 else 0  
                 
                 X.append(features)
                 y.append(label)
             
-            if len(X) < 100:  # 数据太少不训练
+            if len(X) < 100:  
                 return None
             
             # 转换为numpy数组
@@ -1315,18 +1315,32 @@ class AIRecommendationService:
             # 划分训练集和测试集
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
             
-            # 训练逻辑回归模型
-            model = LogisticRegression(random_state=42, max_iter=1000)
+            # 训练随机森林模型
+            model = RandomForestClassifier(
+                n_estimators=100,
+                max_depth=10,
+                min_samples_split=5,
+                min_samples_leaf=2,
+                random_state=42,
+                n_jobs=-1
+            )
             model.fit(X_train, y_train)
             
             # 评估模型
+            y_pred = model.predict(X_test)
             train_score = model.score(X_train, y_train)
             test_score = model.score(X_test, y_test)
+            precision = precision_score(y_test, y_pred)
+            recall = recall_score(y_test, y_pred)
             
-            logger.info(f"Recommendation model trained. Train accuracy: {train_score:.4f}, Test accuracy: {test_score:.4f}")
+            logger.info(f"Recommendation model trained. "
+                       f"Train accuracy: {train_score:.4f}, "
+                       f"Test accuracy: {test_score:.4f}, "
+                       f"Precision: {precision:.4f}, "
+                       f"Recall: {recall:.4f}")
             
             # 保存模型
-            model_dir = 'ai/models/ml_models'
+            model_dir = 'ai/ml_models'
             if not os.path.exists(model_dir):
                 os.makedirs(model_dir)
             joblib.dump(model, f'{model_dir}/recommendation_model.pkl')
