@@ -3632,7 +3632,7 @@ class AIProgrammingAbilityService:
                 models.append(model)
             
             # 保存模型和标准化器
-            model_dir = 'ai/models/ml_models'
+            model_dir = 'ai/ml_models'
             if not os.path.exists(model_dir):
                 os.makedirs(model_dir)
                 
