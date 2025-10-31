@@ -1,9 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
+from collections import deque
+import random
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import logging
+from .recommendation_model import ProblemRecommendationNet
 
 logger = logging.getLogger(__name__)
 
@@ -163,3 +167,74 @@ class TransformerAbilityNet(nn.Module):
         x = x.mean(dim=1)  # 全局平均池化
         x = self.output_layer(x)
         return x
+    
+class OnlineLearningRecommender:
+    """在线学习推荐器 - 基于用户反馈实时更新模型"""
+    
+    def __init__(self, model_path=None):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model = ProblemRecommendationNet().to(self.device)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.criterion = nn.BCELoss()
+        
+        self.replay_buffer = deque(maxlen=10000)
+        self.batch_size = 32
+        
+        # 在线学习参数
+        self.learning_rate = 0.001
+        self.epsilon = 0.1  
+        self.update_frequency = 10 
+        
+        if model_path and torch.load(model_path, map_location=self.device):
+            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+            logger.info("Loaded pre-trained recommendation model from %s", model_path)
+    
+    def update_from_feedback(self, user_features, problem_features, reward):
+        # 将经验存储到回放缓冲区
+        self.replay_buffer.append((user_features, problem_features, reward))
+        
+        # 当缓冲区足够大时进行训练
+        if len(self.replay_buffer) >= self.batch_size:
+            self._train_on_batch()
+    
+    def _train_on_batch(self):
+        """从经验回放缓冲区中采样并训练"""
+        # 随机采样一批经验
+        batch = random.sample(self.replay_buffer, min(self.batch_size, len(self.replay_buffer)))
+        
+        user_features_batch = torch.FloatTensor([exp[0] for exp in batch]).to(self.device)
+        problem_features_batch = torch.FloatTensor([exp[1] for exp in batch]).to(self.device)
+        rewards_batch = torch.FloatTensor([exp[2] for exp in batch]).to(self.device)
+        
+        # 训练模型
+        self.model.train()
+        self.optimizer.zero_grad()
+        
+        predictions = self.model(user_features_batch, problem_features_batch).squeeze()
+        loss = self.criterion(predictions, rewards_batch)
+        
+        loss.backward()
+        self.optimizer.step()
+        
+        self.model.eval()
+        logger.info(f"Online learning update completed. Loss: {loss.item():.4f}")
+    
+    def predict_score(self, user_features, problem_features):
+        """预测用户对题目的兴趣分数"""
+        self.model.eval()
+        with torch.no_grad():
+            user_tensor = torch.FloatTensor(user_features).to(self.device)
+            problem_tensor = torch.FloatTensor(problem_features).to(self.device)
+            
+            if len(user_tensor.shape) == 1:
+                user_tensor = user_tensor.unsqueeze(0)
+            if len(problem_tensor.shape) == 1:
+                problem_tensor = problem_tensor.unsqueeze(0)
+                
+            output = self.model(user_tensor, problem_tensor)
+            return output.cpu().numpy()
+    
+    def save_model(self, model_path):
+        """保存模型"""
+        torch.save(self.model.state_dict(), model_path)
+        logger.info(f"Model saved to {model_path}")

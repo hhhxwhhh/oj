@@ -22,7 +22,7 @@ from urllib3.util.retry import Retry
 import hashlib
 from account.models import User
 import torch
-from .dl_models.deep_learning import DeepLearningAbilityAssessor
+from .dl_models.deep_learning import DeepLearningAbilityAssessor,OnlineLearningRecommender
 from .dl_models.recommendation_model import DeepLearningRecommender
 import jieba
 import jieba.analyse
@@ -38,7 +38,7 @@ from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.data import Data
 import numpy as np 
 logger = logging.getLogger(__name__)
-
+online_recommender=OnlineLearningRecommender()
 def setup_nltk_environment():
     """
     配置NLTK环境以使用本地数据
@@ -875,6 +875,77 @@ class AIRecommendationService:
         except Exception as e:
             logger.error(f"Error calculating algorithm weights: {e}")
             return 0.5, 0.5
+
+    @staticmethod
+    def process_user_feedback_for_online_learning(user_id, recommendation_id, accepted, solved):
+        """
+        处理用户反馈以进行在线学习
+        """
+        try:
+            from .models import AIRecommendation, AIRecommendationFeedback
+            
+            # 获取推荐记录
+            recommendation = AIRecommendation.objects.get(id=recommendation_id)
+            
+            # 提取用户和题目特征
+            user_features = AIProgrammingAbilityService._extract_ml_features(user_id)
+            problem_features = AIRecommendationService._extract_problem_features(recommendation.problem.id)
+            
+            # 计算奖励值
+            if accepted and solved:
+                reward = 1.0  
+            elif accepted and not solved:
+                reward = 0.5  
+            elif not accepted:
+                reward = 0.0  
+            
+            # 更新在线学习模型
+            online_recommender.update_from_feedback(user_features, problem_features, reward)
+            
+            logger.info(f"Processed feedback for user {user_id}, problem {recommendation.problem.id}, reward: {reward}")
+            
+        except Exception as e:
+            logger.error(f"Error processing feedback for online learning: {str(e)}")
+    @staticmethod
+    def get_online_learning_recommendations(user_id, count=10):
+        """
+        基于在线学习模型的推荐
+        """
+        try:
+            # 获取用户特征
+            user_features = AIProgrammingAbilityService._extract_ml_features(user_id)
+            
+            # 获取用户已解决的题目
+            solved_problems = set(
+                Submission.objects.filter(user_id=user_id, result=0)
+                .values_list('problem_id', flat=True)
+            )
+            
+            # 获取所有可见题目
+            all_problems = Problem.objects.filter(visible=True)
+            
+            # 计算每个题目的推荐分数
+            problem_scores = []
+            for problem in all_problems:
+                if problem.id in solved_problems:
+                    continue  
+                
+                # 提取题目特征
+                problem_features = AIRecommendationService._extract_problem_features(problem.id)
+                
+                # 预测分数
+                score = online_recommender.predict_score(user_features, problem_features)[0][0]
+                
+                problem_scores.append((problem.id, float(score), "在线学习推荐"))
+            
+            # 按分数排序
+            problem_scores.sort(key=lambda x: x[1], reverse=True)
+            return problem_scores[:count]
+            
+        except Exception as e:
+            logger.error(f"Online learning recommendation failed: {str(e)}")
+            # 出错时回退到混合推荐
+            return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
     
     @staticmethod
     def _get_user_behavior_weights(user_id):
@@ -1604,6 +1675,9 @@ class AIRecommendationService:
             elif algorithm == 'intelligent':
                 recommendations = AIRecommendationService.intelligent_hybrid_recommendations(
                     user_id=user_id, count=count)
+            elif algorithm == 'online_learning':
+                recommendations = AIRecommendationService.get_online_learning_recommendations(
+                    user_id=user_id, count=count)
             else:  
                 recommendations = AIRecommendationService.hybrid_recommendations(
                     user_id=user_id, count=count)
@@ -1611,7 +1685,6 @@ class AIRecommendationService:
             return recommendations
         except Exception as e:
             logger.error(f"Recommendation failed with algorithm {algorithm}: {str(e)}")
-            # 出错时回退到热门题目推荐
             popular_problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
             return [(problem.id, 1.0, "热门题目推荐") for problem in popular_problems]
 
@@ -2734,15 +2807,15 @@ class KnowledgePointService:
                 feedback=feedback_text
             )
             
-            # 根据反馈更新推荐模型（简化版在线学习）
             if accepted and solved:
-                # 正面反馈：增加相关知识点的推荐权重
                 KnowledgePointService._update_knowledge_point_weights(
                     user_id, recommendation.problem, 1.2)
             elif not accepted:
-                # 负面反馈：减少相关知识点的推荐权重
                 KnowledgePointService._update_knowledge_point_weights(
                     user_id, recommendation.problem, 0.8)
+            
+            AIRecommendationService.process_user_feedback_for_online_learning(
+                user_id, recommendation_id, accepted, solved)
                 
             return feedback
         except Exception as e:
