@@ -578,19 +578,80 @@ class AIRecommendationService:
                 similarities[user_id]=similarty
 
         return similarities
+    @staticmethod
+    def calculate_pearson_similarity(user1_problems, user2_problems, all_problems):
+        """
+        使用皮尔逊相关系数计算用户相似度
+        """
+        common_problems = user1_problems.intersection(user2_problems)
+        if len(common_problems) < 2:
+        
+            intersection = len(user1_problems.intersection(user2_problems))
+            union = len(user1_problems.union(user2_problems))
+            return intersection / union if union > 0 else 0
+        
+        # 构建评分向量（解决为1，未解决为0）
+        user1_ratings = []
+        user2_ratings = []
+        for problem in common_problems:
+            user1_ratings.append(1 if problem in user1_problems else 0)
+            user2_ratings.append(1 if problem in user2_problems else 0)
+        
+        # 计算皮尔逊相关系数
+        n = len(user1_ratings)
+        sum1 = sum(user1_ratings)
+        sum2 = sum(user2_ratings)
+        sum1_sq = sum(rating ** 2 for rating in user1_ratings)
+        sum2_sq = sum(rating ** 2 for rating in user2_ratings)
+        product_sum = sum(user1_ratings[i] * user2_ratings[i] for i in range(n))
+        
+        numerator = product_sum - (sum1 * sum2 / n)
+        denominator = ((sum1_sq - sum1 ** 2 / n) * (sum2_sq - sum2 ** 2 / n)) ** 0.5
+        
+        if denominator == 0:
+            return 0
+        
+        return min(1.0, max(-1.0, numerator / denominator))
+    
+    @staticmethod
+    def improved_similarity_matrix(user_problems, target_user_id):
+        """
+        改进的用户相似度计算方法
+        """
+        if target_user_id not in user_problems:
+            raise Exception("Target user not found")
+        
+        target_problems = user_problems[target_user_id]
+        all_problems = set()
+        for problems in user_problems.values():
+            all_problems.update(problems)
+        
+        similarities = {}
+        for user_id, problems in user_problems.items():
+            if target_user_id == user_id:
+                continue
+            similarity = AIRecommendationService.calculate_pearson_similarity(
+                target_problems, problems, all_problems
+            )
+            if similarity > 0.1:  
+                similarities[user_id] = similarity
+
+        return similarities
+    
     
     @staticmethod
     def collaborative_filtering_recommendations(user_id,count=10):
         """基于协同过滤推荐算法"""
         user_problems=AIRecommendationService.get_user_problem_matrix()
-        similarities=AIRecommendationService.calculate_similarity_matrix(user_problems=user_problems,target_user_id=user_id)
+        similarities=AIRecommendationService.improved_similarity_matrix(
+            user_problems=user_problems,target_user_id=user_id)
         solved_problems=user_problems.get(user_id,set())
         candidate_problems=defaultdict(float)
-        for similar_user_id ,similarty in similarities.items():
-            if similarty>0.1:
+        for similar_user_id ,similarity in similarities.items():
+            if similarity>0.1:
                 for problem_id in user_problems[similar_user_id]:
                     if problem_id not in solved_problems:
-                        candidate_problems[problem_id]+=similarty
+                        candidate_problems[problem_id] += similarity
         sorted_candidate_problems=sorted(candidate_problems.items(),key=lambda x: x[1],reverse=True)
         return [(problem_id, score, "基于相似用户推荐") for problem_id, score in sorted_candidate_problems[:count]]
     @staticmethod
