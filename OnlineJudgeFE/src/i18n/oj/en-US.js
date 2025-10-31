@@ -613,5 +613,12 @@ export const m = {
   ML_Enhanced: "ML Enhanced",
   Online_Learning: "Online Learning",
   Reinforcement_Learning: "Reinforcement Learning",
-  Hybrid_Recommendation: "Hybrid Recommendation"
+  Hybrid_Recommendation: "Hybrid Recommendation",
+  Feedback_submitted: "Feedback submitted",
+  Failed_to_submit_feedback: "Failed to submit feedback",
+  Reinforcement_Learning: "Reinforcement Learning",
+  Loading_recommendations: "Loading recommendations...",
+  No_recommendations_available: "No recommendations available",
+  Score: "Score",
+  Recommendation_Reason: "Recommendation Reason"
 };

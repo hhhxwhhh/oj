@@ -336,7 +336,7 @@ class AIRecommendationFeedbackAPI(APIView):
         user = request.user
         try:
             from .models import AIRecommendation, AIRecommendationFeedback
-            from .service import KnowledgePointService,ql_recommender
+            from .service import KnowledgePointService, ql_recommender
             
             # 获取推荐记录
             try:
@@ -362,6 +362,8 @@ class AIRecommendationFeedbackAPI(APIView):
                 solved=data.get("solved", False),
                 feedback_text=data.get("feedback", "")
             )
+            
+            # 如果使用了强化学习算法，更新Q-learning模型
             if hasattr(recommendation, 'algorithm') and recommendation.algorithm == 'reinforcement_learning':
                 # 计算奖励值
                 if feedback.accepted:
@@ -371,12 +373,11 @@ class AIRecommendationFeedbackAPI(APIView):
                 
                 # 更新强化学习模型
                 ql_recommender.update(user.id, 'reinforcement_learning', reward)
-
             
             return self.success(AIRecommendationFeedbackSerializer(feedback).data)
         except Exception as e:
             logger.error(f"Failed to create recommendation feedback: {str(e)}")
-            return self.error(str(e))
+            return self.error("Failed to create recommendation feedback: " + str(e))
 
 class AICodeReviewAPI(APIView):
     @login_required

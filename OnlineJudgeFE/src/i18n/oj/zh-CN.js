@@ -247,5 +247,12 @@ export const m = {
   Deep_Learning: "深度学习",
   ML_Enhanced: "机器学习增强",
   Online_Learning: "在线学习",
-  Hybrid_Recommendation: "混合推荐"
+  Hybrid_Recommendation: "混合推荐",
+  Feedback_submitted: "反馈已提交",
+  Failed_to_submit_feedback: "提交反馈失败",
+  Reinforcement_Learning: "强化学习",
+  Loading_recommendations: "正在加载推荐...",
+  No_recommendations_available: "暂无推荐题目",
+  Score: "得分",
+  Recommendation_Reason: "推荐理由"
 };

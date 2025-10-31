@@ -139,6 +139,7 @@ export default {
             }
         },
 
+
         goToProblem(problemID) {
             this.$router.push({ name: 'problem-details', params: { problemID } });
         },

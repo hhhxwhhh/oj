@@ -757,27 +757,51 @@ class AIRecommendationService:
             user_id, cf_recommendations, cb_recommendations)
         
         problem_scores = defaultdict(list)
+        reason_tracker = {}  # 跟踪每个题目的推荐理由
+        
         for problem_id, score, reason in cf_recommendations:
-            problem_scores[problem_id].append((score * cf_weight, reason))
+            problem_scores[problem_id].append(score * cf_weight)
+            if problem_id not in reason_tracker:
+                reason_tracker[problem_id] = []
+            reason_tracker[problem_id].append(("协同过滤", score * cf_weight, reason))
+                
         for problem_id, score, reason in cb_recommendations:
-            problem_scores[problem_id].append((score * cb_weight, reason))
+            problem_scores[problem_id].append(score * cb_weight)
+            if problem_id not in reason_tracker:
+                reason_tracker[problem_id] = []
+            reason_tracker[problem_id].append(("内容推荐", score * cb_weight, reason))
             
         final_recommendations = []
-        for problem_id, scores_reasons in problem_scores.items():
-            weighted_score = sum(score for score, _ in scores_reasons)
+        for problem_id, scores in problem_scores.items():
+            weighted_score = sum(scores)
             behavior_weight = behavior_weights.get(problem_id, 1.0)
             
             # 综合分数 = 加权分数 * 行为权重
             final_score = weighted_score * behavior_weight
             
-            reasons = list(set(reason for _, reason in scores_reasons))
-            combined_reason = ", ".join(reasons)
+            reasons = reason_tracker[problem_id]
+            if len(reasons) == 1:
+                # 只有一种算法产生了推荐
+                algorithm_type, weighted_score, original_reason = reasons[0]
+                combined_reason = f"混合推荐 ({algorithm_type}: {original_reason})"
+            else:
+                # 两种算法都产生了推荐
+                cf_info = next((r for r in reasons if r[0] == "协同过滤"), None)
+                cb_info = next((r for r in reasons if r[0] == "内容推荐"), None)
+                
+                if cf_info and cb_info:
+                    combined_reason = f"混合推荐 (协同过滤权重:{cf_weight:.2f}, 内容推荐权重:{cb_weight:.2f})"
+                elif cf_info:
+                    combined_reason = f"混合推荐 (协同过滤推荐)"
+                else:
+                    combined_reason = f"混合推荐 (内容推荐)"
             
             final_recommendations.append((problem_id, final_score, combined_reason))
 
         # 按分数排序
         final_recommendations.sort(key=lambda x: x[1], reverse=True)
         return final_recommendations[:count]
+
     
     @staticmethod
     def _calculate_algorithm_weights(user_id, cf_recommendations, cb_recommendations):
@@ -800,11 +824,12 @@ class AIRecommendationService:
             cb_total = 0
             
             for feedback in feedbacks:
-                if "协同过滤" in feedback.recommendation.reason or "相似用户" in feedback.recommendation.reason:
+                recommendation_reason = feedback.recommendation.reason
+                if "协同过滤" in recommendation_reason or "相似用户" in recommendation_reason:
                     cf_total += 1
                     if feedback.accepted:
                         cf_accepted += 1
-                elif "内容" in feedback.recommendation.reason:
+                elif "内容" in recommendation_reason or "题目内容相似性" in recommendation_reason:
                     cb_total += 1
                     if feedback.accepted:
                         cb_accepted += 1
@@ -813,6 +838,7 @@ class AIRecommendationService:
             cf_acceptance_rate = cf_accepted / cf_total if cf_total > 0 else 0.5
             cb_acceptance_rate = cb_accepted / cb_total if cb_total > 0 else 0.5
             
+            # 添加平滑因子避免权重为0
             total_rate = cf_acceptance_rate + cb_acceptance_rate
             if total_rate > 0:
                 cf_weight = (cf_acceptance_rate + 0.1) / (total_rate + 0.2)
