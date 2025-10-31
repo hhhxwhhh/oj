@@ -665,7 +665,6 @@ class AIRecommendationService:
             ).select_related('problem')
             
             if not solved_problems:
-                # 如果用户没有解决问题，返回热门题目
                 from problem.models import Problem
                 problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
                 return [(p.id, 0.5, "热门题目推荐") for p in problems]
@@ -676,21 +675,18 @@ class AIRecommendationService:
             
             # 提取已解决问题的描述
             solved_descriptions = [sp.problem.description for sp in solved_problems if sp.problem.description]
-            # 如果没有描述，使用标题
             if not solved_descriptions:
                 solved_descriptions = [sp.problem.title for sp in solved_problems]
             
             # 提取所有题目的描述
             all_descriptions = [p.description if p.description else p.title for p in all_problems]
             
-            # 合并已解决问题和所有题目的描述用于TF-IDF
             all_texts = solved_descriptions + all_descriptions
             
             # 创建TF-IDF向量
             vectorizer = TfidfVectorizer(max_features=1000, stop_words=None, ngram_range=(1, 2))
             tfidf_matrix = vectorizer.fit_transform(all_texts)
             
-            # 分离已解决问题向量和所有题目向量
             solved_tfidf = tfidf_matrix[:len(solved_descriptions)]
             all_problems_tfidf = tfidf_matrix[len(solved_descriptions):]
             
@@ -703,7 +699,6 @@ class AIRecommendationService:
             # 获取已解决的题目ID集合
             solved_problem_ids = set(sp.problem.id for sp in solved_problems)
             
-            # 创建(题目ID, 相似度, 推荐理由)元组列表
             recommendations = []
             for i, problem in enumerate(all_problems):
                 # 排除已解决的题目
@@ -711,7 +706,12 @@ class AIRecommendationService:
                     continue
                 
                 similarity_score = avg_similarities[i]
-                recommendations.append((problem.id, similarity_score, "基于题目内容相似性推荐"))
+                
+                knowledge_weight = AIRecommendationService._calculate_knowledge_weight(
+                    user_id, problem)
+                weighted_score = similarity_score * knowledge_weight
+                
+                recommendations.append((problem.id, weighted_score, "基于题目内容相似性推荐"))
             
             # 按相似度排序并返回前count个
             recommendations.sort(key=lambda x: x[1], reverse=True)
@@ -744,11 +744,55 @@ class AIRecommendationService:
                     intersection=len(solved_tags.intersection(problem_tags))
                     union=len(solved_tags.union(problem_tags))
                     if union>0:
-                        similarty=intersection/union
-                        candidate_problems.append((problem.id,similarty,"基于标签推荐"))
+                        similarity=intersection/union
+                        # 基于知识点掌握情况调整权重
+                        knowledge_weight = AIRecommendationService._calculate_knowledge_weight(
+                            user_id, problem)
+                        weighted_similarity = similarity * knowledge_weight
+                        candidate_problems.append((problem.id, weighted_similarity, "基于标签推荐"))
 
             candidate_problems.sort(key=lambda x:x[1],reverse=True)
             return candidate_problems[:count]
+        
+    @staticmethod
+    def _calculate_knowledge_weight(user_id, problem):
+        """
+        根据用户知识点掌握情况计算题目权重
+        """
+        try:
+            # 获取题目的知识点
+            from .models import KnowledgePoint
+            problem_knowledge_points = problem.knowledgepoint_set.all()
+            
+            if not problem_knowledge_points.exists():
+                return 1.0
+            
+            # 获取用户知识点掌握情况
+            from .models import AIUserKnowledgeState
+            user_knowledge_states = AIUserKnowledgeState.objects.filter(
+                user_id=user_id,
+                knowledge_point__in=problem_knowledge_points
+            )
+            # 创建掌握程度映射
+            proficiency_map = {
+                state.knowledge_point_id: state.proficiency_level 
+                for state in user_knowledge_states
+            }
+            total_proficiency = 0
+            count = 0
+            for kp in problem_knowledge_points:
+                proficiency = proficiency_map.get(kp.id, 0.5)  
+                total_proficiency += proficiency
+                count += 1
+            
+            avg_proficiency = total_proficiency / count if count > 0 else 0.5
+            
+            weight = 1.0 + (1.0 - avg_proficiency) * 0.5
+            return weight
+            
+        except Exception as e:
+            logger.error(f"Error calculating knowledge weight: {e}")
+            return 1.0
     @staticmethod
     def hybrid_recommendations(user_id, count=10):
         """
