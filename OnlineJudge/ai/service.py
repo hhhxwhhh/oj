@@ -2114,35 +2114,54 @@ class KnowledgePointService:
             from .models import KnowledgePoint
             from problem.models import Problem
             
-            # 更新所有知识点的频率
+            updated_count = 0
+            # 更新所有知识点的频率和重要性
             for kp in KnowledgePoint.objects.all():
-                kp.frequency = kp.related_problems.count()
-                kp.save()
-            
-            # 计算知识点重要性（基于相关题目的通过率等指标）
-            for kp in KnowledgePoint.objects.all():
+                # 计算频率：关联题目的数量
+                frequency = kp.related_problems.count()
+                
+                # 计算重要性：基于关联题目的难度和通过率
+                importance = 0.0
                 related_problems = kp.related_problems.all()
+                
                 if related_problems.exists():
-                    # 计算平均通过率
-                    total_accepted = sum(p.accepted_number for p in related_problems)
-                    total_submissions = sum(p.submission_number for p in related_problems)
+                    total_importance = 0.0
+                    for problem in related_problems:
+                        try:
+                            difficulty_value = int(problem.difficulty)
+                        except (ValueError, TypeError):
+                            # 如果无法转换为整数，使用默认值3（中等难度）
+                            difficulty_value = 3
+                        difficulty_weight = 0.5 + (difficulty_value - 1) * 0.375
+                        
+                        # 通过率权重 (避免除零错误)
+                        if problem.submission_number > 0:
+                            acceptance_rate = problem.accepted_number / problem.submission_number
+                            # 通过率越低，说明题目越难，重要性越高 (0.1-2.0映射)
+                            acceptance_weight = 2.0 - 1.9 * acceptance_rate
+                        else:
+                            acceptance_weight = 1.0
+                            
+                        total_importance += difficulty_weight * acceptance_weight
                     
-                    if total_submissions > 0:
-                        avg_acceptance_rate = total_accepted / total_submissions
-                        kp.importance = 1 - avg_acceptance_rate
-                    else:
-                        kp.importance = 1.0
+                    # 平均重要性值
+                    importance = total_importance / related_problems.count()
                 else:
-                    kp.importance = 1.0
+                    importance = 0.5 
                 
+                # 更新知识点
+                kp.frequency = frequency
+                kp.importance = float(importance)
                 kp.save()
+                updated_count += 1
                 
-            logger.info("知识点指标更新完成")
+            logger.info(f"成功更新{updated_count}个知识点的指标")
             return True
             
         except Exception as e:
             logger.error(f"更新知识点指标失败: {str(e)}")
             return False
+
 
     @staticmethod
     def calculate_knowledge_point_metrics(kp):
@@ -2157,8 +2176,12 @@ class KnowledgePointService:
         related_problems = kp.related_problems.all()
         
         for problem in related_problems:
-            # 难度权重 (1-5映射到0.5-2.0)
-            difficulty_weight = 0.5 + (problem.difficulty - 1) * 0.375
+            try:
+                difficulty_value = int(problem.difficulty)
+            except (ValueError, TypeError):
+                # 如果无法转换为整数，使用默认值3（中等难度）
+                difficulty_value = 3
+            difficulty_weight = 0.5 + (difficulty_value - 1) * 0.375
             
             # 通过率权重 (避免除零错误)
             if problem.submission_number > 0:
@@ -2172,12 +2195,11 @@ class KnowledgePointService:
         
         # 平均重要性值
         if related_problems.count() > 0:
-            importance = importance / related_problems.count()
+            importance = float(importance / related_problems.count())
         else:
             importance = 0.0
         
-        return frequency, importance
-
+        return frequency, float(importance)
     
     @staticmethod
     def get_user_knowledge_state(user_id):
@@ -4059,31 +4081,49 @@ class KnowledgeGraphGAT(nn.Module):
         return F.log_softmax(x,dim=1)
 
 class KnowledgeGraphService:
-    """基于图神经网络的知识点服务"""
     @staticmethod
     def build_knowledge_graph():
-        """完成图知识点的结构构建"""
+        """基于图神经网络的知识点服务"""
         from .models import KnowledgePoint
 
-        knowledge_points=KnowledgePoint.objects.all()
-        kp_list=list(knowledge_points)
-        node_features=[]
+        knowledge_points = KnowledgePoint.objects.all()
+        kp_list = list(knowledge_points)
+        node_features = []
 
         for kp in kp_list:
+            # 确保重要性和频率已经被正确初始化
+            if kp.importance == 1.0 and kp.related_problems.count() > 0:
+                # 如果重要性还是默认值，尝试重新计算
+                related_problems = kp.related_problems.all()
+                total_importance = 0.0
+                for problem in related_problems:
+                    difficulty_weight = 0.5 + (problem.difficulty - 1) * 0.375
+                    if problem.submission_number > 0:
+                        acceptance_rate = problem.accepted_number / problem.submission_number
+                        acceptance_weight = 2.0 - 1.9 * acceptance_rate
+                    else:
+                        acceptance_weight = 1.0
+                    total_importance += difficulty_weight * acceptance_weight
+                
+                if related_problems.count() > 0:
+                    kp.importance = total_importance / related_problems.count()
+                    kp.save()
+            
             features = [
-                kp.difficulty / 5.0,  
-                kp.importance,
-                kp.frequency / (kp.frequency + 1),  
-                len(kp.parent_points.all()) / 10.0,  
-                len(kp.related_problems.all()) / 50.0,  
-                kp.weight
+                kp.difficulty / 5.0, 
+                min(kp.importance, 10.0) / 10.0,  
+                min(kp.frequency, 50) / 50.0, 
+                min(len(kp.parent_points.all()), 10) / 10.0,  
+                min(len(kp.related_problems.all()), 100) / 100.0,  
+                kp.weight  
             ]
             node_features.append(features)
 
         if node_features:
-            x=torch.tensor(node_features,dtype=torch.float32)
+            x = torch.tensor(node_features, dtype=torch.float32)
         else:
             x = torch.empty((0, 6), dtype=torch.float32)
+            
         edge_index = []
         kp_id_to_index = {kp.id: idx for idx, kp in enumerate(kp_list)}
         
@@ -4098,10 +4138,10 @@ class KnowledgeGraphService:
         else:
             edge_index = torch.empty((2, 0), dtype=torch.long)
 
-        data=Data(x=x,edge_index=edge_index)
-        return data,kp_list,kp_id_to_index
+        data = Data(x=x, edge_index=edge_index)
+        return data, kp_list, kp_id_to_index
     @staticmethod
-    def train_gnn_model(epochs=100, lr=0.01, hidden_dim=64, model_type='gcn'):
+    def train_gnn_model(epochs=200, lr=0.001, hidden_dim=128, model_type='gcn'):
         try:
             # 构建知识图谱
             data, kp_list, kp_id_to_index = KnowledgeGraphService.build_knowledge_graph()
@@ -4122,35 +4162,60 @@ class KnowledgeGraphService:
             num_classes = num_features 
             
             if model_type == 'gat':
-                model = KnowledgeGraphGAT(num_features, hidden_dim, num_classes)
+                model = KnowledgeGraphGAT(num_features, hidden_dim, num_classes, num_layers=3)
                 logger.info("使用GAT模型进行训练")
             else:
-                model = KnowledgeGraphGNN(num_features, hidden_dim, num_classes)
+                model = KnowledgeGraphGNN(num_features, hidden_dim, num_classes, num_layers=3)
                 logger.info("使用GCN模型进行训练")
             
             # 检查是否有GPU可用
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             model = model.to(device)
-            data.x = data.x.to(device)
-            data.edge_index = data.edge_index.to(device)
+            data = data.to(device)
             
             # 优化器
-            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
+            
+            # 学习率调度器
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
             
             # 训练模型
             model.train()
+            best_loss = float('inf')
+            patience = 20
+            patience_counter = 0
+            
             for epoch in range(epochs):
                 optimizer.zero_grad()
                 out = model(data.x, data.edge_index)
             
                 # 使用重构损失进行无监督训练
-                loss = F.mse_loss(out, data.x)  
+                loss = F.mse_loss(out, data.x)
+                
+                # 添加L2正则化损失
+                l2_reg = torch.tensor(0., device=device)
+                for param in model.parameters():
+                    l2_reg += torch.norm(param)
+                loss += 1e-5 * l2_reg
                 
                 loss.backward()
+                # 梯度裁剪
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
+                scheduler.step()
                 
                 if epoch % 20 == 0:
-                    logger.info(f'Epoch {epoch}, Loss: {loss.item():.6f}')
+                    logger.info(f'Epoch {epoch}, Loss: {loss.item():.6f}, LR: {scheduler.get_last_lr()[0]:.6f}')
+                
+                # 早停机制
+                if loss.item() < best_loss:
+                    best_loss = loss.item()
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                    if patience_counter >= patience:
+                        logger.info(f'早停机制触发，在第 {epoch} 轮停止训练')
+                        break
             
             # 保存模型
             model_path = 'ai/dl_models/gnn/knowledge_graph_model.pth'
@@ -4167,7 +4232,15 @@ class KnowledgeGraphService:
             # 更新知识点的嵌入表示
             embedding_saved_count = 0
             for idx, kp in enumerate(kp_list):
-                embedding_str = ','.join([f"{x:.6f}" for x in embeddings[idx].tolist()])
+                # 确保嵌入向量格式正确
+                embedding_list = embeddings[idx].tolist()
+                # 归一化嵌入向量
+                embedding_norm = np.linalg.norm(embedding_list)
+                if embedding_norm > 0:
+                    normalized_embedding = [x / embedding_norm for x in embedding_list]
+                    embedding_str = ','.join([f"{x:.6f}" for x in normalized_embedding])
+                else:
+                    embedding_str = ','.join([f"{x:.6f}" for x in embedding_list])
                 kp.embedding = embedding_str
                 kp.save()
                 embedding_saved_count += 1
@@ -4178,7 +4251,7 @@ class KnowledgeGraphService:
         except Exception as e:
             logger.error(f"GNN模型训练失败: {str(e)}")
             return None
-
+            
 
     @staticmethod
     def get_knowledge_similarity(kp1_id, kp2_id):
@@ -4191,16 +4264,36 @@ class KnowledgeGraphService:
             kp1 = KnowledgePoint.objects.get(id=kp1_id)
             kp2 = KnowledgePoint.objects.get(id=kp2_id)
             
-            if not kp1.embedding or not kp2.embedding:
-                return KnowledgeGraphService._calculate_traditional_similarity(kp1, kp2)
+            # 优先使用GNN嵌入向量计算相似度
+            if kp1.embedding and kp2.embedding:
+                try:
+                    # 解析嵌入向量
+                    emb1 = np.array([float(x) for x in kp1.embedding.split(',')])
+                    emb2 = np.array([float(x) for x in kp2.embedding.split(',')])
+                    
+                    # 检查向量维度是否一致
+                    if emb1.shape == emb2.shape and np.linalg.norm(emb1) != 0 and np.linalg.norm(emb2) != 0:
+                        # 计算余弦相似度
+                        dot_product = np.dot(emb1, emb2)
+                        norm_product = np.linalg.norm(emb1) * np.linalg.norm(emb2)
+                        similarity = dot_product / norm_product
+                        
+                        # 确保相似度在合理范围内
+                        similarity = max(0.0, min(1.0, float(similarity)))
+                        
+                        # 如果相似度过高，使用传统方法作为补充验证
+                        if similarity > 0.95:
+                            traditional_similarity = KnowledgeGraphService._calculate_traditional_similarity(kp1, kp2)
+                            # 返回两种方法的加权平均
+                            return 0.7 * similarity + 0.3 * traditional_similarity
+                        
+                        return similarity
+                    else:
+                        logger.warning(f"嵌入向量维度不一致或存在零向量，回退到传统方法计算相似度")
+                except Exception as e:
+                    logger.warning(f"使用嵌入向量计算相似度失败: {str(e)}，回退到传统方法")
             
-            # 解析嵌入向量
-            emb1 = np.array([float(x) for x in kp1.embedding.split(',')])
-            emb2 = np.array([float(x) for x in kp2.embedding.split(',')])
-            
-            # 计算余弦相似度
-            similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
-            return float(similarity)
+            return KnowledgeGraphService._calculate_traditional_similarity(kp1, kp2)
             
         except Exception as e:
             logger.error(f"计算知识点相似度失败: {str(e)}")
