@@ -2170,21 +2170,25 @@ class AILearningPathService:
     
     @staticmethod
     def update_node_status(node_id, user_id, status):
-        try:
-            node = AIUserLearningPathNode.objects.filter(
-                id=node_id,
-                learning_path__user_id=user_id
-            ).first()
+        """
+        更新学习路径节点状态
+        """
+        from django.utils import timezone
+        from .models import AIUserLearningPathNode
+        
+        node = AIUserLearningPathNode.objects.get(id=node_id, learning_path__user_id=user_id)
+        old_status = node.status
+        node.status = status
+        
+        # 根据状态更新时间字段
+        if status == "in_progress" and old_status != "in_progress":
+            node.start_time = timezone.now()
+        elif status == "completed" and old_status != "completed":
+            node.completion_time = timezone.now()
             
-            if not node:
-                raise Exception("Node not found")
-            
-            node.status = status
-            node.save()
-            return node
-        except Exception as e:
-            logger.error(f"Failed to update node status: {str(e)}")
-            raise Exception(f"Failed to update node status: {str(e)}")
+        node.save()
+        return node
+
 
 
 class AICodeDiagnosisService:
@@ -4194,6 +4198,14 @@ class AbilityAssessmentService:
             # 获取题目信息用于能力维度分析
             problem = Problem.objects.get(id=problem_id)
             
+            # 保存更新前的分数，用于计算提升率
+            previous_scores = {
+                'basic_programming_score': ability.basic_programming_score,
+                'data_structure_score': ability.data_structure_score,
+                'algorithm_design_score': ability.algorithm_design_score,
+                'problem_solving_score': ability.problem_solving_score
+            }
+            
             # 根据题目标签和难度更新相应能力维度
             AbilityAssessmentService._update_ability_dimensions(ability, problem, is_correct, score)
             
@@ -4202,8 +4214,7 @@ class AbilityAssessmentService:
             
             # 添加详细维度记录
             try:
-                # 修复：使用正确的字段结构创建AIUserAbilityDetail记录
-                # 首先获取或创建能力维度记录
+                # 获取或创建能力维度记录
                 from .models import AIAbilityDimension
                 
                 # 获取基础编程能力维度
@@ -4215,26 +4226,44 @@ class AbilityAssessmentService:
                     }
                 )
                 
-                # 创建详细记录，使用正确的字段
-                detail = AIUserAbilityDetail.objects.create(
+                # 获取现有的详细记录或创建新的
+                detail, created = AIUserAbilityDetail.objects.get_or_create(
                     user_id=user_id,
                     dimension=basic_dimension,
-                    score=ability.basic_programming_score,
-                    proficiency_level=ability.level,
-                    evidence={
+                    defaults={
+                        'score': ability.basic_programming_score,
+                        'proficiency_level': ability.level,
+                        'evidence': {
+                            'problem_id': problem_id,
+                            'is_correct': is_correct,
+                            'score': score,
+                            'timestamp': str(timezone.now())
+                        }
+                    }
+                )
+                
+                # 更新记录
+                if not created:
+                    # 更新提升率
+                    detail.update_improvement_rate(previous_scores['basic_programming_score'])
+                    detail.score = ability.basic_programming_score
+                    detail.proficiency_level = ability.level
+                    detail.evidence = {
                         'problem_id': problem_id,
                         'is_correct': is_correct,
                         'score': score,
                         'timestamp': str(timezone.now())
                     }
-                )
+                    detail.save()
+                    
             except Exception as e:
-                logger.error(f"Failed to create ability detail record: {str(e)}")
+                logger.error(f"Failed to create/update ability detail record: {str(e)}")
             
             ability.save()
             
         except Exception as e:
             logger.error(f"Failed to update user ability assessment: {str(e)}")
+
 
 
     

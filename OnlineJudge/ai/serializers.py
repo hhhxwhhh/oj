@@ -119,9 +119,20 @@ class AIUserLearningPathSerializer(serializers.ModelSerializer):
 
 
 class AIUserLearningPathNodeSerializer(serializers.ModelSerializer):
+    knowledge_point_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = AIUserLearningPathNode
-        fields = "__all__"
+        fields = [
+            'id', 'learning_path', 'node_type', 'title', 'description', 
+            'content_id', 'order', 'estimated_time', 'prerequisites', 
+            'status', 'create_time', 'start_time', 'completion_time',
+            'knowledge_point', 'knowledge_point_name'
+        ]
+        
+    def get_knowledge_point_name(self, obj):
+        return obj.knowledge_point.name if obj.knowledge_point else None
+
 
 
 class AIUserLearningPathDetailSerializer(serializers.ModelSerializer):
@@ -156,13 +167,24 @@ class AIProblemGenerationSerializer(serializers.Serializer):
 
 class AIProgrammingAbilitySerializer(serializers.ModelSerializer):
     level_display = serializers.SerializerMethodField()
+    ability_breakdown = serializers.SerializerMethodField()
     
     class Meta:
         model = AIProgrammingAbility
-        fields = '__all__'
+        fields = [
+            'id', 'user', 'overall_score', 'basic_programming_score', 
+            'data_structure_score', 'algorithm_design_score', 
+            'problem_solving_score', 'level', 'level_display',
+            'analysis_report', 'last_assessed', 'create_time',
+            'ability_breakdown'
+        ]
         
     def get_level_display(self, obj):
         return obj.get_level_display()
+        
+    def get_ability_breakdown(self, obj):
+        return obj.get_ability_breakdown()
+
     
 
 class AIAbilityDimensionSerializer(serializers.ModelSerializer):

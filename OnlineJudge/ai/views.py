@@ -1015,7 +1015,6 @@ class AIProblemGenerationAPI(APIView):
             logger.error(f"Generate problem failed: {str(e)}")
             return self.error(f"题目生成失败: {str(e)}")
         
-
 class AIProgrammingAbilityAPI(APIView):
     """
     编程能力评估API
@@ -1046,6 +1045,7 @@ class AIProgrammingAbilityAPI(APIView):
                 'data_structure_score': ability_record.data_structure_score,
                 'algorithm_design_score': ability_record.algorithm_design_score,
                 'problem_solving_score': ability_record.problem_solving_score,
+                'ability_breakdown': ability_record.get_ability_breakdown(),  
                 'analysis_report': ability_record.analysis_report,
                 'last_assessed': ability_record.last_assessed
             }
@@ -1077,6 +1077,7 @@ class AIProgrammingAbilityAPI(APIView):
                     'algorithm_design_score': 0,
                     'problem_solving_score': 0,
                     'get_level_display': lambda: 'beginner',
+                    'get_ability_breakdown': lambda: {},
                     'analysis_report': {},
                     'last_assessed': None
                 })()
@@ -1088,6 +1089,7 @@ class AIProgrammingAbilityAPI(APIView):
                 'data_structure_score': getattr(ability_record, 'data_structure_score', 0),
                 'algorithm_design_score': getattr(ability_record, 'algorithm_design_score', 0),
                 'problem_solving_score': getattr(ability_record, 'problem_solving_score', 0),
+                'ability_breakdown': getattr(ability_record, 'get_ability_breakdown', lambda: {})(),  # 新增能力分解
                 'analysis_report': getattr(ability_record, 'analysis_report', {}),
                 'last_assessed': getattr(ability_record, 'last_assessed', None)
             }
