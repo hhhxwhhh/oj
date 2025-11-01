@@ -200,6 +200,17 @@
                                             <Tag color="primary">{{ node.knowledge_point }}</Tag>
                                         </div>
                                     </div>
+                                    <div class="node-time-info" v-if="node.start_time || node.completion_time">
+                                        <div v-if="node.start_time" class="start-time">
+                                            <Icon type="md-time" /> 开始时间: {{ new Date(node.start_time).toLocaleString()
+                                            }}
+                                        </div>
+                                        <div v-if="node.completion_time" class="completion-time">
+                                            <Icon type="md-checkmark-circle" /> 完成时间: {{ new
+                                                Date(node.completion_time).toLocaleString() }}
+                                        </div>
+                                    </div>
+
 
                                     <div v-if="node.prerequisites && node.prerequisites.length"
                                         class="node-prerequisites">
@@ -241,6 +252,11 @@
                                             @click="goToProject(node.content_id)"
                                             :disabled="node.status === 'completed' && currentNodeIndex !== index">
                                             <Icon type="md-construct" /> View Project
+                                        </Button>
+
+                                        <Button v-if="node.status === 'pending'" type="primary" size="small"
+                                            @click="startNode(node.id, index)" :loading="completingNode === node.id">
+                                            <Icon type="md-play" /> 开始学习
                                         </Button>
 
                                         <Button v-if="node.status !== 'completed'" type="success" size="small"
@@ -463,22 +479,10 @@ export default {
         },
 
         async completeNode(nodeId, index) {
-            this.completingNode = nodeId;
-            try {
-                await api.updateLearningPathNode(nodeId, { status: 'completed' });
-                // 更新本地状态
-                this.$set(this.pathNodes[index], 'status', 'completed');
-                this.$success('Node marked as completed!');
-
-                // 如果不是最后一个节点，自动跳转到下一个
-                if (index < this.pathNodes.length - 1) {
-                    this.currentNodeIndex = index + 1;
-                }
-            } catch (err) {
-                this.$error('Failed to update node status');
-            } finally {
-                this.completingNode = null;
-            }
+            await this.updateNodeStatus(nodeId, 'completed', index);
+        },
+        async startNode(nodeId, index) {
+            await this.updateNodeStatus(nodeId, 'in_progress', index);
         },
 
         getNodeStatusColor(status) {
@@ -522,6 +526,40 @@ export default {
                 this.$Message.warning('知识点信息不可用');
             }
         },
+        async updateNodeStatus(nodeId, status, index) {
+            this.completingNode = nodeId;
+            try {
+                const res = await api.updateLearningPathNode(nodeId, { status: status });
+                // 更新本地状态，包括新添加的时间字段
+                this.$set(this.pathNodes[index], 'status', status);
+                if (res.data.data) {
+                    if (res.data.data.start_time) {
+                        this.$set(this.pathNodes[index], 'start_time', res.data.data.start_time);
+                    }
+                    if (res.data.data.completion_time) {
+                        this.$set(this.pathNodes[index], 'completion_time', res.data.data.completion_time);
+                    }
+                }
+
+                if (status === 'completed') {
+                    this.$Message.success('节点已标记为完成!');
+
+                    // 如果不是最后一个节点，自动跳转到下一个
+                    if (index < this.pathNodes.length - 1) {
+                        this.currentNodeIndex = index + 1;
+                    }
+                } else if (status === 'in_progress') {
+                    this.$Message.success('节点已标记为进行中!');
+                } else {
+                    this.$Message.success('节点状态已更新!');
+                }
+            } catch (err) {
+                this.$Message.error('更新节点状态失败');
+            } finally {
+                this.completingNode = null;
+            }
+        },
+
     }
 }
 </script>
@@ -781,6 +819,25 @@ export default {
             margin-bottom: 15px;
             color: #657180;
         }
+    }
+}
+
+.node-time-info {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background-color: #f6ffed;
+    border-radius: 4px;
+    border-left: 3px solid #52c41a;
+
+    div {
+        margin: 5px 0;
+        font-size: 13px;
+        color: #52c41a;
+    }
+
+    .completion-time {
+        color: #138913;
+        font-weight: bold;
     }
 }
 </style>
