@@ -319,3 +319,42 @@ class AIUserAbilityDetail(models.Model):
             self.improvement_rate = (self.score - previous_score) / previous_score * 100
         else:
             self.improvement_rate = 0.0 if self.score == 0 else 100.0
+
+
+class AIUserAbilityHistory(models.Model):
+    """
+    用户能力历史记录，用于趋势分析
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    overall_score = models.FloatField(default=0.0)
+    basic_programming_score = models.FloatField(default=0.0)
+    data_structure_score = models.FloatField(default=0.0)
+    algorithm_design_score = models.FloatField(default=0.0)
+    problem_solving_score = models.FloatField(default=0.0)
+    
+    # 能力等级
+    LEVEL_CHOICES = [
+        ('beginner', '入门'),
+        ('intermediate', '中级'),
+        ('advanced', '高级'),
+        ('expert', '专家'),
+    ]
+    level = models.TextField(choices=LEVEL_CHOICES, default='beginner')
+    
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ai_user_ability_history'
+        ordering = ['recorded_at']
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'overall_score': self.overall_score,
+            'basic_programming_score': self.basic_programming_score,
+            'data_structure_score': self.data_structure_score,
+            'algorithm_design_score': self.algorithm_design_score,
+            'problem_solving_score': self.problem_solving_score,
+            'level': self.level,
+            'recorded_at': self.recorded_at.isoformat() if self.recorded_at else None
+        }

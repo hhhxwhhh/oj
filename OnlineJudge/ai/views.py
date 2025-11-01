@@ -1418,3 +1418,36 @@ class KnowledgeGraphAPI(APIView):
         except Exception as e:
             logger.error(f"推荐相关知识点失败: {str(e)}")
             return self.error("推荐失败")
+        
+
+class AIUserAbilityTrendAPI(APIView):
+    """
+    用户能力趋势分析API
+    """
+    
+    @login_required
+    def get(self, request):
+        """
+        获取用户能力趋势分析
+        """
+        try:
+            user_id = request.user.id
+            days = int(request.GET.get('days', 30))
+            
+            from .service import AIUserAbilityHistoryService
+            trend_analysis = AIUserAbilityHistoryService.get_comprehensive_trend_analysis(
+                user_id, days
+            )
+            
+            # 获取历史数据用于图表显示
+            history_data = AIUserAbilityHistoryService.get_user_ability_history(
+                user_id, days
+            )
+            
+            return self.success({
+                'trend_analysis': trend_analysis,
+                'history_data': history_data
+            })
+        except Exception as e:
+            logger.error(f"Failed to get user ability trend: {str(e)}")
+            return self.error("获取能力趋势分析失败")

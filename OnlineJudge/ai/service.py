@@ -38,6 +38,9 @@ import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.data import Data
 import numpy as np 
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from datetime import datetime,timedelta
 logger = logging.getLogger(__name__)
 online_recommender=OnlineLearningRecommender()
 ql_recommender=QLearningRecommender()
@@ -4261,6 +4264,14 @@ class AbilityAssessmentService:
             
             ability.save()
             
+            from .service import AIUserAbilityHistoryService
+            AIUserAbilityHistoryService.record_user_ability(user_id)
+            
+        except Exception as e:
+            logger.error(f"Failed to update user ability assessment: {str(e)}")
+            
+            ability.save()
+            
         except Exception as e:
             logger.error(f"Failed to update user ability assessment: {str(e)}")
 
@@ -4667,4 +4678,184 @@ class KnowledgeGraphService:
             logger.error(f"推荐相关知识点失败: {str(e)}")
 
 
+class AIUserAbilityHistoryService:
+    """
+    用户能力历史记录服务
+    """
+    
+    @staticmethod
+    def record_user_ability(user_id):
+        """
+        记录用户当前能力数据
+        """
+        try:
+            from .models import AIProgrammingAbility, AIUserAbilityHistory
+            
+            # 获取用户当前能力数据
+            try:
+                current_ability = AIProgrammingAbility.objects.get(user_id=user_id)
+            except AIProgrammingAbility.DoesNotExist:
+                return None
+                
+            # 创建历史记录
+            history_record = AIUserAbilityHistory.objects.create(
+                user_id=user_id,
+                overall_score=current_ability.overall_score,
+                basic_programming_score=current_ability.basic_programming_score,
+                data_structure_score=current_ability.data_structure_score,
+                algorithm_design_score=current_ability.algorithm_design_score,
+                problem_solving_score=current_ability.problem_solving_score,
+                level=current_ability.level
+            )
+            
+            return history_record
+        except Exception as e:
+            logger.error(f"Failed to record user ability history: {str(e)}")
+            return None
+    
+    @staticmethod
+    def get_user_ability_history(user_id, days=30):
+        """
+        获取用户能力历史数据
+        """
+        try:
+            from .models import AIUserAbilityHistory
+            from django.utils import timezone
+            
+            # 计算指定天数前的日期
+            start_date = timezone.now() - timedelta(days=days)
+            
+            # 获取历史数据
+            history_records = AIUserAbilityHistory.objects.filter(
+                user_id=user_id,
+                recorded_at__gte=start_date
+            ).order_by('recorded_at')
+            
+            return [record.to_dict() for record in history_records]
+        except Exception as e:
+            logger.error(f"Failed to get user ability history: {str(e)}")
+            return []
+    
+    @staticmethod
+    def analyze_ability_trend(user_id, dimension='overall_score', days=30):
+        """
+        分析用户能力趋势
+        """
+        try:
+            # 获取历史数据
+            history_data = AIUserAbilityHistoryService.get_user_ability_history(user_id, days)
+            
+            if len(history_data) < 2:
+                return {
+                    'trend': 'insufficient_data',
+                    'slope': 0,
+                    'prediction': [],
+                    'confidence': 0
+                }
+            
+            # 准备数据
+            timestamps = []
+            scores = []
+            
+            for record in history_data:
+                # 将时间转换为数字（相对于第一个时间点的小时数）
+                dt = datetime.fromisoformat(record['recorded_at'].replace('Z', '+00:00'))
+                if not timestamps:
+                    base_time = dt
+                    timestamps.append(0)
+                else:
+                    diff = dt - base_time
+                    timestamps.append(diff.total_seconds() / 3600)  # 转换为小时
+                
+                scores.append(record[dimension])
+            
+            # 转换为numpy数组
+            X = np.array(timestamps).reshape(-1, 1)
+            y = np.array(scores)
+            
+            # 线性回归分析
+            linear_model = LinearRegression()
+            linear_model.fit(X, y)
+            linear_slope = linear_model.coef_[0]
+            
+            # 多项式回归分析（二次）
+            poly_features = PolynomialFeatures(degree=2)
+            X_poly = poly_features.fit_transform(X)
+            poly_model = LinearRegression()
+            poly_model.fit(X_poly, y)
+            
+            # 计算置信度（使用R²分数）
+            linear_r2 = linear_model.score(X, y)
+            poly_r2 = poly_model.score(X_poly, y)
+            
+            # 选择更好的模型
+            if poly_r2 > linear_r2:
+                best_model = (poly_model, poly_features, 'polynomial', poly_r2)
+            else:
+                best_model = (linear_model, None, 'linear', linear_r2)
+            
+            # 预测未来7天的数据点
+            future_predictions = []
+            last_timestamp = timestamps[-1] if timestamps else 0
+            
+            for i in range(1, 8):  #
+                future_time = last_timestamp + (24 * i)  # 每隔24小时一个点
+                if best_model[1]:  # 多项式模型
+                    X_future = poly_features.transform(np.array([[future_time]]))
+                    prediction = poly_model.predict(X_future)[0]
+                else:  # 线性模型
+                    prediction = linear_model.predict(np.array([[future_time]]))[0]
+                
+                # 确保预测值在合理范围内
+                prediction = max(0, min(100, prediction))
+                
+                future_predictions.append({
+                    'timestamp': future_time,
+                    'predicted_score': round(prediction, 2)
+                })
+            
+            # 确定趋势
+            if abs(linear_slope) < 0.01:
+                trend = 'stable'
+            elif linear_slope > 0:
+                trend = 'improving'
+            else:
+                trend = 'declining'
+            
+            return {
+                'trend': trend,
+                'slope': round(linear_slope, 4),
+                'model_type': best_model[2],
+                'confidence': round(best_model[3], 4),
+                'predictions': future_predictions,
+                'historical_data_points': len(history_data)
+            }
+        except Exception as e:
+            logger.error(f"Failed to analyze ability trend: {str(e)}")
+            return {
+                'trend': 'error',
+                'slope': 0,
+                'predictions': [],
+                'confidence': 0
+            }
 
+    @staticmethod
+    def get_comprehensive_trend_analysis(user_id, days=30):
+        """
+        获取综合趋势分析
+        """
+        dimensions = [
+            'overall_score',
+            'basic_programming_score',
+            'data_structure_score',
+            'algorithm_design_score',
+            'problem_solving_score'
+        ]
+        
+        analysis_results = {}
+        for dimension in dimensions:
+            analysis_results[dimension] = AIUserAbilityHistoryService.analyze_ability_trend(
+                user_id, dimension, days
+            )
+        
+        return analysis_results
