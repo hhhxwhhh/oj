@@ -3,9 +3,14 @@
         <Card :padding="0">
             <div class="page-header">
                 <h2>编程能力评估仪表盘</h2>
-                <Button type="primary" @click="refreshAssessment" :loading="loading">
-                    <Icon type="md-refresh" /> 重新评估
-                </Button>
+                <div class="header-actions">
+                    <span v-if="abilityData.last_assessed" class="last-assessed">
+                        最后评估: {{ new Date(abilityData.last_assessed).toLocaleString() }}
+                    </span>
+                    <Button type="primary" @click="refreshAssessment" :loading="loading">
+                        <Icon type="md-refresh" /> 重新评估
+                    </Button>
+                </div>
             </div>
         </Card>
 
@@ -70,9 +75,9 @@
                     <div class="ability-item" v-for="(item, key) in abilityDetails" :key="key">
                         <div class="ability-header">
                             <span class="ability-name">{{ item.name }}</span>
-                            <span class="ability-score">{{ item.score.toFixed(1) }}/40</span>
+                            <span class="ability-score">{{ item.score.toFixed(1) }}/100</span>
                         </div>
-                        <Progress :percent="(item.score / 40) * 100" :stroke-color="getProgressColor(item.score)"
+                        <Progress :percent="(item.score / 100) * 100" :stroke-color="getProgressColor(item.score)"
                             :status="getProgressStatus(item.score)" />
                         <p class="ability-description">{{ item.description }}</p>
                     </div>
@@ -132,8 +137,11 @@ export default {
                 data_structure_score: 0,
                 algorithm_design_score: 0,
                 problem_solving_score: 0,
-                analysis_report: {}
+                ability_breakdown: {},
+                analysis_report: {},
+                last_assessed: null
             },
+
             submissionStats: {
                 accepted: 0,
                 total: 0
@@ -145,10 +153,10 @@ export default {
                 tooltip: {},
                 radar: {
                     indicator: [
-                        { name: '基础编程(40)', max: 40 },
-                        { name: '数据结构(40)', max: 40 },
-                        { name: '算法设计(40)', max: 40 },
-                        { name: '问题解决(40)', max: 40 }
+                        { name: '基础编程(100)', max: 100 },
+                        { name: '数据结构(100)', max: 100 },
+                        { name: '算法设计(100)', max: 100 },
+                        { name: '问题解决(100)', max: 100 }
                     ]
                 },
                 series: [{
@@ -159,12 +167,13 @@ export default {
                             name: '你的得分'
                         },
                         {
-                            value: [20, 20, 20, 20],
+                            value: [50, 50, 50, 50],
                             name: '平均水平'
                         }
                     ]
                 }]
             },
+
             comparisonChartOptions: {
                 tooltip: {
                     trigger: 'axis',
@@ -183,7 +192,8 @@ export default {
                 },
                 xAxis: {
                     type: 'value',
-                    boundaryGap: [0, 0.01]
+                    boundaryGap: [0, 0.01],
+                    max: 100
                 },
                 yAxis: {
                     type: 'category',
@@ -198,10 +208,11 @@ export default {
                     {
                         name: '平均水平',
                         type: 'bar',
-                        data: [20, 20, 20, 20]
+                        data: [50, 50, 50, 50]
                     }
                 ]
             },
+
             abilityDetails: {},
             recommendations: []
         }
@@ -222,8 +233,17 @@ export default {
 
                 this.abilityData = res.data.data
 
-                // 更新雷达图数据
-                if (this.abilityData.basic_programming_score !== undefined) {
+                // 更新雷达图数据 - 使用新的能力分解详情
+                if (this.abilityData.ability_breakdown && Object.keys(this.abilityData.ability_breakdown).length > 0) {
+                    const breakdown = this.abilityData.ability_breakdown;
+                    this.radarChartOptions.series[0].data[0].value = [
+                        (breakdown.basic_programming && breakdown.basic_programming.score) || 0,
+                        (breakdown.data_structure && breakdown.data_structure.score) || 0,
+                        (breakdown.algorithm_design && breakdown.algorithm_design.score) || 0,
+                        (breakdown.problem_solving && breakdown.problem_solving.score) || 0
+                    ]
+                } else if (this.abilityData.basic_programming_score !== undefined) {
+                    // 兼容旧格式
                     this.radarChartOptions.series[0].data[0].value = [
                         this.abilityData.basic_programming_score || 0,
                         this.abilityData.data_structure_score || 0,
@@ -234,42 +254,79 @@ export default {
 
                 // 更新对比图数据
                 if (this.abilityData.comparison) {
-                    this.comparisonChartOptions.series[0].data = [
-                        this.abilityData.basic_programming_score || 0,
-                        this.abilityData.data_structure_score || 0,
-                        this.abilityData.algorithm_design_score || 0,
-                        this.abilityData.problem_solving_score || 0
-                    ]
+                    if (this.abilityData.ability_breakdown && Object.keys(this.abilityData.ability_breakdown).length > 0) {
+                        const breakdown = this.abilityData.ability_breakdown;
+                        this.comparisonChartOptions.series[0].data = [
+                            (breakdown.basic_programming && breakdown.basic_programming.score) || 0,
+                            (breakdown.data_structure && breakdown.data_structure.score) || 0,
+                            (breakdown.algorithm_design && breakdown.algorithm_design.score) || 0,
+                            (breakdown.problem_solving && breakdown.problem_solving.score) || 0
+                        ]
+                    } else {
+                        this.comparisonChartOptions.series[0].data = [
+                            this.abilityData.basic_programming_score || 0,
+                            this.abilityData.data_structure_score || 0,
+                            this.abilityData.algorithm_design_score || 0,
+                            this.abilityData.problem_solving_score || 0
+                        ]
+                    }
 
                     this.comparisonChartOptions.series[1].data = [
-                        this.abilityData.comparison.average.basic_programming_score || 0,
-                        this.abilityData.comparison.average.data_structure_score || 0,
-                        this.abilityData.comparison.average.algorithm_design_score || 0,
-                        this.abilityData.comparison.average.problem_solving_score || 0
+                        (this.abilityData.comparison.average && this.abilityData.comparison.average.basic_programming_score) || 0,
+                        (this.abilityData.comparison.average && this.abilityData.comparison.average.data_structure_score) || 0,
+                        (this.abilityData.comparison.average && this.abilityData.comparison.average.algorithm_design_score) || 0,
+                        (this.abilityData.comparison.average && this.abilityData.comparison.average.problem_solving_score) || 0
                     ]
                 }
 
-                // 处理能力详情
-                this.abilityDetails = {
-                    basic_programming: {
-                        name: '基础编程能力',
-                        score: this.abilityData.basic_programming_score || 0,
-                        description: '包括语法掌握、基本控制结构等'
-                    },
-                    data_structures: {
-                        name: '数据结构能力',
-                        score: this.abilityData.data_structure_score || 0,
-                        description: '如数组、链表、树、图等数据结构的运用'
-                    },
-                    algorithm_design: {
-                        name: '算法设计能力',
-                        score: this.abilityData.algorithm_design_score || 0,
-                        description: '包括复杂度分析、算法设计与优化等'
-                    },
-                    problem_solving: {
-                        name: '问题解决能力',
-                        score: this.abilityData.problem_solving_score || 0,
-                        description: '包括问题建模、解决方案设计等'
+                // 处理能力详情 - 使用新的能力分解详情
+                if (this.abilityData.ability_breakdown && Object.keys(this.abilityData.ability_breakdown).length > 0) {
+                    const breakdown = this.abilityData.ability_breakdown;
+                    this.abilityDetails = {
+                        basic_programming: {
+                            name: '基础编程能力',
+                            score: (breakdown.basic_programming && breakdown.basic_programming.score) || 0,
+                            description: '包括语法掌握、基本控制结构等'
+                        },
+                        data_structures: {
+                            name: '数据结构能力',
+                            score: (breakdown.data_structure && breakdown.data_structure.score) || 0,
+                            description: '如数组、链表、树、图等数据结构的运用'
+                        },
+                        algorithm_design: {
+                            name: '算法设计能力',
+                            score: (breakdown.algorithm_design && breakdown.algorithm_design.score) || 0,
+                            description: '包括复杂度分析、算法设计与优化等'
+                        },
+                        problem_solving: {
+                            name: '问题解决能力',
+                            score: (breakdown.problem_solving && breakdown.problem_solving.score) || 0,
+                            description: '包括问题建模、解决方案设计等'
+                        }
+                    }
+                } else {
+                    // 兼容旧格式
+                    this.abilityDetails = {
+                        basic_programming: {
+                            name: '基础编程能力',
+                            score: this.abilityData.basic_programming_score || 0,
+                            description: '包括语法掌握、基本控制结构等'
+                        },
+                        data_structures: {
+                            name: '数据结构能力',
+                            score: this.abilityData.data_structure_score || 0,
+                            description: '如数组、链表、树、图等数据结构的运用'
+                        },
+                        algorithm_design: {
+                            name: '算法设计能力',
+                            score: this.abilityData.algorithm_design_score || 0,
+                            description: '包括复杂度分析、算法设计与优化等'
+                        },
+                        problem_solving: {
+                            name: '问题解决能力',
+                            score: this.abilityData.problem_solving_score || 0,
+                            description: '包括问题建模、解决方案设计等'
+                        }
                     }
                 }
 
@@ -306,9 +363,11 @@ export default {
                     data_structure_score: 0,
                     algorithm_design_score: 0,
                     problem_solving_score: 0,
+                    ability_breakdown: {},
                     analysis_report: {
                         recommendations: []
-                    }
+                    },
+                    last_assessed: null
                 }
                 this.submissionStats = {
                     accepted: 0,
@@ -358,15 +417,17 @@ export default {
         },
 
         getProgressColor(score) {
-            if (score < 15) return '#ed4014'
-            if (score < 25) return '#ff9900'
-            if (score < 35) return '#2d8cf0'
+            if (score < 40) return '#ed4014'
+            if (score < 60) return '#ff9900'
+            if (score < 80) return '#2d8cf0'
             return '#19be6b'
         },
 
+
+
         getProgressStatus(score) {
-            if (score < 15) return 'wrong'
-            if (score < 25) return 'normal'
+            if (score < 40) return 'wrong'
+            if (score < 60) return 'normal'
             return 'success'
         },
 
@@ -508,5 +569,23 @@ export default {
     text-align: center;
     color: #808695;
     font-style: italic;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.last-assessed {
+    font-size: 14px;
+    color: #808695;
 }
 </style>
