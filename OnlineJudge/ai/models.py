@@ -170,8 +170,21 @@ class AIUserKnowledgeState(models.Model):
         # 计算掌握程度：正确率 + 时间衰减因子
         accuracy = self.correct_attempts / self.total_attempts if self.total_attempts > 0 else 0
         
-        # 简单的掌握程度计算算法
-        self.proficiency_level = min(1.0, accuracy * 0.7 + self.proficiency_level * 0.3)
+        if self.total_attempts <= 5:
+            # 对于较少的尝试次数，更依赖当前准确率
+            self.proficiency_level = min(1.0, accuracy * 0.8 + self.proficiency_level * 0.2)
+        else:
+            # 对于较多的尝试次数，平衡历史表现和当前准确率
+            self.proficiency_level = min(1.0, accuracy * 0.7 + self.proficiency_level * 0.3)
+
+        from django.utils import timezone
+        from datetime import timedelta
+        if self.last_updated:
+            days_since_last_attempt = (timezone.now() - self.last_updated).days
+            if days_since_last_attempt > 30:
+                # 超过30天未练习，掌握程度略微下降
+                decay_factor = max(0.8, 1 - (days_since_last_attempt - 30) * 0.01)
+                self.proficiency_level = max(0.0, self.proficiency_level * decay_factor)
         
         self.proficiency_level = round(self.proficiency_level, 4)
         
@@ -188,10 +201,13 @@ class AIUserLearningPathNode(models.Model):
     prerequisites = JSONField(default=list, help_text="前置知识点")
     status = models.TextField(default="pending", help_text="状态: pending, in_progress, completed")
     create_time = models.DateTimeField(auto_now_add=True)
+    start_time = models.DateTimeField(null=True, blank=True, help_text="开始时间")
+    completion_time = models.DateTimeField(null=True, blank=True, help_text="完成时间")
     knowledge_point = models.ForeignKey(KnowledgePoint, on_delete=models.SET_NULL, null=True, blank=True, help_text="关联的知识点")
 
     class Meta:
         db_table = 'ai_user_learning_path_node'
+        ordering = ['order']
 
 
 class AIProgrammingAbility(models.Model):
@@ -227,6 +243,46 @@ class AIProgrammingAbility(models.Model):
         db_table = 'ai_programming_ability'
         unique_together = ('user',)
 
+    def get_ability_breakdown(self):
+        """
+        获取能力分解详情
+        """
+        return {
+            'basic_programming': {
+                'score': self.basic_programming_score,
+                'percentage': round(self.basic_programming_score, 2),
+                'level': self._get_level_from_score(self.basic_programming_score)
+            },
+            'data_structure': {
+                'score': self.data_structure_score,
+                'percentage': round(self.data_structure_score, 2),
+                'level': self._get_level_from_score(self.data_structure_score)
+            },
+            'algorithm_design': {
+                'score': self.algorithm_design_score,
+                'percentage': round(self.algorithm_design_score, 2),
+                'level': self._get_level_from_score(self.algorithm_design_score)
+            },
+            'problem_solving': {
+                'score': self.problem_solving_score,
+                'percentage': round(self.problem_solving_score, 2),
+                'level': self._get_level_from_score(self.problem_solving_score)
+            }
+        }
+    
+    def _get_level_from_score(self, score):
+        """
+        根据分数获取能力等级
+        """
+        if score >= 80:
+            return 'expert'
+        elif score >= 60:
+            return 'advanced'
+        elif score >= 40:
+            return 'intermediate'
+        else:
+            return 'beginner'
+
 class AIAbilityDimension(models.Model):
     """
     能力维度定义
@@ -246,10 +302,20 @@ class AIUserAbilityDetail(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     dimension = models.ForeignKey(AIAbilityDimension, on_delete=models.CASCADE)
     score = models.FloatField(default=0.0)  
-    proficiency_level = models.TextField(default='beginner')  #
+    proficiency_level = models.TextField(default='beginner')
     evidence = JSONField(default=dict)  
     last_updated = models.DateTimeField(auto_now=True)
+    improvement_rate = models.FloatField(default=0.0, help_text="能力提升速率")
     
     class Meta:
         db_table = 'ai_user_ability_detail'
         unique_together = ('user', 'dimension')
+    
+    def update_improvement_rate(self, previous_score):
+        """
+        更新能力提升速率
+        """
+        if previous_score > 0:
+            self.improvement_rate = (self.score - previous_score) / previous_score * 100
+        else:
+            self.improvement_rate = 0.0 if self.score == 0 else 100.0
