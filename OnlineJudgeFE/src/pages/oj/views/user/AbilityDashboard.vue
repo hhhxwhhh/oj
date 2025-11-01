@@ -118,7 +118,77 @@
                 <Icon type="md-trending-up" />
                 能力发展趋势
             </div>
-            <p class="coming-soon">能力发展趋势图表即将推出</p>
+            <div v-if="trendData.loading" class="trend-loading">
+                <Spin size="large" />
+                <p>正在分析能力趋势...</p>
+            </div>
+            <div v-else-if="trendData.error" class="trend-error">
+                <Icon type="md-warning" size="30" color="#ff9900" />
+                <p>趋势分析失败: {{ trendData.error }}</p>
+                <Button @click="loadTrendData" size="small">重试</Button>
+            </div>
+            <div v-else-if="trendData.noData" class="trend-no-data">
+                <Icon type="md-information-circle" size="30" color="#ccc" />
+                <p>暂无足够数据进行趋势分析，请继续使用系统以积累数据</p>
+            </div>
+            <div v-else class="trend-content">
+                <Tabs value="overall" @on-click="changeTrendTab">
+                    <TabPane label="综合能力" name="overall">
+                        <div class="trend-summary">
+                            <div class="trend-indicator"
+                                :class="(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend) || 'unknown'">
+                                <Icon
+                                    :type="getTrendIcon(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend)"
+                                    :size="24"
+                                    :color="getTrendColor(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend)" />
+                                <span>{{ getTrendText(trendData.analysis && trendData.analysis.overall_score &&
+                                    trendData.analysis.overall_score.trend) }}</span>
+                            </div>
+                            <div class="trend-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">变化率:</span>
+                                    <span class="stat-value"
+                                        :class="getSlopeClass(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.slope)">
+                                        {{ ((trendData.analysis && trendData.analysis.overall_score &&
+                                            trendData.analysis.overall_score.slope) || 0 * 24).toFixed(2) }}/天
+                                    </span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">置信度:</span>
+                                    <span class="stat-value">
+                                        {{ ((trendData.analysis && trendData.analysis.overall_score &&
+                                            trendData.analysis.overall_score.confidence) || 0 * 100).toFixed(1) }}%
+                                    </span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">模型:</span>
+                                    <span class="stat-value">{{
+                                        getTrendModelText(trendData.analysis && trendData.analysis.overall_score &&
+                                            trendData.analysis.overall_score.model_type) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <ECharts :options="overallTrendChartOptions" :autoresize="true" style="height: 300px;">
+                        </ECharts>
+                    </TabPane>
+                    <TabPane label="基础编程" name="basic_programming">
+                        <ECharts :options="basicProgrammingTrendChartOptions" :autoresize="true" style="height: 300px;">
+                        </ECharts>
+                    </TabPane>
+                    <TabPane label="数据结构" name="data_structure">
+                        <ECharts :options="dataStructureTrendChartOptions" :autoresize="true" style="height: 300px;">
+                        </ECharts>
+                    </TabPane>
+                    <TabPane label="算法设计" name="algorithm_design">
+                        <ECharts :options="algorithmDesignTrendChartOptions" :autoresize="true" style="height: 300px;">
+                        </ECharts>
+                    </TabPane>
+                    <TabPane label="问题解决" name="problem_solving">
+                        <ECharts :options="problemSolvingTrendChartOptions" :autoresize="true" style="height: 300px;">
+                        </ECharts>
+                    </TabPane>
+                </Tabs>
+            </div>
         </Card>
     </div>
 </template>
@@ -214,11 +284,196 @@ export default {
             },
 
             abilityDetails: {},
-            recommendations: []
+            recommendations: [],
+            trendData: {
+                loading: false,
+                error: null,
+                noData: false,
+                analysis: {
+                    overall_score: {}
+                },
+                history: []
+            },
+
+
+            overallTrendChartOptions: {
+                title: {
+                    text: '综合能力趋势'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['历史得分', '预测得分']
+                },
+                xAxis: {
+                    type: 'category',
+                    data: []
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100
+                },
+                series: [
+                    {
+                        name: '历史得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true
+                    },
+                    {
+                        name: '预测得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true,
+                        lineStyle: {
+                            type: 'dashed'
+                        }
+                    }
+                ]
+            },
+            basicProgrammingTrendChartOptions: {
+                title: {
+                    text: '基础编程能力趋势'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: []
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100
+                },
+                series: [
+                    {
+                        name: '历史得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true
+                    },
+                    {
+                        name: '预测得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true,
+                        lineStyle: {
+                            type: 'dashed'
+                        }
+                    }
+                ]
+            },
+            dataStructureTrendChartOptions: {
+                title: {
+                    text: '数据结构能力趋势'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: []
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100
+                },
+                series: [
+                    {
+                        name: '历史得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true
+                    },
+                    {
+                        name: '预测得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true,
+                        lineStyle: {
+                            type: 'dashed'
+                        }
+                    }
+                ]
+            },
+            algorithmDesignTrendChartOptions: {
+                title: {
+                    text: '算法设计能力趋势'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: []
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100
+                },
+                series: [
+                    {
+                        name: '历史得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true
+                    },
+                    {
+                        name: '预测得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true,
+                        lineStyle: {
+                            type: 'dashed'
+                        }
+                    }
+                ]
+            },
+            problemSolvingTrendChartOptions: {
+                title: {
+                    text: '问题解决能力趋势'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: []
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100
+                },
+                series: [
+                    {
+                        name: '历史得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true
+                    },
+                    {
+                        name: '预测得分',
+                        type: 'line',
+                        data: [],
+                        smooth: true,
+                        lineStyle: {
+                            type: 'dashed'
+                        }
+                    }
+                ]
+            }
         }
     },
     async mounted() {
         await this.loadAbilityData()
+        await this.loadTrendData()
     },
     methods: {
         async loadAbilityData() {
@@ -375,6 +630,160 @@ export default {
                 }
             } finally {
                 this.loading = false
+            }
+        },
+
+        async loadTrendData() {
+            try {
+                this.trendData.loading = true
+                this.trendData.error = null
+
+                const res = await api.getUserAbilityTrend()
+
+                if (!res || !res.data || !res.data.data) {
+                    throw new Error('无效的响应数据')
+                }
+
+                const trendData = res.data.data
+
+                // 检查是否有足够的数据
+                if (!trendData.history_data || trendData.history_data.length === 0) {
+                    this.trendData.noData = true
+                    return
+                }
+
+                this.trendData.analysis = trendData.trend_analysis
+                this.trendData.history = trendData.history_data
+                this.trendData.noData = false
+
+                // 更新图表数据
+                this.updateTrendCharts()
+            } catch (err) {
+                console.error('获取能力趋势数据失败:', err)
+                this.trendData.error = err.message || err
+            } finally {
+                this.trendData.loading = false
+            }
+        },
+        updateTrendCharts() {
+            // 更新综合能力趋势图
+            this.updateSingleTrendChart(
+                this.overallTrendChartOptions,
+                'overall_score',
+                '综合能力'
+            )
+
+            // 更新基础编程能力趋势图
+            this.updateSingleTrendChart(
+                this.basicProgrammingTrendChartOptions,
+                'basic_programming_score',
+                '基础编程'
+            )
+
+            // 更新数据结构能力趋势图
+            this.updateSingleTrendChart(
+                this.dataStructureTrendChartOptions,
+                'data_structure_score',
+                '数据结构'
+            )
+
+            // 更新算法设计能力趋势图
+            this.updateSingleTrendChart(
+                this.algorithmDesignTrendChartOptions,
+                'algorithm_design_score',
+                '算法设计'
+            )
+
+            // 更新问题解决能力趋势图
+            this.updateSingleTrendChart(
+                this.problemSolvingTrendChartOptions,
+                'problem_solving_score',
+                '问题解决'
+            )
+        },
+        updateSingleTrendChart(chartOptions, dimension, dimensionName) {
+            // 准备历史数据
+            const historyData = this.trendData.history.map(record => ({
+                date: new Date(record.recorded_at).toLocaleDateString(),
+                score: record[dimension]
+            }))
+
+            // 准备预测数据
+            const predictions = this.trendData.analysis[dimension]
+                ? this.trendData.analysis[dimension].predictions || []
+                : []
+
+            const predictionData = predictions.map(pred => ({
+                date: `预测+${Math.round(pred.timestamp / 24)}天`,
+                score: pred.predicted_score
+            }))
+
+            // 合并所有数据点用于X轴
+            const allDates = [
+                ...historyData.map(d => d.date),
+                ...predictionData.map(d => d.date)
+            ]
+
+            // 更新图表配置
+            chartOptions.xAxis.data = allDates
+            chartOptions.series[0].data = historyData.map(d => d.score)
+            chartOptions.series[1].data = [
+                ...new Array(historyData.length - 1).fill(null),
+                historyData[historyData.length - 1].score, // 连接最后一个历史点
+                ...predictionData.map(d => d.score)
+            ]
+            chartOptions.title.text = `${dimensionName}趋势`
+        },
+        changeTrendTab(tabName) {
+            // 标签页切换时的处理
+            console.log('切换到趋势标签页:', tabName)
+        },
+
+        getTrendIcon(trend) {
+            if (!trend) return 'md-help';
+            switch (trend) {
+                case 'improving': return 'md-trending-up'
+                case 'declining': return 'md-trending-down'
+                case 'stable': return 'md-remove'
+                default: return 'md-help'
+            }
+        },
+
+
+        getTrendColor(trend) {
+            if (!trend) return '#808695';
+            switch (trend) {
+                case 'improving': return '#19be6b'
+                case 'declining': return '#ed4014'
+                case 'stable': return '#ff9900'
+                default: return '#808695'
+            }
+        },
+
+        getTrendText(trend) {
+            if (!trend) return '数据不足';
+            switch (trend) {
+                case 'improving': return '正在提升'
+                case 'declining': return '正在下降'
+                case 'stable': return '保持稳定'
+                case 'insufficient_data': return '数据不足'
+                default: return '未知'
+            }
+        },
+
+        getSlopeClass(slope) {
+            if (slope === undefined || slope === null) return 'stable';
+            if (slope > 0.1) return 'improving'
+            if (slope < -0.1) return 'declining'
+            return 'stable'
+        },
+
+        getTrendModelText(modelType) {
+            if (!modelType) return '未知模型';
+            switch (modelType) {
+                case 'linear': return '线性回归'
+                case 'polynomial': return '多项式回归'
+                default: return '未知模型'
             }
         },
 
@@ -587,5 +996,90 @@ export default {
 .last-assessed {
     font-size: 14px;
     color: #808695;
+}
+
+.trend-loading,
+.trend-error,
+.trend-no-data {
+    text-align: center;
+    padding: 40px 0;
+}
+
+.trend-loading p,
+.trend-error p,
+.trend-no-data p {
+    margin: 10px 0 0 0;
+    color: #808695;
+}
+
+.trend-error p {
+    color: #ff9900;
+}
+
+.trend-no-data p {
+    color: #ccc;
+}
+
+.trend-content {
+    padding: 10px 0;
+}
+
+.trend-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.trend-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.trend-indicator.improving {
+    color: #19be6b;
+}
+
+.trend-indicator.declining {
+    color: #ed4014;
+}
+
+.trend-indicator.stable {
+    color: #ff9900;
+}
+
+.trend-stats {
+    display: flex;
+    gap: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: #808695;
+}
+
+.stat-value {
+    display: block;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.stat-value.improving {
+    color: #19be6b;
+}
+
+.stat-value.declining {
+    color: #ed4014;
 }
 </style>

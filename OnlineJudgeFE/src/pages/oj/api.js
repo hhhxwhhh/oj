@@ -459,6 +459,9 @@ export default {
   },
   getOllamaModels() {
     return ajax("ollama/models", "get");
+  },
+  getUserAbilityTrend() {
+    return ajax("/ai/user-ability-trend/", "get");
   }
 };
 
