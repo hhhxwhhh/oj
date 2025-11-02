@@ -1,63 +1,133 @@
 <template>
-  <div class="flex-container">
-    <div id="problem-main">
-      <!--problem main-->
-      <Panel :padding="40" shadow class="problem-panel">
-        <div slot="title" class="panel-title">{{ problem.title }}</div>
-        <div id="problem-content" class="markdown-body" v-katex>
-          <p class="title">{{ $t('m.Description') }}</p>
-          <p class="content" v-html=problem.description></p>
-          <!-- {{$t('m.music')}} -->
-          <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-              }}: {{
-                problem.io_mode.input }})</span></p>
-          <p class="content" v-html=problem.input_description></p>
+  <div class="problem-container">
+    <!-- 左侧题目信息区 -->
+    <div class="problem-left-panel">
+      <div class="problem-info-panel">
+        <Panel :padding="20" shadow>
+          <div slot="title" class="panel-title">{{ problem.title }}</div>
+          <div id="problem-content" class="markdown-body" v-katex>
+            <p class="title">{{ $t('m.Description') }}</p>
+            <p class="content" v-html=problem.description></p>
 
-          <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile') }}:
-              {{
-                problem.io_mode.output }})</span></p>
-          <p class="content" v-html=problem.output_description></p>
+            <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
+            }}: {{ problem.io_mode.input }})</span></p>
+            <p class="content" v-html=problem.input_description></p>
 
-          <div v-for="(sample, index) of problem.samples" :key="index">
-            <div class="flex-container sample">
-              <div class="sample-input">
-                <p class="title">{{ $t('m.Sample_Input') }} {{ index + 1 }}
-                  <a class="copy" v-clipboard:copy="sample.input" v-clipboard:success="onCopy"
-                    v-clipboard:error="onCopyError">
-                    <Icon type="clipboard"></Icon>
-                  </a>
-                </p>
-                <pre>{{ sample.input }}</pre>
-              </div>
-              <div class="sample-output">
-                <p class="title">{{ $t('m.Sample_Output') }} {{ index + 1 }}</p>
-                <pre>{{ sample.output }}</pre>
+            <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
+            }}: {{ problem.io_mode.output }})</span></p>
+            <p class="content" v-html=problem.output_description></p>
+
+            <div v-for="(sample, index) of problem.samples" :key="index">
+              <div class="flex-container sample">
+                <div class="sample-input">
+                  <p class="title">{{ $t('m.Sample_Input') }} {{ index + 1 }}
+                    <a class="copy" v-clipboard:copy="sample.input" v-clipboard:success="onCopy"
+                      v-clipboard:error="onCopyError">
+                      <Icon type="clipboard"></Icon>
+                    </a>
+                  </p>
+                  <pre>{{ sample.input }}</pre>
+                </div>
+                <div class="sample-output">
+                  <p class="title">{{ $t('m.Sample_Output') }} {{ index + 1 }}</p>
+                  <pre>{{ sample.output }}</pre>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="problem.hint">
-            <p class="title">{{ $t('m.Hint') }}</p>
-            <Card dis-hover class="hint-card">
-              <div class="content" v-html=problem.hint></div>
-            </Card>
-          </div>
+            <div v-if="problem.hint">
+              <p class="title">{{ $t('m.Hint') }}</p>
+              <Card dis-hover class="hint-card">
+                <div class="content" v-html=problem.hint></div>
+              </Card>
+            </div>
 
-          <div v-if="problem.source">
-            <p class="title">{{ $t('m.Source') }}</p>
-            <p class="content">{{ problem.source }}</p>
+            <div v-if="problem.source">
+              <p class="title">{{ $t('m.Source') }}</p>
+              <p class="content">{{ problem.source }}</p>
+            </div>
           </div>
+        </Panel>
+      </div>
 
-        </div>
-      </Panel>
-      <!--problem main end-->
+      <div class="problem-stats-panel">
+        <Card id="info" class="info-card">
+          <div slot="title" class="header">
+            <Icon type="information-circled"></Icon>
+            <span class="card-title">{{ $t('m.Information') }}</span>
+          </div>
+          <ul>
+            <li>
+              <p>ID</p>
+              <p>{{ problem._id }}</p>
+            </li>
+            <li>
+              <p>{{ $t('m.Time_Limit') }}</p>
+              <p>{{ problem.time_limit }}MS</p>
+            </li>
+            <li>
+              <p>{{ $t('m.Memory_Limit') }}</p>
+              <p>{{ problem.memory_limit }}MB</p>
+            </li>
+            <li>
+              <p>{{ $t('m.IOMode') }}</p>
+              <p>{{ problem.io_mode.io_mode }}</p>
+            </li>
+            <li>
+              <p>{{ $t('m.Created') }}</p>
+              <p>{{ problem.created_by.username }}</p>
+            </li>
+            <li v-if="problem.difficulty">
+              <p>{{ $t('m.Level') }}</p>
+              <p>{{ $t('m.' + problem.difficulty) }}</p>
+            </li>
+            <li v-if="problem.total_score">
+              <p>{{ $t('m.Score') }}</p>
+              <p>{{ problem.total_score }}</p>
+            </li>
+            <li>
+              <p>{{ $t('m.Tags') }}</p>
+              <p>
+                <Poptip trigger="hover" placement="left-end">
+                  <a>{{ $t('m.Show') }}</a>
+                  <div slot="content">
+                    <Tag v-for="tag in problem.tags" :key="tag">{{ tag }}</Tag>
+                  </div>
+                </Poptip>
+              </p>
+            </li>
+            <li>
+              <Button type="primary" size="small" @click="showComplexityAnalysis" long>
+                {{ $t('m.Complexity_Analysis') }}
+              </Button>
+            </li>
+          </ul>
+        </Card>
+
+        <Card id="pieChart" :padding="0" v-if="!this.contestID || OIContestRealTimePermission" class="pie-chart-card">
+          <div slot="title">
+            <Icon type="ios-analytics"></Icon>
+            <span class="card-title">{{ $t('m.Statistic') }}</span>
+            <Button type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</Button>
+          </div>
+          <div class="echarts">
+            <ECharts :options="pie"></ECharts>
+          </div>
+        </Card>
+      </div>
+    </div>
+
+    <!-- 中间代码编辑区 -->
+    <div class="problem-center-panel">
       <Card :padding="20" id="submit-code" dis-hover class="submit-card">
-        <div style="margin-bottom: 10px;">
-          <i-switch v-model="useOllama" size="large">
-            <span slot="open">Ollama</span>
-            <span slot="close">默认AI</span>
-          </i-switch>
-          <span style="margin-left: 10px;">使用Ollama本地AI模型进行代码补全</span>
+        <div class="code-editor-header">
+          <div style="margin-bottom: 10px;">
+            <i-switch v-model="useOllama" size="large">
+              <span slot="open">Ollama</span>
+              <span slot="close">默认AI</span>
+            </i-switch>
+            <span style="margin-left: 10px;">使用Ollama本地AI模型进行代码补全</span>
+          </div>
         </div>
 
         <CodeMirror ref="codeMirror" :value.sync="code" :languages="problem.languages" :language="language"
@@ -92,9 +162,7 @@
           <CodeDiagnostic :diagnosis-issues="diagnosisIssues" :suggestions="suggestions"
             @refresh-diagnosis="refreshDiagnosis" @refresh-suggestions="refreshSuggestions">
           </CodeDiagnostic>
-
           </Col>
-
 
           <Col :span="12">
           <template v-if="captchaRequired">
@@ -106,7 +174,6 @@
             </div>
           </template>
 
-          <!-- 将解释代码按钮和提交按钮放在一起 -->
           <div class="problem-buttons">
             <Button type="info" icon="information-circled" @click="explainCode" :loading="explaining"
               :disabled="!code || explaining" class="btn-explain">
@@ -123,112 +190,50 @@
               {{ result.result === 0 ? $t('m.View_Recommended_Problems') : $t('m.Get_Code_Diagnosis') }}
             </Button>
           </div>
-
           </Col>
         </Row>
       </Card>
     </div>
 
-    <div id="right-column">
-      <VerticalMenu @on-click="handleRoute" class="vertical-menu">
-        <template v-if="this.contestID">
-          <VerticalMenuItem :route="{ name: 'contest-problem-list', params: { contestID: contestID } }">
-            <Icon type="ios-photos"></Icon>
-            {{ $t('m.Problems') }}
-          </VerticalMenuItem>
-
-          <VerticalMenuItem :route="{ name: 'contest-announcement-list', params: { contestID: contestID } }">
-            <Icon type="chatbubble-working"></Icon>
-            {{ $t('m.Announcements') }}
-          </VerticalMenuItem>
-        </template>
-
-        <VerticalMenuItem v-if="!this.contestID || OIContestRealTimePermission" :route="submissionRoute">
-          <Icon type="navicon-round"></Icon>
-          {{ $t('m.Submissions') }}
-        </VerticalMenuItem>
-
-        <template v-if="this.contestID">
-          <VerticalMenuItem v-if="!this.contestID || OIContestRealTimePermission"
-            :route="{ name: 'contest-rank', params: { contestID: contestID } }">
-            <Icon type="stats-bars"></Icon>
-            {{ $t('m.Rankings') }}
-          </VerticalMenuItem>
-          <VerticalMenuItem :route="{ name: 'contest-details', params: { contestID: contestID } }">
-            <Icon type="home"></Icon>
-            {{ $t('m.View_Contest') }}
-          </VerticalMenuItem>
-        </template>
-      </VerticalMenu>
-
-
-      <Card id="info" class="info-card">
-        <div slot="title" class="header">
-          <Icon type="information-circled"></Icon>
-          <span class="card-title">{{ $t('m.Information') }}</span>
+    <!-- 右侧AI聊天区 -->
+    <div class="problem-right-panel">
+      <Card class="ai-chat-card">
+        <div slot="title" class="ai-chat-header">
+          <Icon type="chatbox-working"></Icon>
+          <span class="card-title">AI 助手</span>
+          <div class="ai-options">
+            <Checkbox v-model="includeProblem">题目</Checkbox>
+            <Checkbox v-model="includeCode">代码</Checkbox>
+          </div>
         </div>
-        <ul>
-          <li>
-            <p>ID</p>
-            <p>{{ problem._id }}</p>
-          </li>
-          <li>
-            <p>{{ $t('m.Time_Limit') }}</p>
-            <p>{{ problem.time_limit }}MS</p>
-          </li>
-          <li>
-            <p>{{ $t('m.Memory_Limit') }}</p>
-            <p>{{ problem.memory_limit }}MB</p>
-          </li>
-          <li>
-            <p>{{ $t('m.IOMode') }}</p>
-            <p>{{ problem.io_mode.io_mode }}</p>
-          </li>
-          <li>
-            <p>{{ $t('m.Created') }}</p>
-            <p>{{ problem.created_by.username }}</p>
-          </li>
-          <li v-if="problem.difficulty">
-            <p>{{ $t('m.Level') }}</p>
-            <p>{{ $t('m.' + problem.difficulty) }}</p>
-          </li>
-          <li v-if="problem.total_score">
-            <p>{{ $t('m.Score') }}</p>
-            <p>{{ problem.total_score }}</p>
-          </li>
-          <li>
-            <p>{{ $t('m.Tags') }}</p>
-            <p>
-              <Poptip trigger="hover" placement="left-end">
-                <a>{{ $t('m.Show') }}</a>
-                <div slot="content">
-                  <Tag v-for="tag in problem.tags" :key="tag">{{ tag }}</Tag>
-                </div>
-              </Poptip>
-            </p>
-          </li>
-          <li>
-            <Button type="primary" size="small" @click="showComplexityAnalysis" long>
-              {{ $t('m.Complexity_Analysis') }}
-            </Button>
-          </li>
-        </ul>
-      </Card>
-
-      <Card id="pieChart" :padding="0" v-if="!this.contestID || OIContestRealTimePermission" class="pie-chart-card">
-        <div slot="title">
-          <Icon type="ios-analytics"></Icon>
-          <span class="card-title">{{ $t('m.Statistic') }}</span>
-          <Button type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</Button>
-        </div>
-        <div class="echarts">
-          <ECharts :options="pie"></ECharts>
+        <div class="ai-chat-container">
+          <div class="ai-chat-messages" ref="chatMessages">
+            <div v-for="(message, index) in aiMessages" :key="index" :class="['ai-message', message.role]">
+              <div class="message-header">
+                <Icon :type="message.role === 'user' ? 'person' : 'android'" />
+                <span class="message-sender">{{ message.role === 'user' ? '你' : 'AI助手' }}</span>
+              </div>
+              <div class="message-content"
+                v-html="message.role === 'user' ? message.content : renderMarkdown(message.content)"></div>
+            </div>
+          </div>
+          <div class="ai-chat-input">
+            <Input v-model="aiInputMessage" type="textarea" :rows="3" placeholder="向AI助手提问..."
+              @on-enter="sendAIMessage" />
+            <div class="ai-chat-actions">
+              <Button type="primary" @click="sendAIMessage" :loading="aiSending">
+                <Icon type="paper-airplane" /> 发送
+              </Button>
+              <Button @click="clearAIChat">
+                <Icon type="trash-a" /> 清空
+              </Button>
+            </div>
+          </div>
         </div>
       </Card>
-      <AIAssistant :problem="problem" :code="code" ref="aiAssistant"></AIAssistant>
-
     </div>
 
+    <!-- 原有模态框保持不变 -->
     <Modal v-model="graphVisible" class="statistic-modal">
       <div id="pieChart-detail">
         <ECharts :options="largePie" :initOptions="largePieInitOpts"></ECharts>
@@ -238,7 +243,6 @@
       </div>
     </Modal>
 
-    <!-- 添加代码解释模态框 -->
     <Modal v-model="showExplanationModal" :title="$t('m.Code_Explanation')" width="800" class="explanation-modal">
       <div class="modal-actions" style="text-align: right; margin-bottom: 10px;">
         <Button v-if="codeExplanation && !explaining" @click="exportExplanationToPDF" type="primary" size="small"
@@ -260,7 +264,6 @@
       </div>
     </Modal>
 
-    <!-- 复杂度分析模态框 -->
     <Modal v-model="showComplexityModal" :title="$t('m.Complexity_Analysis')" width="600" :loading="loadingComplexity"
       @on-cancel="closeComplexityModal" class="complexity-modal">
       <div v-if="loadingComplexity" class="complexity-loading">
@@ -328,7 +331,6 @@
         <Button @click="closeComplexityModal">{{ $t('m.Close') }}</Button>
       </div>
     </Modal>
-
   </div>
 </template>
 
@@ -435,8 +437,16 @@ export default {
       showComplexityModal: false,
       loadingComplexity: false,
       useOllama: false,
-
-
+      aiMessages: [
+        {
+          role: 'assistant',
+          content: '你好！我是你的AI编程助手。你可以问我关于这道题的任何问题，我会尽力帮助你。'
+        }
+      ],
+      aiInputMessage: '',
+      aiSending: false,
+      includeProblem: true,
+      includeCode: true,
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -981,6 +991,9 @@ export default {
         this.snippetExplanation = errorMessage;
       }
     },
+
+
+
     // 添加选择代码片段的方法
     onCodeSnippetSelected(snippet) {
       this.selectedCodeSnippet = snippet;
@@ -1181,6 +1194,77 @@ export default {
         })
       }
     },
+    async sendAIMessage() {
+      if (!this.aiInputMessage.trim() || this.aiSending) return;
+
+      // 添加用户消息到聊天记录
+      this.aiMessages.push({
+        role: 'user',
+        content: this.aiInputMessage
+      });
+
+      // 构造发送给AI的内容
+      let aiQuery = this.aiInputMessage;
+
+      if (this.includeProblem) {
+        aiQuery += `\n\n题目信息:\n${this.problem.title}\n${this.problem.description}`;
+      }
+
+      if (this.includeCode && this.code) {
+        aiQuery += `\n\n当前代码:\n${this.code}`;
+      }
+
+      this.aiSending = true;
+      this.aiInputMessage = ''; // 清空输入框
+
+      try {
+        // 滚动到底部
+        this.$nextTick(() => {
+          if (this.$refs.chatMessages) {
+            this.$refs.chatMessages.scrollTop = this.$refs.chatMessages.scrollHeight;
+          }
+        });
+
+        const res = await api.sendAIMessage({
+          message: aiQuery,
+          problem_id: this.problem.id
+        });
+
+        if (res.data && res.data.data) {
+          // 添加AI回复到聊天记录
+          this.aiMessages.push({
+            role: 'assistant',
+            content: res.data.data.response || res.data.data.content || '抱歉，我没有理解你的问题。'
+          });
+        } else {
+          throw new Error('Invalid response from AI');
+        }
+      } catch (err) {
+        console.error('AI消息发送失败:', err);
+        this.aiMessages.push({
+          role: 'assistant',
+          content: '抱歉，我现在无法回答你的问题。请稍后再试。'
+        });
+      } finally {
+        this.aiSending = false;
+        // 滚动到底部
+        this.$nextTick(() => {
+          if (this.$refs.chatMessages) {
+            this.$refs.chatMessages.scrollTop = this.$refs.chatMessages.scrollHeight;
+          }
+        });
+      }
+    },
+
+    clearAIChat() {
+      this.aiMessages = [
+        {
+          role: 'assistant',
+          content: '你好！我是你的AI编程助手。你可以问我关于这道题的任何问题，我会尽力帮助你。'
+        }
+      ];
+    },
+
   },
   computed: {
     ...mapGetters(['problemSubmitDisabled', 'contestRuleType', 'OIContestRealTimePermission', 'contestStatus']),
@@ -2368,6 +2452,317 @@ export default {
     .echarts {
       height: 180px;
     }
+  }
+}
+
+.problem-container {
+  display: flex;
+  height: calc(100vh - 60px);
+  padding: 10px;
+  gap: 10px;
+}
+
+.problem-left-panel {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.problem-info-panel {
+  flex: 1;
+  overflow-y: auto;
+
+  .panel-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1890ff;
+  }
+
+  #problem-content {
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 15px 0 8px 0;
+      color: #1890ff;
+    }
+
+    p.content {
+      margin-left: 20px;
+      margin-right: 15px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #515a6e;
+    }
+
+    .sample {
+      align-items: stretch;
+      margin: 10px 0;
+
+      &-input,
+      &-output {
+        width: 50%;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        margin-right: 5%;
+      }
+
+      pre {
+        flex: 1 1 auto;
+        align-self: stretch;
+        border-style: solid;
+        background: #f8f9fa;
+        border: 1px solid #e8f4ff;
+        border-radius: 4px;
+        padding: 10px;
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        overflow-x: auto;
+      }
+    }
+  }
+}
+
+.problem-stats-panel {
+  flex: 0 0 auto;
+
+  .info-card,
+  .pie-chart-card {
+    margin-bottom: 10px;
+  }
+
+  .info-card {
+    ul {
+      li {
+        p:first-child {
+          width: 70px;
+        }
+      }
+    }
+  }
+}
+
+.problem-center-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 500px;
+
+  .submit-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    /deep/ .ivu-card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+    }
+
+    .code-editor-header {
+      margin-bottom: 10px;
+    }
+
+    .CodeMirror {
+      flex: 1;
+      margin-bottom: 15px;
+      border: 1px solid #dcdee2;
+      border-radius: 4px;
+    }
+
+    .problem-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+
+      .btn-explain,
+      .btn-submit,
+      .btn-recommend {
+        flex: 0 0 auto;
+      }
+    }
+  }
+}
+
+.problem-right-panel {
+  flex: 0 0 350px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .ai-chat-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    /deep/ .ivu-card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+    }
+
+    .ai-chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .ai-options {
+        display: flex;
+        gap: 10px;
+
+        .ivu-checkbox-wrapper {
+          margin-right: 0;
+        }
+      }
+    }
+
+    .ai-chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .ai-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      border: 1px solid #dcdee2;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      background-color: #fff;
+
+      .ai-message {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 4px;
+
+        &.user {
+          background-color: #e6f7ff;
+          border-left: 3px solid #1890ff;
+        }
+
+        &.assistant {
+          background-color: #f8f9fa;
+          border-left: 3px solid #52c41a;
+        }
+
+        .message-header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 5px;
+          font-weight: 500;
+
+          .ivu-icon {
+            margin-right: 5px;
+          }
+
+          .message-sender {
+            font-size: 14px;
+          }
+        }
+
+        .message-content {
+          font-size: 13px;
+          line-height: 1.5;
+
+          /deep/ pre {
+            background: #f0f0f0;
+            padding: 8px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 5px 0;
+            font-size: 12px;
+          }
+
+          /deep/ code {
+            background: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+          }
+        }
+      }
+    }
+
+    .ai-chat-input {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      /deep/ .ivu-input {
+        font-size: 13px;
+      }
+
+      .ai-chat-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+
+        .ivu-btn {
+          font-size: 12px;
+          padding: 5px 15px;
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 1400px) {
+  .problem-container {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .problem-left-panel {
+    flex: 0 0 auto;
+    flex-direction: row;
+    height: auto;
+
+    .problem-info-panel {
+      flex: 1;
+    }
+
+    .problem-stats-panel {
+      flex: 0 0 300px;
+      margin-left: 10px;
+    }
+  }
+
+  .problem-center-panel,
+  .problem-right-panel {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .problem-container {
+    flex-direction: column;
+    padding: 5px;
+  }
+
+  .problem-left-panel {
+    flex-direction: column;
+
+    .problem-stats-panel {
+      margin-left: 0;
+      margin-top: 10px;
+    }
+  }
+
+  .problem-right-panel {
+    display: none; // 在小屏幕上隐藏AI面板
   }
 }
 </style>
