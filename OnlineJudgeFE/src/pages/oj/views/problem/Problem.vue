@@ -7,15 +7,15 @@
           <div slot="title" class="panel-title">{{ problem.title }}</div>
           <div id="problem-content" class="markdown-body" v-katex>
             <p class="title">{{ $t('m.Description') }}</p>
-            <p class="content" v-html=problem.description></p>
+            <p class="content" v-html="problem.description"></p>
 
             <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-            }}: {{ problem.io_mode.input }})</span></p>
-            <p class="content" v-html=problem.input_description></p>
+                }}: {{ problem.io_mode.input }})</span></p>
+            <p class="content" v-html="problem.input_description"></p>
 
             <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
-            }}: {{ problem.io_mode.output }})</span></p>
-            <p class="content" v-html=problem.output_description></p>
+                }}: {{ problem.io_mode.output }})</span></p>
+            <p class="content" v-html="problem.output_description"></p>
 
             <div v-for="(sample, index) of problem.samples" :key="index">
               <div class="flex-container sample">
@@ -38,7 +38,7 @@
             <div v-if="problem.hint">
               <p class="title">{{ $t('m.Hint') }}</p>
               <Card dis-hover class="hint-card">
-                <div class="content" v-html=problem.hint></div>
+                <div class="content" v-html="problem.hint"></div>
               </Card>
             </div>
 
@@ -56,45 +56,45 @@
             <Icon type="information-circled"></Icon>
             <span class="card-title">{{ $t('m.Information') }}</span>
           </div>
-          <ul>
+          <ul class="info-list">
             <li>
-              <p>ID</p>
-              <p>{{ problem._id }}</p>
+              <span class="label">ID</span>
+              <span class="value">{{ problem._id }}</span>
             </li>
             <li>
-              <p>{{ $t('m.Time_Limit') }}</p>
-              <p>{{ problem.time_limit }}MS</p>
+              <span class="label">{{ $t('m.Time_Limit') }}</span>
+              <span class="value">{{ problem.time_limit }}MS</span>
             </li>
             <li>
-              <p>{{ $t('m.Memory_Limit') }}</p>
-              <p>{{ problem.memory_limit }}MB</p>
+              <span class="label">{{ $t('m.Memory_Limit') }}</span>
+              <span class="value">{{ problem.memory_limit }}MB</span>
             </li>
             <li>
-              <p>{{ $t('m.IOMode') }}</p>
-              <p>{{ problem.io_mode.io_mode }}</p>
+              <span class="label">{{ $t('m.IOMode') }}</span>
+              <span class="value">{{ problem.io_mode.io_mode }}</span>
             </li>
             <li>
-              <p>{{ $t('m.Created') }}</p>
-              <p>{{ problem.created_by.username }}</p>
+              <span class="label">{{ $t('m.Created') }}</span>
+              <span class="value">{{ problem.created_by.username }}</span>
             </li>
             <li v-if="problem.difficulty">
-              <p>{{ $t('m.Level') }}</p>
-              <p>{{ $t('m.' + problem.difficulty) }}</p>
+              <span class="label">{{ $t('m.Level') }}</span>
+              <span class="value">{{ $t('m.' + problem.difficulty) }}</span>
             </li>
             <li v-if="problem.total_score">
-              <p>{{ $t('m.Score') }}</p>
-              <p>{{ problem.total_score }}</p>
+              <span class="label">{{ $t('m.Score') }}</span>
+              <span class="value">{{ problem.total_score }}</span>
             </li>
             <li>
-              <p>{{ $t('m.Tags') }}</p>
-              <p>
+              <span class="label">{{ $t('m.Tags') }}</span>
+              <span class="value">
                 <Poptip trigger="hover" placement="left-end">
                   <a>{{ $t('m.Show') }}</a>
                   <div slot="content">
                     <Tag v-for="tag in problem.tags" :key="tag">{{ tag }}</Tag>
                   </div>
                 </Poptip>
-              </p>
+              </span>
             </li>
             <li>
               <Button type="primary" size="small" @click="showComplexityAnalysis" long>
@@ -111,7 +111,7 @@
             <Button type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</Button>
           </div>
           <div class="echarts">
-            <ECharts :options="pie"></ECharts>
+            <ECharts :options="pie" :initOptions="{ width: '200', height: '180' }"></ECharts>
           </div>
         </Card>
       </div>
@@ -365,19 +365,6 @@ const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
 
 export default {
   name: 'Problem',
-  components: {
-    Panel,
-    ECharts,
-    Highlight,
-    CodeMirror,
-    AIAssistant,
-    VerticalMenu,
-    VerticalMenuItem,
-    NextProblemRecommendation,
-    CodeDiagnostic,
-    ProblemComplexity
-  },
-
   data() {
     return {
       statusVisible: false,
@@ -412,27 +399,19 @@ export default {
       },
       pie: pie,
       largePie: largePie,
-      // echarts 无法获取隐藏dom的大小，需手动指定
       largePieInitOpts: {
         width: '500',
         height: '480'
       },
-      // 添加代码解释相关数据
       explaining: false,
       showExplanationModal: false,
       codeExplanation: '',
-      showCodeSnippetModal: false,
-      selectedCodeSnippet: '',
-      snippetExplanation: '',
-      // 添加实时诊断相关数据
-      diagnosisTimer: null,
       diagnosisIssues: [],
       diagnosisLoading: false,
       suggestions: [],
       suggestionTimer: null,
       lastCursorPosition: null,
       activeAIPanelTab: 'diagnosis',
-      problemComplexityMap: {},
       complexityData: null,
       showComplexityModal: false,
       loadingComplexity: false,
@@ -447,6 +426,7 @@ export default {
       aiSending: false,
       includeProblem: true,
       includeCode: true,
+      toggleInfo: true
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -464,45 +444,117 @@ export default {
   mounted() {
     this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, { menu: false })
     this.init()
-    // 启动实时诊断定时器
     this.startDiagnosisTimer()
   },
   methods: {
     ...mapActions(['changeDomTitle']),
     init() {
       this.$Loading.start()
+      console.log('开始初始化问题:', this.problemID, this.contestID)
+
       this.contestID = this.$route.params.contestID
       this.problemID = this.$route.params.problemID
+
       let func = this.$route.name === 'problem-details' ? 'getProblem' : 'getContestProblem'
+
       api[func](this.problemID, this.contestID).then(res => {
+        console.log('API响应:', res)
         this.$Loading.finish()
+
+        if (!res.data || !res.data.data) {
+          console.error('API返回数据为空')
+          this.$error(this.$t('m.Failed_to_load_problem_data'))
+          return
+        }
+
         let problem = res.data.data
-        this.changeDomTitle({ title: problem.title })
+
+        // 验证关键字段
+        if (!problem.title) {
+          console.error('题目标题不存在')
+          this.$error(this.$t('m.Invalid_problem_data'))
+          return
+        }
+
+        // 处理空值
+        problem.description = problem.description || ''
+        problem.input_description = problem.input_description || ''
+        problem.output_description = problem.output_description || ''
+        problem.hint = problem.hint || ''
+        problem.source = problem.source || ''
+
+        // 确保数组字段正确
+        if (!Array.isArray(problem.samples)) {
+          problem.samples = []
+        }
+
+        if (!Array.isArray(problem.tags)) {
+          problem.tags = []
+        }
+
+        if (!Array.isArray(problem.languages)) {
+          problem.languages = []
+        }
+
+        // 转换数组为字符串（如果需要）
+        if (Array.isArray(problem.description)) {
+          problem.description = problem.description.join('\n')
+        }
+        if (Array.isArray(problem.input_description)) {
+          problem.input_description = problem.input_description.join('\n')
+        }
+        if (Array.isArray(problem.output_description)) {
+          problem.output_description = problem.output_description.join('\n')
+        }
+
+        // 调用 changeDomTitle action 设置页面标题
+        try {
+          this.changeDomTitle({ title: problem.title })
+        } catch (e) {
+          console.error('设置页面标题失败:', e)
+          // 备选方案
+          document.title = problem.title + ' - OnlineJudge'
+        }
+
         api.submissionExists(problem.id).then(res => {
           this.submissionExists = res.data.data
+        }).catch(err => {
+          console.warn('获取提交状态失败:', err)
         })
+
         problem.languages = problem.languages.sort()
         this.problem = problem
+
+        // 检查数据
+        console.log('加载的题目数据:', {
+          title: problem.title,
+          description_length: problem.description.length,
+          input_description_length: problem.input_description.length,
+          output_description_length: problem.output_description.length
+        })
+
         // 加载题目复杂度信息
         this.loadProblemComplexity()
         if (problem.statistic_info) {
           this.changePie(problem)
         }
 
-        // 在beforeRouteEnter中修改了, 说明本地有code，无需加载template
-        if (this.code !== '') {
-          return
+        // 加载模板代码
+        if (this.code === '') {
+          this.language = this.problem.languages.length > 0 ? this.problem.languages[0] : 'C++'
+          let template = this.problem.template
+          if (template && template[this.language]) {
+            this.code = template[this.language]
+          }
         }
-        // try to load problem template
-        this.language = this.problem.languages[0]
-        let template = this.problem.template
-        if (template && template[this.language]) {
-          this.code = template[this.language]
-        }
-      }, () => {
+      }, error => {
+        console.error('API调用失败:', error)
         this.$Loading.error()
+        this.$error(this.$t('m.Failed_to_load_problem_data'))
       })
     },
+
+
     startDiagnosisTimer() {
       // 每30秒进行一次实时诊断
       this.diagnosisTimer = setInterval(() => {
@@ -2457,172 +2509,120 @@ export default {
 
 .problem-container {
   display: flex;
-  height: calc(100vh - 60px);
-  padding: 10px;
-  gap: 10px;
-}
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 80px);
 
-.problem-left-panel {
-  flex: 0 0 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  height: 100%;
-  overflow-y: auto;
-}
+  .problem-left-panel {
+    flex: 1;
+    min-width: 400px;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 
-.problem-info-panel {
-  flex: 1;
-  overflow-y: auto;
+    .problem-info-panel {
+      flex: 1;
+      min-height: 0;
 
-  .panel-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #1890ff;
-  }
-
-  #problem-content {
-    .title {
-      font-size: 16px;
-      font-weight: 600;
-      margin: 15px 0 8px 0;
-      color: #1890ff;
-    }
-
-    p.content {
-      margin-left: 20px;
-      margin-right: 15px;
-      font-size: 14px;
-      line-height: 1.6;
-      color: #515a6e;
-    }
-
-    .sample {
-      align-items: stretch;
-      margin: 10px 0;
-
-      &-input,
-      &-output {
-        width: 50%;
-        flex: 1 1 auto;
+      /deep/ .ivu-card {
+        height: 100%;
         display: flex;
         flex-direction: column;
-        margin-right: 5%;
       }
 
-      pre {
-        flex: 1 1 auto;
-        align-self: stretch;
-        border-style: solid;
-        background: #f8f9fa;
-        border: 1px solid #e8f4ff;
-        border-radius: 4px;
-        padding: 10px;
-        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
-        font-size: 13px;
-        line-height: 1.4;
-        overflow-x: auto;
+      /deep/ .ivu-card-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
       }
     }
-  }
-}
 
-.problem-stats-panel {
-  flex: 0 0 auto;
+    .problem-stats-panel {
 
-  .info-card,
-  .pie-chart-card {
-    margin-bottom: 10px;
-  }
+      .info-card,
+      .pie-chart-card {
+        margin-bottom: 16px;
+        border-radius: 6px;
+      }
 
-  .info-card {
-    ul {
-      li {
-        p:first-child {
-          width: 70px;
+      .info-list {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0;
+
+        li {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          border-bottom: 1px solid #eee;
+
+          &:last-child {
+            border-bottom: none;
+          }
+
+          .label {
+            font-weight: 500;
+            color: #555;
+          }
+
+          .value {
+            color: #333;
+            text-align: right;
+          }
         }
       }
+
+      .echarts {
+        width: 200px;
+        height: 180px;
+        margin: 0 auto;
+      }
     }
   }
-}
 
-.problem-center-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-width: 500px;
-
-  .submit-card {
-    flex: 1;
+  .problem-center-panel {
+    flex: 2;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    gap: 16px;
 
-    /deep/ .ivu-card-body {
+    /deep/ .ivu-card {
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 15px;
     }
-
-    .code-editor-header {
-      margin-bottom: 10px;
-    }
-
-    .CodeMirror {
-      flex: 1;
-      margin-bottom: 15px;
-      border: 1px solid #dcdee2;
-      border-radius: 4px;
-    }
-
-    .problem-buttons {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-
-      .btn-explain,
-      .btn-submit,
-      .btn-recommend {
-        flex: 0 0 auto;
-      }
-    }
-  }
-}
-
-.problem-right-panel {
-  flex: 0 0 350px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-
-  .ai-chat-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
 
     /deep/ .ivu-card-body {
       flex: 1;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
-      padding: 10px;
     }
 
-    .ai-chat-header {
+    .code-editor {
+      flex: 1;
+      min-height: 0;
+    }
+  }
+
+  .problem-right-panel {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+
+    /deep/ .ivu-card {
+      flex: 1;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+    }
 
-      .ai-options {
-        display: flex;
-        gap: 10px;
-
-        .ivu-checkbox-wrapper {
-          margin-right: 0;
-        }
-      }
+    /deep/ .ivu-card-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
 
     .ai-chat-container {
@@ -2630,139 +2630,231 @@ export default {
       display: flex;
       flex-direction: column;
       height: 100%;
-    }
 
-    .ai-chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-      border: 1px solid #dcdee2;
-      border-radius: 4px;
-      margin-bottom: 10px;
-      background-color: #fff;
-
-      .ai-message {
-        margin-bottom: 15px;
+      .ai-chat-messages {
+        flex: 1;
+        overflow-y: auto;
         padding: 10px;
+        border: 1px solid #e8eaec;
         border-radius: 4px;
+        margin-bottom: 10px;
+        background: #fff;
 
-        &.user {
-          background-color: #e6f7ff;
-          border-left: 3px solid #1890ff;
-        }
+        .ai-message {
+          margin-bottom: 15px;
 
-        &.assistant {
-          background-color: #f8f9fa;
-          border-left: 3px solid #52c41a;
-        }
-
-        .message-header {
-          display: flex;
-          align-items: center;
-          margin-bottom: 5px;
-          font-weight: 500;
-
-          .ivu-icon {
-            margin-right: 5px;
+          &.user {
+            text-align: right;
           }
 
-          .message-sender {
-            font-size: 14px;
+          .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-weight: bold;
+
+            .ivu-icon {
+              margin-right: 5px;
+            }
+
+            .message-sender {
+              font-size: 12px;
+            }
           }
-        }
 
-        .message-content {
-          font-size: 13px;
-          line-height: 1.5;
-
-          /deep/ pre {
-            background: #f0f0f0;
-            padding: 8px;
+          .message-content {
+            padding: 8px 12px;
             border-radius: 4px;
-            overflow-x: auto;
-            margin: 5px 0;
-            font-size: 12px;
+            display: inline-block;
+            max-width: 80%;
+            text-align: left;
+
+            &::v-deep pre {
+              background: #f8f9fa;
+              padding: 12px;
+              border-radius: 6px;
+              overflow-x: auto;
+              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+              font-size: 13px;
+              border: 1px solid #e9ecef;
+            }
+
+            &::v-deep code {
+              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+              background: #f8f9fa;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 13px;
+            }
           }
 
-          /deep/ code {
+          &.user .message-content {
+            background: #d9edff;
+          }
+
+          &.assistant .message-content {
             background: #f0f0f0;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
+          }
+        }
+      }
+
+      .ai-chat-input {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        /deep/ .ivu-input {
+          font-size: 13px;
+        }
+
+        .ai-chat-actions {
+          display: flex;
+          gap: 10px;
+          justify-content: flex-end;
+
+          .ivu-btn {
             font-size: 12px;
+            padding: 5px 15px;
           }
         }
       }
     }
+  }
 
-    .ai-chat-input {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+  #problem-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+    word-wrap: break-word;
 
-      /deep/ .ivu-input {
-        font-size: 13px;
-      }
+    .title {
+      font-weight: bold;
+      margin: 16px 0 8px 0;
+    }
 
-      .ai-chat-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
+    .content {
+      margin-bottom: 16px;
+    }
 
-        .ivu-btn {
-          font-size: 12px;
-          padding: 5px 15px;
+    pre {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      border: 1px solid #e9ecef;
+    }
+
+    code {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .sample {
+
+      .sample-input,
+      .sample-output {
+        flex: 1;
+
+        pre {
+          white-space: pre-wrap;
+          word-wrap: break-word;
         }
       }
+    }
+
+    .hint-card {
+      margin-top: 10px;
+
+      /deep/ .ivu-card-body {
+        padding: 10px;
+      }
+    }
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .ai-chat-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .ai-options {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
     }
   }
 }
 
 // 响应式设计
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   .problem-container {
     flex-direction: column;
     height: auto;
-  }
 
-  .problem-left-panel {
-    flex: 0 0 auto;
-    flex-direction: row;
-    height: auto;
+    .problem-left-panel {
+      flex: 0 0 auto;
+      flex-direction: row;
+      height: auto;
+      max-height: unset;
+      min-width: auto;
 
-    .problem-info-panel {
-      flex: 1;
+      .problem-info-panel {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .problem-info-panel /deep/ .ivu-card {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        height: 100%;
+      }
+
+      .problem-info-panel /deep/ .ivu-card-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+        min-height: 0;
+      }
+
+      .problem-stats-panel {
+        flex: 0 0 300px;
+        margin-left: 10px;
+      }
     }
 
-    .problem-stats-panel {
-      flex: 0 0 300px;
-      margin-left: 10px;
+    .problem-right-panel {
+      display: none; // 在小屏幕上隐藏AI面板
     }
-  }
-
-  .problem-center-panel,
-  .problem-right-panel {
-    flex: 1;
   }
 }
 
 @media (max-width: 768px) {
   .problem-container {
-    flex-direction: column;
     padding: 5px;
-  }
 
-  .problem-left-panel {
-    flex-direction: column;
+    .problem-left-panel {
+      flex-direction: column;
 
-    .problem-stats-panel {
-      margin-left: 0;
-      margin-top: 10px;
+      .problem-stats-panel {
+        margin-left: 0;
+        margin-top: 10px;
+      }
     }
-  }
-
-  .problem-right-panel {
-    display: none; // 在小屏幕上隐藏AI面板
   }
 }
 </style>
