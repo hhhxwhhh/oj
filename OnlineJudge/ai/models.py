@@ -163,31 +163,38 @@ class AIUserKnowledgeState(models.Model):
         """
         更新知识点掌握程度
         """
+        from django.utils import timezone
+        import math
+        
         self.total_attempts += 1
         if is_correct:
             self.correct_attempts += 1
         
-        # 计算掌握程度：正确率 + 时间衰减因子
+        # 计算基础准确率
         accuracy = self.correct_attempts / self.total_attempts if self.total_attempts > 0 else 0
         
-        if self.total_attempts <= 5:
-            # 对于较少的尝试次数，更依赖当前准确率
-            self.proficiency_level = min(1.0, accuracy * 0.8 + self.proficiency_level * 0.2)
-        else:
-            # 对于较多的尝试次数，平衡历史表现和当前准确率
-            self.proficiency_level = min(1.0, accuracy * 0.7 + self.proficiency_level * 0.3)
-
-        from django.utils import timezone
-        from datetime import timedelta
         if self.last_updated:
             days_since_last_attempt = (timezone.now() - self.last_updated).days
             if days_since_last_attempt > 30:
                 # 超过30天未练习，掌握程度略微下降
                 decay_factor = max(0.8, 1 - (days_since_last_attempt - 30) * 0.01)
-                self.proficiency_level = max(0.0, self.proficiency_level * decay_factor)
+                accuracy = max(0.0, accuracy * decay_factor)
+        
+        if self.total_attempts <= 3:
+            # 较少尝试次数，更依赖当前准确率
+            self.proficiency_level = min(1.0, accuracy * 0.8 + self.proficiency_level * 0.2)
+        elif self.total_attempts <= 10:
+            # 中等尝试次数，平衡历史和当前表现
+            self.proficiency_level = min(1.0, accuracy * 0.7 + self.proficiency_level * 0.3)
+        else:
+            # 较多尝试次数，更稳定的评估
+            self.proficiency_level = min(1.0, accuracy * 0.6 + self.proficiency_level * 0.4)
+        
+        min_proficiency = accuracy * 0.5  
+        self.proficiency_level = max(min_proficiency, self.proficiency_level)
         
         self.proficiency_level = round(self.proficiency_level, 4)
-        
+        self.last_updated = timezone.now()
         self.save()
 
 class AIUserLearningPathNode(models.Model):
