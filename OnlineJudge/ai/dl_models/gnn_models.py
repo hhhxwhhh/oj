@@ -16,9 +16,8 @@ class ProblemKnowledgeGNN(nn.Module):
         self.num_problems = num_problems
         self.num_knowledge_points = num_knowledge_points
         
-        # 确保嵌入层的大小足够大
-        self.problem_embedding = nn.Embedding(max(num_problems, 1000), embedding_dim)
-        self.knowledge_embedding = nn.Embedding(max(num_knowledge_points, 1000), embedding_dim)
+        self.problem_embedding = nn.Embedding(num_problems, embedding_dim)
+        self.knowledge_embedding = nn.Embedding(num_knowledge_points, embedding_dim)
         
         # 使用GCN层处理图结构
         self.conv1 = GCNConv(embedding_dim, embedding_dim)
@@ -44,7 +43,8 @@ class ProblemKnowledgeGNN(nn.Module):
         
         # 确保边索引在有效范围内
         if edge_index.numel() > 0:
-            edge_index = torch.clamp(edge_index, 0, all_features.size(0) - 1)
+            max_index = all_features.size(0) - 1
+            edge_index = torch.clamp(edge_index, 0, max_index)
         
         all_features = F.relu(self.conv1(all_features, edge_index))
         all_features = self.dropout(all_features)
@@ -55,19 +55,24 @@ class ProblemKnowledgeGNN(nn.Module):
         knowledge_features = all_features[len(problem_indices):]
         
         # 注意力机制融合
-        if knowledge_features.size(0) > 0:
+        if knowledge_features.size(0) > 0 and problem_features.size(0) > 0:
+            # 确保序列长度一致
+            min_len = min(problem_features.size(0), knowledge_features.size(0))
+            problem_seq = problem_features[:min_len].unsqueeze(0)
+            knowledge_seq = knowledge_features[:min_len].unsqueeze(0)
+            
             combined_features, _ = self.attention(
-                problem_features.unsqueeze(0), 
-                knowledge_features.unsqueeze(0), 
-                knowledge_features.unsqueeze(0)
+                problem_seq, 
+                knowledge_seq, 
+                knowledge_seq
             )
             combined_features = combined_features.squeeze(0)
         else:
-            # 如果没有知识点特征，使用问题特征
+            # 如果没有知识点特征或问题特征，使用问题特征
             combined_features = problem_features
         
         # 合并特征
-        if knowledge_features.size(0) > 0:
+        if knowledge_features.size(0) > 0 and combined_features.size(0) > 0:
             knowledge_mean = combined_features.mean(dim=0, keepdim=True).expand_as(problem_features)
         else:
             # 如果没有知识点特征，使用零向量
@@ -84,9 +89,9 @@ class GNNBasedRecommender:
     def __init__(self, num_problems=None, num_knowledge_points=None, embedding_dim=64, model_path=None):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # 设置默认值或使用传入的参数
-        self.num_problems = num_problems if num_problems is not None else 200
-        self.num_knowledge_points = num_knowledge_points if num_knowledge_points is not None else 100
+        # 使用传入的实际参数
+        self.num_problems = num_problems
+        self.num_knowledge_points = num_knowledge_points
         self.embedding_dim = embedding_dim
         
         self.model = ProblemKnowledgeGNN(
@@ -101,31 +106,67 @@ class GNNBasedRecommender:
             self.model.load_state_dict(torch.load(model_path, map_location=self.device))
             logger.info("Loaded pre-trained GNN recommendation model from %s", model_path)
     
-    def train(self, problem_indices, knowledge_indices, edge_index, labels, epochs=50):
+    def train_with_batches(self, dataloader, edge_index, epochs=50):
         """
-        训练GNN推荐模型
+        使用批处理训练GNN推荐模型
         """
         self.model.train()
         edge_index = edge_index.to(self.device)
         
         for epoch in range(epochs):
-            self.optimizer.zero_grad()
+            total_loss = 0
+            batch_count = 0
             
-            problem_indices = torch.LongTensor(problem_indices).to(self.device)
-            knowledge_indices = torch.LongTensor(knowledge_indices).to(self.device)
-            labels = torch.FloatTensor(labels).to(self.device)
+            for batch_idx, (problem_batch, knowledge_batch, labels_batch) in enumerate(dataloader):
+                self.optimizer.zero_grad()
+                
+                problem_batch = problem_batch.to(self.device)
+                knowledge_batch = knowledge_batch.to(self.device)
+                labels_batch = labels_batch.to(self.device)
+                
+                outputs = self.model(problem_batch, knowledge_batch, edge_index)
+                
+                # 确保输出和标签形状匹配
+                if outputs.dim() == 0:
+                    outputs = outputs.unsqueeze(0)
+                if labels_batch.dim() == 0:
+                    labels_batch = labels_batch.unsqueeze(0)
+                
+                # 只计算非空批次的损失
+                if outputs.numel() > 0 and labels_batch.numel() > 0:
+                    loss = self.criterion(outputs, labels_batch)
+                    loss.backward()
+                    self.optimizer.step()
+                    
+                    total_loss += loss.item()
+                    batch_count += 1
             
-            outputs = self.model(problem_indices, knowledge_indices, edge_index)
-            loss = self.criterion(outputs, labels)
-            
-            loss.backward()
-            self.optimizer.step()
-            
-            if epoch % 10 == 0:
-                logger.info(f'GNN Training Epoch [{epoch}/{epochs}], Loss: {loss.item():.4f}')
+            if batch_count > 0:
+                avg_loss = total_loss / batch_count
+                if epoch % 10 == 0:
+                    logger.info(f'GNN Training Epoch [{epoch}/{epochs}], Average Loss: {avg_loss:.4f}')
+            else:
+                logger.warning(f'GNN Training Epoch [{epoch}/{epochs}] completed with no valid batches')
         
         # 保存模型
         torch.save(self.model.state_dict(), 'ai/dl_models/gnn/gnn_recommendation_model.pth')
+    
+    def train(self, problem_indices, knowledge_indices, edge_index, labels, epochs=50):
+        """
+        原始训练方法（兼容性保留）
+        """
+        # 转换为张量
+        problem_tensor = torch.LongTensor(problem_indices)
+        knowledge_tensor = torch.LongTensor(knowledge_indices)
+        labels_tensor = torch.FloatTensor(labels)
+        
+        # 创建数据集和数据加载器
+        from torch.utils.data import TensorDataset, DataLoader
+        dataset = TensorDataset(problem_tensor, knowledge_tensor, labels_tensor)
+        dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+        
+        # 使用批处理训练
+        self.train_with_batches(dataloader, edge_index, epochs)
     
     def predict_score(self, problem_id, user_knowledge_states):
         """
@@ -134,12 +175,17 @@ class GNNBasedRecommender:
         self.model.eval()
         with torch.no_grad():
             # 确保问题ID在有效范围内
-            problem_id = min(problem_id, self.num_problems - 1)
+            problem_id = max(0, min(problem_id, self.num_problems - 1))
             problem_indices = torch.LongTensor([problem_id]).to(self.device)
             
             # 确保知识点ID在有效范围内
-            valid_knowledge_ids = [min(state.knowledge_point_id, self.num_knowledge_points - 1) 
+            valid_knowledge_ids = [max(0, min(state.knowledge_point_id, self.num_knowledge_points - 1)) 
                                  for state in user_knowledge_states]
+            
+            if not valid_knowledge_ids:
+                # 如果没有有效的知识点，返回默认低分
+                return 0.1
+                
             knowledge_indices = torch.LongTensor(valid_knowledge_ids).to(self.device)
             
             # 构建边索引（简化处理）
