@@ -1716,6 +1716,7 @@ class AIRecommendationService:
     def recommend_problems(user_id, count=10, algorithm='intelligent'):
         """推荐题目的对外接口"""
         try:
+            selected_algorithm = None
             # 添加强化学习算法选项
             if algorithm == 'reinforcement_learning':
                 # 使用强化学习选择推荐算法
@@ -1741,26 +1742,47 @@ class AIRecommendationService:
                     recommendations = AIRecommendationService.hybrid_recommendations(
                         user_id=user_id, count=count)
             elif algorithm == 'collaborative':
+                selected_algorithm = 'collaborative'
                 recommendations = AIRecommendationService.collaborative_filtering_recommendations(
                     user_id=user_id, count=count)
             elif algorithm == 'content':
+                selected_algorithm = 'content'
                 recommendations = AIRecommendationService.content_based_recommendations(
                     user_id=user_id, count=count)
             elif algorithm == 'deep_learning':
+                selected_algorithm = 'deep_learning'
                 recommendations = AIRecommendationService.deep_learning_recommendations(
                     user_id=user_id, count=count)
             elif algorithm == 'ml_enhanced':
+                selected_algorithm = 'ml_enhanced'
                 recommendations = AIRecommendationService.ml_enhanced_recommendations(
                     user_id=user_id, count=count)
             elif algorithm == 'intelligent':
+                selected_algorithm = 'intelligent'
                 recommendations = AIRecommendationService.intelligent_hybrid_recommendations(
                     user_id=user_id, count=count)
             elif algorithm == 'online_learning':
+                selected_algorithm = 'online_learning'
                 recommendations = AIRecommendationService.get_online_learning_recommendations(
                     user_id=user_id, count=count)
             else:  
+                selected_algorithm = 'hybrid'
                 recommendations = AIRecommendationService.hybrid_recommendations(
                     user_id=user_id, count=count)
+            
+            # 保存推荐记录，包括使用的算法
+            try:
+                from .models import AIRecommendation
+                for problem_id, score, reason in recommendations:
+                    AIRecommendation.objects.create(
+                        user_id=user_id,
+                        problem_id=problem_id,
+                        algorithm_used=selected_algorithm,
+                        recommendation_reason=reason,
+                        confidence_score=score
+                    )
+            except Exception as e:
+                logger.error(f"Failed to save recommendation record: {str(e)}")
             
             return recommendations
         except Exception as e:
@@ -2843,6 +2865,23 @@ class KnowledgePointService:
             
             AIRecommendationService.process_user_feedback_for_online_learning(
                 user_id, recommendation_id, accepted, solved)
+                
+            if hasattr(recommendation, 'algorithm_used'):
+                # 计算奖励值
+                reward = 0.0
+                if solved:
+                    reward = 1.0  # 成功解决问题给予高奖励
+                elif accepted:
+                    reward = 0.5  # 接受推荐但未解决问题给予中等奖励
+                else:
+                    reward = -0.1  # 拒绝推荐给予小惩罚
+                
+                # 更新强化学习模型
+                try:
+                    global ql_recommender
+                    ql_recommender.update(user_id, recommendation.algorithm_used, reward)
+                except Exception as e:
+                    logger.error(f"Failed to update RL model: {str(e)}")
                 
             return feedback
         except Exception as e:
