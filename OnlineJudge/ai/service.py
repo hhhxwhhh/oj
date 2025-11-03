@@ -319,10 +319,34 @@ class AIService:
     
 
     @staticmethod
-    def generate_code_explanation(code, language):
+    def generate_code_explanation(code, language, problem_context=None, user_level="intermediate"):
         try:
-            prompt = f"请用中文详细解释以下{language}代码的功能和逻辑:\n\n{code}\n\n解释:"
-            messages = [{"role": "user", "content": prompt}]
+            context_info = ""
+            if problem_context:
+                context_info = f"""
+                        题目: {problem_context.get('title', '未知题目')}
+                        题目描述: {problem_context.get('description', '无描述')[:200]}...
+                        """
+                                
+            prompt = f"""
+                        {context_info}
+                        请用{'简单易懂' if user_level == 'beginner' else '专业'}的中文详细解释以下{language}代码的功能和逻辑:
+
+                        代码:
+                        {code}
+
+                        请按照以下结构进行解释：
+                        1. 整体功能概述
+                        2. 主要算法思路
+                        3. 关键代码段详解
+                        4. 时间复杂度和空间复杂度分析
+                        5. 可能的优化建议
+                        """.strip()
+
+            messages = [
+                {"role": "system", "content": "你是一个专业的编程导师，擅长用通俗易懂的语言解释代码逻辑。"},
+                {"role": "user", "content": prompt}
+            ]
             
             ai_model = AIService.get_active_ai_model()
             if not ai_model:
@@ -332,6 +356,7 @@ class AIService:
         except Exception as e:
             logger.error(f"Error in generate_code_explanation: {str(e)}")
             raise Exception(f"Failed to generate code explanation: {str(e)}")
+
 
     @staticmethod
     def generate_real_time_suggestion(code, language, cursor_position, problem_id=None):
