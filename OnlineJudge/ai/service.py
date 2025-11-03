@@ -1711,6 +1711,62 @@ class AIRecommendationService:
             logger.error(f"Deep learning recommendation failed: {str(e)}")
             # 出错时回退到混合推荐
             return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
+
+    @staticmethod
+    def gnn_based_recommendations(user_id, count=10):
+        """基于GNN的推荐算法"""
+        try:
+            # 检查模型是否存在
+            model_path = 'ai/dl_models/gnn/gnn_recommendation_model.pth'
+            import os
+            if not os.path.exists(model_path):
+                # 模型不存在，跳过
+                logger.info("GNN model not found, skipping GNN recommendation")
+                return []
+            
+            # 加载模型
+            from ai.dl_models.gnn_models import GNNBasedRecommender
+            gnn_recommender = GNNBasedRecommender(model_path)
+            
+            # 获取用户知识点状态
+            from .models import AIUserKnowledgeState
+            user_knowledge_states = AIUserKnowledgeState.objects.filter(user_id=user_id)
+            
+            if not user_knowledge_states.exists():
+                return []
+            
+            # 获取用户已解决的题目
+            from submission.models import Submission
+            solved_problems = set(
+                Submission.objects.filter(user_id=user_id, result=0)
+                .values_list('problem_id', flat=True)
+            )
+            
+            # 获取所有可见题目
+            from problem.models import Problem
+            all_problems = Problem.objects.filter(visible=True)
+            
+            # 计算每个题目的推荐分数
+            problem_scores = []
+            for problem in all_problems:
+                if problem.id in solved_problems:
+                    continue  
+                
+                try:
+                    score = gnn_recommender.predict_score(problem.id, list(user_knowledge_states))
+                    problem_scores.append((problem.id, float(score), "基于GNN推荐"))
+                except Exception as e:
+                    logger.warning(f"GNN prediction failed for problem {problem.id}: {str(e)}")
+                    continue
+            
+            # 按分数排序
+            problem_scores.sort(key=lambda x: x[1], reverse=True)
+            return problem_scores[:count]
+            
+        except Exception as e:
+            logger.error(f"GNN based recommendation failed: {str(e)}")
+            return []
+
     
     @staticmethod
     def recommend_problems(user_id, count=10, algorithm='intelligent'):
