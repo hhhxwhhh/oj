@@ -620,5 +620,7 @@ export const m = {
   Loading_recommendations: "Loading recommendations...",
   No_recommendations_available: "No recommendations available",
   Score: "Score",
-  Recommendation_Reason: "Recommendation Reason"
+  Recommendation_Reason: "Recommendation Reason",
+  Samples_Input: "Sample Input",
+  Samples_Output: "Sample Output"
 };

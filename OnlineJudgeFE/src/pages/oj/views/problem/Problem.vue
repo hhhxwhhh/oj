@@ -2,6 +2,7 @@
   <div class="problem-container">
     <!-- 左侧题目信息区 -->
     <div class="problem-left-panel">
+      <!-- 题目描述区域 -->
       <div class="problem-info-panel">
         <Panel :padding="20" shadow>
           <div slot="title" class="panel-title">{{ problem.title }}</div>
@@ -10,17 +11,17 @@
             <p class="content" v-html="problem.description"></p>
 
             <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-                }}: {{ problem.io_mode.input }})</span></p>
+            }}: {{ problem.io_mode.input }})</span></p>
             <p class="content" v-html="problem.input_description"></p>
 
             <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
-                }}: {{ problem.io_mode.output }})</span></p>
+            }}: {{ problem.io_mode.output }})</span></p>
             <p class="content" v-html="problem.output_description"></p>
 
             <div v-for="(sample, index) of problem.samples" :key="index">
               <div class="flex-container sample">
                 <div class="sample-input">
-                  <p class="title">{{ $t('m.Sample_Input') }} {{ index + 1 }}
+                  <p class="title">{{ $t('m ample_Input') }} {{ index + 1 }}
                     <a class="copy" v-clipboard:copy="sample.input" v-clipboard:success="onCopy"
                       v-clipboard:error="onCopyError">
                       <Icon type="clipboard"></Icon>
@@ -29,7 +30,7 @@
                   <pre>{{ sample.input }}</pre>
                 </div>
                 <div class="sample-output">
-                  <p class="title">{{ $t('m.Sample_Output') }} {{ index + 1 }}</p>
+                  <p class="title">{{ $t('m ample_Output') }} {{ index + 1 }}</p>
                   <pre>{{ sample.output }}</pre>
                 </div>
               </div>
@@ -49,72 +50,6 @@
           </div>
         </Panel>
       </div>
-
-      <div class="problem-stats-panel">
-        <Card id="info" class="info-card">
-          <div slot="title" class="header">
-            <Icon type="information-circled"></Icon>
-            <span class="card-title">{{ $t('m.Information') }}</span>
-          </div>
-          <ul class="info-list">
-            <li>
-              <span class="label">ID</span>
-              <span class="value">{{ problem._id }}</span>
-            </li>
-            <li>
-              <span class="label">{{ $t('m.Time_Limit') }}</span>
-              <span class="value">{{ problem.time_limit }}MS</span>
-            </li>
-            <li>
-              <span class="label">{{ $t('m.Memory_Limit') }}</span>
-              <span class="value">{{ problem.memory_limit }}MB</span>
-            </li>
-            <li>
-              <span class="label">{{ $t('m.IOMode') }}</span>
-              <span class="value">{{ problem.io_mode.io_mode }}</span>
-            </li>
-            <li>
-              <span class="label">{{ $t('m.Created') }}</span>
-              <span class="value">{{ problem.created_by.username }}</span>
-            </li>
-            <li v-if="problem.difficulty">
-              <span class="label">{{ $t('m.Level') }}</span>
-              <span class="value">{{ $t('m.' + problem.difficulty) }}</span>
-            </li>
-            <li v-if="problem.total_score">
-              <span class="label">{{ $t('m.Score') }}</span>
-              <span class="value">{{ problem.total_score }}</span>
-            </li>
-            <li>
-              <span class="label">{{ $t('m.Tags') }}</span>
-              <span class="value">
-                <Poptip trigger="hover" placement="left-end">
-                  <a>{{ $t('m.Show') }}</a>
-                  <div slot="content">
-                    <Tag v-for="tag in problem.tags" :key="tag">{{ tag }}</Tag>
-                  </div>
-                </Poptip>
-              </span>
-            </li>
-            <li>
-              <Button type="primary" size="small" @click="showComplexityAnalysis" long>
-                {{ $t('m.Complexity_Analysis') }}
-              </Button>
-            </li>
-          </ul>
-        </Card>
-
-        <Card id="pieChart" :padding="0" v-if="!this.contestID || OIContestRealTimePermission" class="pie-chart-card">
-          <div slot="title">
-            <Icon type="ios-analytics"></Icon>
-            <span class="card-title">{{ $t('m.Statistic') }}</span>
-            <Button type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</Button>
-          </div>
-          <div class="echarts">
-            <ECharts :options="pie" :initOptions="{ width: '200', height: '180' }"></ECharts>
-          </div>
-        </Card>
-      </div>
     </div>
 
     <!-- 中间代码编辑区 -->
@@ -130,9 +65,12 @@
           </div>
         </div>
 
-        <CodeMirror ref="codeMirror" :value.sync="code" :languages="problem.languages" :language="language"
-          :theme="theme" @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"
-          @suggestions="onSuggestionsReceived"></CodeMirror>
+        <!-- 添加代码编辑器容器 -->
+        <div class="code-editor-container">
+          <CodeMirror ref="codeMirror" :value.sync="code" :languages="problem.languages" :language="language"
+            :theme="theme" @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"
+            @suggestions="onSuggestionsReceived"></CodeMirror>
+        </div>
 
         <Row type="flex" justify="space-between">
           <Col :span="10">
@@ -476,11 +414,11 @@ export default {
           return
         }
 
-        // 处理空值
-        problem.description = problem.description || ''
-        problem.input_description = problem.input_description || ''
-        problem.output_description = problem.output_description || ''
-        problem.hint = problem.hint || ''
+        // 处理空值并确保是HTML格式
+        problem.description = this.formatHtmlContent(problem.description) || '<p>暂无描述</p>'
+        problem.input_description = this.formatHtmlContent(problem.input_description) || '<p>暂无输入描述</p>'
+        problem.output_description = this.formatHtmlContent(problem.output_description) || '<p>暂无输出描述</p>'
+        problem.hint = this.formatHtmlContent(problem.hint) || ''
         problem.source = problem.source || ''
 
         // 确保数组字段正确
@@ -553,6 +491,24 @@ export default {
         this.$error(this.$t('m.Failed_to_load_problem_data'))
       })
     },
+    formatHtmlContent(content) {
+      if (!content) return '';
+
+      // 如果已经是HTML格式（包含标签），直接返回
+      if (typeof content === 'string' && /<[a-z][\s\S]*>/i.test(content)) {
+        return content;
+      }
+
+      // 如果是纯文本，转换为HTML格式
+      if (typeof content === 'string') {
+        // 将换行符转换为<br>标签
+        return '<p>' + content.replace(/\n/g, '<br>') + '</p>';
+      }
+
+      return content;
+    },
+
+
 
 
     startDiagnosisTimer() {
@@ -1385,68 +1341,103 @@ export default {
 }
 </script>
 <style lang="less" scoped>
-.card-title {
-  margin-left: 8px;
+@primary-color: #1890ff;
+@secondary-color: #52c41a;
+@warning-color: #fa8c16;
+@error-color: #ed4014;
+@text-color: #515a6e;
+@border-color: #e8f4ff;
+@background-color: #f8f9fa;
+
+.problem-container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 80px);
+  background-color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
-.flex-container {
-  #problem-main {
-    flex: auto;
-    margin-right: 18px;
-  }
-
-  #right-column {
-    flex: none;
-    width: 220px;
-  }
-}
-
-.problem-panel {
+.problem-left-panel {
+  flex: 1;
+  min-width: 400px;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-  border: 1px solid #e8f4ff;
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
 
-  &:hover {
-    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
-    transform: translateY(-2px);
-  }
+.problem-info-panel {
+  flex: 1;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
 
-  /deep/ .ivu-card-head {
-    border-bottom: 1px solid #e8f4ff;
-    padding: 16px 24px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
-
-    .panel-title {
-      font-size: 24px;
-      font-weight: 600;
-      color: #1890ff;
-    }
+  /deep/ .ivu-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   /deep/ .ivu-card-body {
-    padding: 20px 40px;
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: @background-color;
   }
 }
 
+.problem-center-panel {
+  flex: 2;
+  min-width: 600px;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.problem-right-panel {
+  flex: 1;
+  min-width: 300px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// 标题样式
+.panel-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: @primary-color;
+  margin: 0;
+  padding: 0;
+}
+
+// 描述内容样式
 #problem-content {
   margin-top: -30px;
 
   .title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     margin: 25px 0 8px 0;
-    color: #1890ff;
+    color: @primary-color;
+    position: relative;
+    padding-bottom: 8px;
+    border-bottom: 2px solid @border-color;
 
     .copy {
       padding-left: 8px;
-      color: #1890ff;
+      color: @primary-color;
       cursor: pointer;
       transition: color 0.3s;
 
       &:hover {
-        color: #096dd9;
+        color: @secondary-color;
       }
     }
   }
@@ -1456,7 +1447,7 @@ export default {
     margin-right: 20px;
     font-size: 15px;
     line-height: 1.7;
-    color: #515a6e;
+    color: @text-color;
   }
 
   .sample {
@@ -1476,8 +1467,8 @@ export default {
       flex: 1 1 auto;
       align-self: stretch;
       border-style: solid;
-      background: #f8f9fa;
-      border: 1px solid #e8f4ff;
+      background: @background-color;
+      border: 1px solid @border-color;
       border-radius: 4px;
       padding: 12px;
       font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
@@ -1490,15 +1481,255 @@ export default {
 
 .hint-card {
   border-radius: 4px;
-  border: 1px solid #e8f4ff;
-  background: #f8f9fa;
+  border: 1px solid @border-color;
+  background: @background-color;
+  margin: 15px 0;
 
   /deep/ .ivu-card-body {
     padding: 15px;
   }
 
   .content {
-    color: #515a6e;
+    color: @text-color;
+    line-height: 1.6;
+  }
+}
+
+.submit-card {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid @border-color;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
+
+  /deep/ .ivu-card-head {
+    border-bottom: 1px solid @border-color;
+    padding: 14px 20px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+  }
+
+  /deep/ .ivu-card-body {
+    padding: 20px;
+  }
+
+  .status {
+    float: left;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+
+    span {
+      margin-right: 10px;
+      margin-left: 10px;
+      font-weight: 500;
+      color: @text-color;
+    }
+
+    /deep/ .ivu-tag {
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+  }
+
+  .captcha-container {
+    display: inline-block;
+    margin-bottom: 15px;
+
+    img {
+      cursor: pointer;
+      border-radius: 4px;
+      border: 1px solid @border-color;
+    }
+
+    .captcha-code {
+      width: auto;
+      margin-top: -20px;
+      margin-left: 20px;
+    }
+  }
+}
+
+// 代码编辑器样式
+.code-editor-container {
+  width: 100%;
+  height: 400px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  /deep/ .CodeMirror {
+    height: 100% !important;
+    border: none;
+    background: @background-color;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /deep/ .CodeMirror-scroll {
+    height: 100% !important;
+  }
+
+  /deep/ .CodeMirror-gutter {
+    background: #f0f0f0;
+    border-right: 1px solid #ddd;
+  }
+
+  /deep/ .CodeMirror-line {
+    padding: 0;
+  }
+}
+
+// 按钮样式
+.problem-buttons {
+  text-align: right;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+
+  .btn-explain,
+  .btn-submit,
+  .btn-recommend {
+    flex: 1;
+    min-width: 120px;
+    border-radius: 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  .btn-explain {
+    background: linear-gradient(120deg, @primary-color 0%, #096dd9 100%);
+    border: none;
+    color: white;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(@primary-color, 0.3);
+    }
+  }
+
+  .btn-submit {
+    background: linear-gradient(120deg, @warning-color 0%, #d46b08 100%);
+    border: none;
+    color: white;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(@warning-color, 0.3);
+    }
+  }
+
+  .btn-recommend {
+    background: linear-gradient(120deg, @secondary-color 0%, #389e0d 100%);
+    border: none;
+    color: white;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(@secondary-color, 0.3);
+    }
+  }
+}
+
+// AI助手样式
+.ai-chat-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid @border-color;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .ai-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 8px 8px 0 0;
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: @primary-color;
+      margin-left: 8px;
+    }
+
+    .ai-options {
+      display: flex;
+      gap: 10px;
+    }
+  }
+
+  .ai-chat-container {
+    height: calc(100% - 60px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: @background-color;
+  }
+
+  .ai-chat-input {
+    padding: 15px;
+    border-top: 1px solid @border-color;
+    background-color: white;
+  }
+
+  .ai-message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 80%;
+    word-wrap: break-word;
+
+    &.user {
+      background-color: #e6f7ff;
+      align-self: flex-end;
+      border-bottom-right-radius: 0;
+    }
+
+    &.assistant {
+      background-color: @background-color;
+      align-self: flex-start;
+      border-bottom-left-radius: 0;
+    }
+  }
+
+  .message-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .message-sender {
+      margin-left: 8px;
+      font-weight: 500;
+      color: @text-color;
+    }
+  }
+
+  .message-content {
+    color: @text-color;
     line-height: 1.6;
   }
 }
@@ -1525,1335 +1756,38 @@ export default {
 
   /deep/ .ivu-card-body {
     padding: 20px;
+    position: relative;
   }
 
-  .status {
-    float: left;
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-
-    span {
-      margin-right: 10px;
-      margin-left: 10px;
-      font-weight: 500;
-      color: #515a6e;
-    }
-
-    /deep/ .ivu-tag {
-      font-weight: 500;
-      padding: 4px 10px;
-      border-radius: 4px;
-    }
-  }
-
-  .captcha-container {
-    display: inline-block;
-    margin-bottom: 15px;
-
-    img {
-      cursor: pointer;
-      border-radius: 4px;
-      border: 1px solid #e8f4ff;
-    }
-
-    .captcha-code {
-      width: auto;
-      margin-top: -20px;
-      margin-left: 20px;
-    }
-  }
-}
-
-// 添加按钮样式
-.problem-buttons {
-  text-align: right;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 15px;
-
-  .btn-explain,
-  .btn-submit,
-  .btn-recommend {
-    flex: 1;
-    min-width: 120px;
-    border-radius: 20px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-  }
-
-  .btn-explain {
-    background: linear-gradient(120deg, #1890ff 0%, #096dd9 100%);
-    border: none;
-    color: white;
-
-    &:hover {
-      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
-    }
-  }
-
-  .btn-submit {
-    background: linear-gradient(120deg, #fa8c16 0%, #d46b08 100%);
-    border: none;
-    color: white;
-
-    &:hover {
-      box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3);
-    }
-  }
-
-  .btn-recommend {
-    background: linear-gradient(120deg, #52c41a 0%, #389e0d 100%);
-    border: none;
-    color: white;
-
-    &:hover {
-      box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
-    }
-  }
-}
-
-.vertical-menu {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-  border: 1px solid #e8f4ff;
-  overflow: hidden;
-  margin-bottom: 20px;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
-    transform: translateY(-2px);
-  }
-
-  /deep/ .vertical_menu-item {
-    padding: 12px 15px;
-    border-bottom: 1px solid #f0f0f0;
-    transition: all 0.3s ease;
-    color: #515a6e;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    &:hover {
-      background: #e6f7ff;
-      color: #1890ff;
-    }
-
-    i {
-      margin-right: 8px;
-      color: #1890ff;
-    }
-  }
-
-  /deep/ .active {
-    background: #e6f7ff;
-    color: #1890ff;
-    font-weight: 500;
-
-    i {
-      color: #1890ff;
-    }
-  }
-}
-
-.info-card {
-  margin-bottom: 20px;
-  margin-top: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-  border: 1px solid #e8f4ff;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
-    transform: translateY(-2px);
-  }
-
-  /deep/ .ivu-card-head {
-    border-bottom: 1px solid #e8f4ff;
-    padding: 14px 16px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
-
-    .header {
-      display: flex;
-      align-items: center;
-      font-size: 18px;
-      font-weight: 600;
-      color: #1890ff;
-
-      i {
-        font-size: 20px;
-      }
-
-      .card-title {
-        margin-left: 8px;
-      }
-    }
-  }
-
-  /deep/ .ivu-card-body {
-    padding: 15px;
-  }
-
-  ul {
-    list-style-type: none;
-    margin: 0;
-    padding: 0;
-
-    li {
-      border-bottom: 1px dotted #e9eaec;
-      margin-bottom: 10px;
-      padding-bottom: 10px;
-
-      &:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-      }
-
-      p {
-        display: inline-block;
-        margin: 0;
-        color: #515a6e;
-      }
-
-      p:first-child {
-        width: 90px;
-        font-weight: 500;
-      }
-
-      p:last-child {
-        float: right;
-        font-weight: 400;
-      }
-
-      .ivu-btn {
-        border-radius: 4px;
-        background: linear-gradient(120deg, #1890ff 0%, #096dd9 100%);
-        border: none;
-        color: white;
-        font-weight: 500;
-        transition: all 0.3s ease;
-
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
-        }
-      }
-    }
-  }
-}
-
-.pie-chart-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-  border: 1px solid #e8f4ff;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
-    transform: translateY(-2px);
-  }
-
-  /deep/ .ivu-card-head {
-    border-bottom: 1px solid #e8f4ff;
-    padding: 14px 16px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
-
-    .card-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1890ff;
-      margin-left: 8px;
-    }
-
-    #detail {
-      position: absolute;
-      right: 16px;
-      top: 12px;
-      border-radius: 4px;
-      border: 1px solid #1890ff;
-      color: #1890ff;
-      background: transparent;
-      transition: all 0.3s ease;
-
-      &:hover {
-        background: #1890ff;
-        color: white;
-      }
-    }
-  }
-
-  .echarts {
-    height: 250px;
-    width: 210px;
-    padding: 10px;
-  }
-}
-
-.statistic-modal {
-  /deep/ .ivu-modal {
-    border-radius: 8px;
-  }
-
-  /deep/ .ivu-modal-header {
-    border-bottom: 1px solid #e8f4ff;
-    padding: 14px 16px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
-
-    .ivu-modal-header-inner {
-      color: #1890ff;
-      font-weight: 600;
-    }
-  }
-
-  #pieChart-detail {
-    margin-top: 20px;
+  // 添加CodeMirror容器样式
+  .code-editor-container {
     width: 100%;
-    height: 480px;
-  }
-}
-
-// 添加代码解释相关样式
-.explanation-modal {
-  /deep/ .ivu-modal {
-    border-radius: 8px;
-  }
-
-  /deep/ .ivu-modal-header {
-    border-bottom: 1px solid #e8f4ff;
-    padding: 14px 16px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
-
-    .ivu-modal-header-inner {
-      color: #1890ff;
-      font-weight: 600;
-    }
-  }
-
-  .code-explanation {
-    max-height: 500px;
-    overflow-y: auto;
-    padding: 15px;
-    background-color: #f9f9f9;
-    border-radius: 4px;
-    border: 1px solid #e8f4ff;
-
-    /deep/ h1,
-    /deep/ h2,
-    /deep/ h3 {
-      margin: 10px 0;
-      color: #1890ff;
-    }
-
-    /deep/ p {
-      margin: 8px 0;
-      line-height: 1.6;
-      color: #515a6e;
-    }
-
-    /deep/ pre {
-      background: #f0f0f0;
-      padding: 12px;
-      border-radius: 4px;
-      overflow-x: auto;
-      margin: 10px 0;
-      border: 1px solid #e8f4ff;
-    }
-
-    /deep/ code {
-      background: #f0f0f0;
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-family: 'Courier New', monospace;
-    }
-
-    /deep/ ul,
-    /deep/ ol {
-      padding-left: 20px;
-    }
-  }
-
-  .loading-explanation {
-    text-align: center;
-    padding: 40px 20px;
-
-    /deep/ .ivu-spin-text {
-      margin-top: 10px;
-      color: #1890ff;
-    }
-  }
-}
-
-.complexity-modal {
-  /deep/ .ivu-modal {
-    border-radius: 8px;
-  }
-
-  /deep/ .ivu-modal-header {
-    border-bottom: 1px solid #e8f4ff;
-    padding: 14px 16px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
-
-    .ivu-modal-header-inner {
-      color: #1890ff;
-      font-weight: 600;
-    }
-  }
-}
-
-.complexity-loading {
-  text-align: center;
-  padding: 30px 0;
-}
-
-.complexity-content {
-  padding: 10px 0;
-
-  .complexity-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
+    height: 400px;
     margin-bottom: 20px;
-    border: 1px solid #e8f4ff;
-
-    .complexity-level {
-      text-align: center;
-
-      .level-tag {
-        font-size: 16px;
-        padding: 6px 20px;
-        margin-bottom: 5px;
-        font-weight: 500;
-      }
-
-      .level-label {
-        font-size: 13px;
-        color: #808695;
-      }
-    }
-
-    .complexity-score {
-      text-align: center;
-
-      .score-value {
-        font-size: 28px;
-        font-weight: 600;
-        color: #1890ff;
-        line-height: 1;
-      }
-
-      .score-label {
-        font-size: 13px;
-        color: #808695;
-        margin-top: 5px;
-      }
-    }
-  }
-
-  .complexity-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
-
-    .metric-item {
-      text-align: center;
-      padding: 15px;
-      background-color: #fff;
-      border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      border: 1px solid #e8f4ff;
-
-      .metric-icon {
-        color: #1890ff;
-        margin-bottom: 10px;
-      }
-
-      .metric-value {
-        font-size: 24px;
-        font-weight: 600;
-        color: #515a6e;
-        margin-bottom: 5px;
-      }
-
-      .metric-label {
-        font-size: 13px;
-        color: #808695;
-      }
-    }
-  }
-
-  .detail-section {
-    margin-bottom: 20px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    h4 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #515a6e;
-      margin-bottom: 15px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e8eaec;
-    }
-
-    .keywords-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-
-      .keyword-tag {
-        margin: 0;
-        font-size: 12px;
-        padding: 4px 10px;
-        background-color: #f0f0f0;
-        color: #515a6e;
-        border: 1px solid #e8eaec;
-        font-weight: 500;
-      }
-    }
-
-    .readability-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-
-      .readability-item {
-        text-align: center;
-        padding: 15px;
-        background-color: #fff;
-        border-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e8f4ff;
-
-        .readability-value {
-          font-size: 20px;
-          font-weight: 600;
-          color: #515a6e;
-          margin-bottom: 5px;
-        }
-
-        .readability-label {
-          font-size: 13px;
-          color: #808695;
-        }
-      }
-    }
-  }
-}
-
-.real-time-diagnosis {
-  margin-top: 15px;
-  border: 1px solid #e8f4ff;
-  border-radius: 8px;
-  background-color: #f8f9fa;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-
-  .diagnosis-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    border-bottom: 1px solid #e8f4ff;
-    background-color: #fff;
-    border-radius: 8px 8px 0 0;
-
-    h4 {
-      margin: 0;
-      color: #1890ff;
-      font-weight: 600;
-
-      i {
-        margin-right: 8px;
-        color: #1890ff;
-      }
-    }
-
-    .ivu-btn {
-      min-width: auto;
-      border-radius: 4px;
-      border: 1px solid #1890ff;
-      color: #1890ff;
-      background: transparent;
-
-      &:hover {
-        background: #1890ff;
-        color: white;
-      }
-    }
-  }
-
-  .diagnosis-content {
-    padding: 10px 15px;
-  }
-
-  .diagnosis-group {
-    margin-bottom: 15px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    .group-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-      padding: 5px 10px;
-      background-color: #fff;
-      border-radius: 4px;
-      border-left: 3px solid #ccc;
-
-      i {
-        margin-right: 8px;
-        font-size: 16px;
-      }
-
-      .group-title {
-        flex: 1;
-        font-weight: 500;
-        color: #495060;
-      }
-
-      .ivu-tag {
-        margin: 0;
-      }
-    }
-
-    &.syntax {
-      .group-header {
-        border-left-color: #ed4014;
-      }
-    }
-
-    &.logic {
-      .group-header {
-        border-left-color: #ff9900;
-      }
-    }
-
-    &.performance {
-      .group-header {
-        border-left-color: #2d8cf0;
-      }
-    }
-
-    &.best_practice {
-      .group-header {
-        border-left-color: #19be6b;
-      }
-    }
-
-    .issue-list {
-      margin: 0;
-      padding-left: 25px;
-
-      .issue-item {
-        margin: 5px 0;
-        padding: 3px 0;
-        color: #657180;
-        font-size: 13px;
-        line-height: 1.4;
-      }
-    }
-  }
-}
-
-.ai-assistant-panel {
-  margin-top: 15px;
-  border: 1px solid #e8f4ff;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-
-  .ivu-tabs {
-    border: none;
-  }
-
-  .ivu-tabs-bar {
-    margin-bottom: 0;
-  }
-
-  .ivu-tabs-nav-container {
-    border-bottom: 1px solid #e8f4ff;
-  }
-
-  .ivu-tabs-tab {
-    padding: 8px 16px;
-  }
-
-  .ivu-tabs-content {
-    min-height: 150px;
-  }
-
-  .panel-footer {
-    padding: 10px 15px;
-    border-top: 1px solid #e8f4ff;
-    text-align: right;
-    background-color: #f8f8f9;
-  }
-
-  .no-issues {
-    text-align: center;
-    padding: 30px 15px;
-
-    p {
-      margin-top: 10px;
-      color: #657180;
-    }
-  }
-}
-
-.real-time-diagnosis,
-.real-time-suggestions {
-
-  .diagnosis-content,
-  .suggestions-content {
-    padding: 10px 15px;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-
-  .diagnosis-group {
-    margin-bottom: 15px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    .group-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-      padding: 5px 10px;
-      background-color: #fff;
-      border-radius: 4px;
-      border-left: 3px solid #ccc;
-
-      i {
-        margin-right: 8px;
-        font-size: 16px;
-      }
-
-      .group-title {
-        flex: 1;
-        font-weight: 500;
-        color: #495060;
-      }
-
-      .ivu-tag {
-        margin: 0;
-      }
-    }
-
-    &.syntax {
-      .group-header {
-        border-left-color: #ed4014;
-      }
-    }
-
-    &.logic {
-      .group-header {
-        border-left-color: #ff9900;
-      }
-    }
-
-    &.performance {
-      .group-header {
-        border-left-color: #2d8cf0;
-      }
-    }
-
-    &.best_practice {
-      .group-header {
-        border-left-color: #19be6b;
-      }
-    }
-
-    .issue-list {
-      margin: 0;
-      padding-left: 25px;
-
-      .issue-item {
-        margin: 5px 0;
-        padding: 3px 0;
-        color: #657180;
-        font-size: 13px;
-        line-height: 1.4;
-      }
-    }
-  }
-
-  .suggestion-item {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 10px;
-    padding: 8px 12px;
-    background-color: #fff;
-    border-radius: 4px;
-    border-left: 3px solid #2d8cf0;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    i {
-      margin-right: 10px;
-      margin-top: 2px;
-    }
-
-    span {
-      flex: 1;
-      color: #657180;
-      font-size: 13px;
-      line-height: 1.4;
-    }
-  }
-}
-
-// 响应式设计
-@media (max-width: 1200px) {
-  .flex-container {
-    flex-direction: column;
-
-    #problem-main {
-      margin-right: 0;
-      margin-bottom: 20px;
-    }
-
-    #right-column {
-      width: 100%;
-    }
-  }
-
-  .problem-panel {
-    /deep/ .ivu-card-head {
-      padding: 14px 20px;
-    }
-
-    /deep/ .ivu-card-body {
-      padding: 15px 20px;
-    }
-
-    .panel-title {
-      font-size: 22px;
-    }
-  }
-
-  #problem-content {
-    .title {
-      font-size: 18px;
-    }
-
-    p.content {
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    /deep/ .CodeMirror {
+      height: 100% !important;
+      border: none;
+      background: #f8f9fa;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
+      line-height: 1.5;
     }
 
-    .sample {
-      flex-direction: column;
-
-      &-input,
-      &-output {
-        width: 100%;
-        margin-right: 0;
-        margin-bottom: 15px;
-      }
-    }
-  }
-
-  .submit-card {
-    /deep/ .ivu-card-head {
-      padding: 12px 16px;
+    /deep/ .CodeMirror-scroll {
+      height: 100% !important;
     }
 
-    /deep/ .ivu-card-body {
-      padding: 15px;
-    }
-  }
-
-  .problem-buttons {
-    flex-direction: column;
-
-    .btn-explain,
-    .btn-submit,
-    .btn-recommend {
-      width: 100%;
-      margin-bottom: 10px;
-    }
-  }
-
-  .vertical-menu {
-    /deep/ .vertical_menu-item {
-      padding: 10px 12px;
-    }
-  }
-
-  .info-card {
-    /deep/ .ivu-card-head {
-      padding: 12px 14px;
+    /deep/ .CodeMirror-gutter {
+      background: #f0f0f0;
+      border-right: 1px solid #ddd;
     }
 
-    ul {
-      li {
-        p:first-child {
-          width: 70px;
-        }
-      }
-    }
-  }
-
-  .pie-chart-card {
-    /deep/ .ivu-card-head {
-      padding: 12px 14px;
-    }
-
-    .echarts {
-      height: 200px;
-      width: 100%;
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .problem-panel {
-    /deep/ .ivu-card-head {
-      padding: 12px 16px;
-    }
-
-    /deep/ .ivu-card-body {
-      padding: 12px 16px;
-    }
-
-    .panel-title {
-      font-size: 20px;
-    }
-  }
-
-  #problem-content {
-    margin-top: -20px;
-
-    .title {
-      font-size: 16px;
-      margin: 20px 0 6px 0;
-    }
-
-    p.content {
-      font-size: 13px;
-      margin-left: 15px;
-      margin-right: 10px;
-    }
-  }
-
-  .submit-card {
-    /deep/ .ivu-card-head {
-      padding: 10px 14px;
-    }
-
-    /deep/ .ivu-card-body {
-      padding: 12px;
-    }
-  }
-
-  .info-card {
-    /deep/ .ivu-card-head {
-      padding: 10px 12px;
-    }
-
-    ul {
-      li {
-        p:first-child {
-          width: 60px;
-          font-size: 13px;
-        }
-
-        p:last-child {
-          font-size: 13px;
-        }
-      }
-    }
-  }
-
-  .pie-chart-card {
-    /deep/ .ivu-card-head {
-      padding: 10px 12px;
-    }
-
-    #detail {
-      padding: 2px 8px;
-      font-size: 12px;
-    }
-
-    .echarts {
-      height: 180px;
-    }
-  }
-}
-
-.problem-container {
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-  height: calc(100vh - 80px);
-
-  .problem-left-panel {
-    flex: 1;
-    min-width: 400px;
-    max-width: 500px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-
-    .problem-info-panel {
-      flex: 1;
-      min-height: 0;
-
-      /deep/ .ivu-card {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-      }
-
-      /deep/ .ivu-card-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: 15px;
-      }
-    }
-
-    .problem-stats-panel {
-
-      .info-card,
-      .pie-chart-card {
-        margin-bottom: 16px;
-        border-radius: 6px;
-      }
-
-      .info-list {
-        list-style: none;
-        padding: 0;
-        margin: 12px 0;
-
-        li {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #eee;
-
-          &:last-child {
-            border-bottom: none;
-          }
-
-          .label {
-            font-weight: 500;
-            color: #555;
-          }
-
-          .value {
-            color: #333;
-            text-align: right;
-          }
-        }
-      }
-
-      .echarts {
-        width: 200px;
-        height: 180px;
-        margin: 0 auto;
-      }
-    }
-  }
-
-  .problem-center-panel {
-    flex: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-
-    /deep/ .ivu-card {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /deep/ .ivu-card-body {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .code-editor {
-      flex: 1;
-      min-height: 0;
-    }
-  }
-
-  .problem-right-panel {
-    flex: 1;
-    min-width: 300px;
-    display: flex;
-    flex-direction: column;
-
-    /deep/ .ivu-card {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /deep/ .ivu-card-body {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .ai-chat-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-
-      .ai-chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px;
-        border: 1px solid #e8eaec;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        background: #fff;
-
-        .ai-message {
-          margin-bottom: 15px;
-
-          &.user {
-            text-align: right;
-          }
-
-          .message-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-            font-weight: bold;
-
-            .ivu-icon {
-              margin-right: 5px;
-            }
-
-            .message-sender {
-              font-size: 12px;
-            }
-          }
-
-          .message-content {
-            padding: 8px 12px;
-            border-radius: 4px;
-            display: inline-block;
-            max-width: 80%;
-            text-align: left;
-
-            &::v-deep pre {
-              background: #f8f9fa;
-              padding: 12px;
-              border-radius: 6px;
-              overflow-x: auto;
-              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-              font-size: 13px;
-              border: 1px solid #e9ecef;
-            }
-
-            &::v-deep code {
-              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-              background: #f8f9fa;
-              padding: 2px 6px;
-              border-radius: 4px;
-              font-size: 13px;
-            }
-          }
-
-          &.user .message-content {
-            background: #d9edff;
-          }
-
-          &.assistant .message-content {
-            background: #f0f0f0;
-          }
-        }
-      }
-
-      .ai-chat-input {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-
-        /deep/ .ivu-input {
-          font-size: 13px;
-        }
-
-        .ai-chat-actions {
-          display: flex;
-          gap: 10px;
-          justify-content: flex-end;
-
-          .ivu-btn {
-            font-size: 12px;
-            padding: 5px 15px;
-          }
-        }
-      }
-    }
-  }
-
-  #problem-content {
-    font-size: 14px;
-    line-height: 1.6;
-    color: #333;
-    word-wrap: break-word;
-
-    .title {
-      font-weight: bold;
-      margin: 16px 0 8px 0;
-    }
-
-    .content {
-      margin-bottom: 16px;
-    }
-
-    pre {
-      background: #f8f9fa;
-      padding: 12px;
-      border-radius: 6px;
-      overflow-x: auto;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      font-size: 13px;
-      border: 1px solid #e9ecef;
-    }
-
-    code {
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      background: #f8f9fa;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-
-    .sample {
-
-      .sample-input,
-      .sample-output {
-        flex: 1;
-
-        pre {
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-      }
-    }
-
-    .hint-card {
-      margin-top: 10px;
-
-      /deep/ .ivu-card-body {
-        padding: 10px;
-      }
-    }
-  }
-
-  .card-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-  }
-
-  .ai-chat-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .ai-options {
-      margin-left: auto;
-      display: flex;
-      gap: 10px;
-    }
-  }
-}
-
-// 响应式设计
-@media (max-width: 1200px) {
-  .problem-container {
-    flex-direction: column;
-    height: auto;
-
-    .problem-left-panel {
-      flex: 0 0 auto;
-      flex-direction: row;
-      height: auto;
-      max-height: unset;
-      min-width: auto;
-
-      .problem-info-panel {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-
-      .problem-info-panel /deep/ .ivu-card {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        min-height: 0;
-        height: 100%;
-      }
-
-      .problem-info-panel /deep/ .ivu-card-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: 15px;
-        min-height: 0;
-      }
-
-      .problem-stats-panel {
-        flex: 0 0 300px;
-        margin-left: 10px;
-      }
-    }
-
-    .problem-right-panel {
-      display: none; // 在小屏幕上隐藏AI面板
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .problem-container {
-    padding: 5px;
-
-    .problem-left-panel {
-      flex-direction: column;
-
-      .problem-stats-panel {
-        margin-left: 0;
-        margin-top: 10px;
-      }
+    /deep/ .CodeMirror-line {
+      padding: 0;
     }
   }
 }
