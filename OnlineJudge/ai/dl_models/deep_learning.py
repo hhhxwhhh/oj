@@ -332,26 +332,30 @@ class EnhancedQLearningRecommender:
             except AIProgrammingAbility.DoesNotExist:
                 ability_features = [0.5, 0.5, 0.5, 0.5]
             
-            # 2. 知识点掌握特征 (4维)
-            knowledge_states = AIUserKnowledgeState.objects.filter(user_id=user_id)[:4]
+            # 2. 知识点掌握特征 (4维) 
+            knowledge_states = AIUserKnowledgeState.objects.filter(user_id=user_id)
             knowledge_features = [0.0] * 4
-            for i, state in enumerate(knowledge_states):
+            knowledge_list = list(knowledge_states[:4])  # 先转换为列表再取前4个
+            for i, state in enumerate(knowledge_list):
                 knowledge_features[i] = state.proficiency_level
             
             # 3. 近期行为特征 (6维)
             recent_submissions = Submission.objects.filter(
                 user_id=user_id
-            ).order_by('-create_time')[:10]
+            ).order_by('-create_time')
+            
+            # 获取最近的提交记录列表
+            recent_submissions_list = list(recent_submissions[:10])
             
             # 近期提交数量
-            recent_submission_count = len(recent_submissions)
+            recent_submission_count = len(recent_submissions_list)
             
             # 近期通过率
-            recent_accepted = sum(1 for s in recent_submissions if s.result == 0)
+            recent_accepted = sum(1 for s in recent_submissions_list if s.result == 0)
             recent_acceptance_rate = recent_accepted / recent_submission_count if recent_submission_count > 0 else 0
             
             # 近期挑战题目平均难度
-            recent_problems = [s.problem for s in recent_submissions if s.problem]
+            recent_problems = [s.problem for s in recent_submissions_list if s.problem]
             if recent_problems:
                 difficulty_map = {'Low': 1, 'Mid': 2, 'High': 3}
                 avg_difficulty = sum(
@@ -363,13 +367,13 @@ class EnhancedQLearningRecommender:
             
             # 连续登陆天数
             login_days = set()
-            for submission in recent_submissions:
+            for submission in recent_submissions_list:
                 login_days.add(submission.create_time.date())
             consecutive_days = len(login_days)
             
             # 最近一次提交时间间隔（小时）
-            if recent_submissions:
-                last_submission_time = recent_submissions[0].create_time
+            if recent_submissions_list:
+                last_submission_time = recent_submissions_list[0].create_time
                 hours_since_last = (timezone.now() - last_submission_time).total_seconds() / 3600
                 # 归一化到0-1范围
                 time_since_last_normalized = min(1.0, hours_since_last / 168.0)  # 168小时=1周
@@ -382,7 +386,7 @@ class EnhancedQLearningRecommender:
                 avg_difficulty_normalized,  # 平均难度
                 min(1.0, consecutive_days / 7.0),  # 连续登陆天数
                 time_since_last_normalized,  # 距离上次提交时间
-                min(1.0, len(recent_submissions.filter(result=0)) / 5.0)  # 最近通过题目数
+                min(1.0, len([s for s in recent_submissions_list if s.result == 0]) / 5.0)  # 最近通过题目数
             ]
             
             # 4. 时间特征 (2维)
@@ -464,6 +468,8 @@ class EnhancedQLearningRecommender:
         # 优化
         self.optimizer.zero_grad()
         loss.backward()
+        # 添加梯度裁剪以防止梯度爆炸
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=1.0)
         self.optimizer.step()
         
         # 降低探索率
