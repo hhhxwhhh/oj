@@ -45,23 +45,23 @@ class UserBehaviorAnalyzer:
     """
     用户行为分析器
     """
-    def __init__(self, model_path=None):
+    def __init__(self, model_path=None, encoding_dim=16, learning_rate=0.001):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = UserBehaviorAutoencoder().to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.model = UserBehaviorAutoencoder(encoding_dim=encoding_dim).to(self.device)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.criterion = nn.MSELoss()
         
         if model_path and torch.load(model_path, map_location=self.device):
             self.model.load_state_dict(torch.load(model_path, map_location=self.device))
             logger.info("Loaded pre-trained autoencoder model from %s", model_path)
     
-    def train(self, user_behavior_data, epochs=100):
+    def train(self, user_behavior_data, epochs=100, batch_size=32):
         """
         训练自编码器
         """
         self.model.train()
         dataset = torch.utils.data.TensorDataset(torch.FloatTensor(user_behavior_data))
-        loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+        loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
         
         for epoch in range(epochs):
             total_loss = 0
