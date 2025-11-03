@@ -23,7 +23,7 @@ from urllib3.util.retry import Retry
 import hashlib
 from account.models import User
 import torch
-from .dl_models.deep_learning import DeepLearningAbilityAssessor,OnlineLearningRecommender,QLearningRecommender
+from .dl_models.deep_learning import DeepLearningAbilityAssessor,OnlineLearningRecommender,EnhancedQLearningRecommender
 from .dl_models.recommendation_model import DeepLearningRecommender
 import jieba
 import jieba.analyse
@@ -43,7 +43,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from datetime import datetime,timedelta
 logger = logging.getLogger(__name__)
 online_recommender=OnlineLearningRecommender()
-ql_recommender=QLearningRecommender()
+ql_recommender=EnhancedQLearningRecommender()
+
 def setup_nltk_environment():
     """
     配置NLTK环境以使用本地数据
