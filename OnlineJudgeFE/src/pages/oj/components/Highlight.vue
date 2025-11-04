@@ -62,7 +62,23 @@ export default {
   },
   computed: {
     languageClass() {
-      return this.language ? `language-${this.language}` : '';
+      // 修复语言类名映射，确保与highlight.js注册的语言一致
+      const languageMap = {
+        'cpp': 'cpp',
+        'c': 'cpp',
+        'java': 'java',
+        'python': 'python',
+        'python3': 'python',
+        'Python3': 'python',
+        'javascript': 'javascript',
+        'go': 'go',
+        'rust': 'rust',
+        'php': 'php'
+      };
+
+      const normalizedLanguage = (this.language || '').toLowerCase();
+      const mappedLanguage = languageMap[normalizedLanguage] || normalizedLanguage;
+      return mappedLanguage ? `language-${mappedLanguage}` : '';
     },
     languageDisplay() {
       const languageMap = {
@@ -71,6 +87,7 @@ export default {
         'java': 'Java',
         'python': 'Python',
         'python3': 'Python 3',
+        'Python3': 'Python 3',
         'javascript': 'JavaScript',
         'go': 'Go',
         'rust': 'Rust',

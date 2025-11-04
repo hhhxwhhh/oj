@@ -630,5 +630,6 @@ export const m = {
   If_problem_id_does_not_exist:
     "If problem id does not exist, please check the problem id",
   Regenerate: "Regenerate",
-  Failed_to_load_problem_data: "Failed to load problem data"
+  Failed_to_load_problem_data: "Failed to load problem data",
+  No_Review_Result: "No Review Result"
 };
