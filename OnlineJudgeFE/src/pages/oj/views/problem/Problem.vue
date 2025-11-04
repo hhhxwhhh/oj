@@ -21,7 +21,7 @@
             <div v-for="(sample, index) of problem.samples" :key="index">
               <div class="flex-container sample">
                 <div class="sample-input">
-                  <p class="title">{{ $t('m ample_Input') }} {{ index + 1 }}
+                  <p class="title">{{ $t('m.Sample_Input') }} {{ index + 1 }}
                     <a class="copy" v-clipboard:copy="sample.input" v-clipboard:success="onCopy"
                       v-clipboard:error="onCopyError">
                       <Icon type="clipboard"></Icon>
@@ -30,7 +30,7 @@
                   <pre>{{ sample.input }}</pre>
                 </div>
                 <div class="sample-output">
-                  <p class="title">{{ $t('m ample_Output') }} {{ index + 1 }}</p>
+                  <p class="title">{{ $t('m.Sample_Output') }} {{ index + 1 }}</p>
                   <pre>{{ sample.output }}</pre>
                 </div>
               </div>
@@ -59,18 +59,21 @@
           <div style="margin-bottom: 10px;">
             <i-switch v-model="useOllama" size="large">
               <span slot="open">Ollama</span>
-              <span slot="close">默认AI</span>
+              <span slot="close">default</span>
             </i-switch>
-            <span style="margin-left: 10px;">使用Ollama本地AI模型进行代码补全</span>
+            <span style="margin-left: 10px;">Ollama</span>
           </div>
         </div>
 
+
         <!-- 添加代码编辑器容器 -->
         <div class="code-editor-container">
-          <CodeMirror ref="codeMirror" :value.sync="code" :languages="problem.languages" :language="language"
-            :theme="theme" @resetCode="onResetToTemplate" @changeTheme="onChangeTheme" @changeLang="onChangeLang"
-            @suggestions="onSuggestionsReceived"></CodeMirror>
+          <CodeMirror ref="codeMirror" :value="code" :languages="problem.languages" :language="language" :theme="theme"
+            :problem-id="problemID" :use-ollama="useOllama" @resetCode="onResetToTemplate" @changeTheme="onChangeTheme"
+            @changeLang="onChangeLang" @suggestions="onSuggestionsReceived">
+          </CodeMirror>
         </div>
+
 
         <Row type="flex" justify="space-between">
           <Col :span="10">
@@ -303,6 +306,13 @@ const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
 
 export default {
   name: 'Problem',
+  components: {
+    NextProblemRecommendation,
+    CodeDiagnostic,
+    ProblemComplexity,
+    Highlight,
+    CodeMirror
+  },
   data() {
     return {
       statusVisible: false,
@@ -1348,87 +1358,173 @@ export default {
 @text-color: #515a6e;
 @border-color: #e8f4ff;
 @background-color: #f8f9fa;
+@card-background: #ffffff;
 
 .problem-container {
   display: flex;
-  gap: 20px;
-  padding: 20px;
+  gap: 15px;
+  padding: 15px;
   height: calc(100vh - 80px);
-  background-color: #ffffff;
+  background-color: #f0f2f5;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+
+  // 在小屏幕设备上使用垂直布局
+  @media (max-width: 1199px) {
+    flex-direction: column;
+    height: auto;
+    padding: 10px;
+  }
+
+  // 中等屏幕设备优化
+  @media (min-width: 1200px) and (max-width: 1599px) {
+    .problem-left-panel {
+      flex: 1.3;
+    }
+
+    .problem-center-panel {
+      flex: 2.2;
+    }
+
+    .problem-right-panel {
+      flex: 1.1;
+    }
+  }
+
+  // 大屏幕设备优化
+  @media (min-width: 1600px) {
+    .problem-left-panel {
+      flex: 1.4;
+      max-width: 550px;
+    }
+
+    .problem-center-panel {
+      flex: 2.3;
+      max-width: 850px;
+    }
+
+    .problem-right-panel {
+      flex: 1.3;
+      max-width: 420px;
+    }
+  }
+}
+
+.problem-left-panel,
+.problem-center-panel,
+.problem-right-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  @media (max-width: 1199px) {
+    height: auto;
+  }
 }
 
 .problem-left-panel {
-  flex: 1;
-  min-width: 400px;
-  max-width: 500px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
+  min-width: 320px;
 
-.problem-info-panel {
-  flex: 1;
-  min-height: 0;
-  border-radius: 8px;
-  overflow: hidden;
-
-  /deep/ .ivu-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /deep/ .ivu-card-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
-    background-color: @background-color;
+  @media (max-width: 1199px) {
+    min-width: 100%;
+    margin-bottom: 15px;
   }
 }
 
 .problem-center-panel {
-  flex: 2;
-  min-width: 600px;
-  max-width: 800px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  min-width: 480px;
+
+  @media (max-width: 1199px) {
+    min-width: 100%;
+    margin-bottom: 15px;
+  }
 }
 
 .problem-right-panel {
-  flex: 1;
-  min-width: 300px;
-  max-width: 400px;
+  min-width: 280px;
+
+  @media (max-width: 1199px) {
+    min-width: 100%;
+  }
+}
+
+// 面板通用样式
+.panel-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #f0f0f0;
+  background-color: @card-background;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  height: 100%;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  /deep/ .ivu-card-head {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 14px 20px;
+    background: linear-gradient(120deg, #f8faff 0%, #f0f8ff 100%);
+    border-radius: 8px 8px 0 0;
+  }
+
+  /deep/ .ivu-card-body {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  @media (max-width: 1199px) {
+    /deep/ .ivu-card-body {
+      overflow: visible;
+    }
+  }
 }
 
-// 标题样式
-.panel-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: @primary-color;
-  margin: 0;
-  padding: 0;
+// 左侧面板 - 题目信息
+.problem-info-panel {
+  .panel-card;
+
+  /deep/ .ivu-card-body {
+    padding: 0;
+  }
+
+  .panel-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: @primary-color;
+    padding: 20px 20px 10px;
+    margin: 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
 }
 
-// 描述内容样式
 #problem-content {
-  margin-top: -30px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  height: calc(100% - 60px);
+
+  @media (max-width: 1199px) {
+    height: auto;
+    max-height: 500px;
+  }
 
   .title {
     font-size: 18px;
     font-weight: 600;
-    margin: 25px 0 8px 0;
+    margin: 25px 0 12px 0;
     color: @primary-color;
     position: relative;
     padding-bottom: 8px;
     border-bottom: 2px solid @border-color;
+
+    &:first-child {
+      margin-top: 0;
+    }
 
     .copy {
       padding-left: 8px;
@@ -1443,38 +1539,49 @@ export default {
   }
 
   p.content {
-    margin-left: 25px;
-    margin-right: 20px;
+    margin-left: 0;
+    margin-right: 0;
     font-size: 15px;
     line-height: 1.7;
     color: @text-color;
+    margin-bottom: 15px;
   }
 
   .sample {
-    align-items: stretch;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
     margin: 15px 0;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: 15px;
+    }
 
     &-input,
     &-output {
-      width: 50%;
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-      margin-right: 5%;
-    }
+      flex: 1;
+      min-width: 250px;
 
-    pre {
-      flex: 1 1 auto;
-      align-self: stretch;
-      border-style: solid;
-      background: @background-color;
-      border: 1px solid @border-color;
-      border-radius: 4px;
-      padding: 12px;
-      font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
-      font-size: 14px;
-      line-height: 1.4;
-      overflow-x: auto;
+      .title {
+        font-size: 16px;
+        margin: 0 0 10px 0;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #e8e8e8;
+      }
+
+      pre {
+        background: @background-color;
+        border: 1px solid #e8e8e8;
+        border-radius: 4px;
+        padding: 12px;
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.4;
+        overflow-x: auto;
+        margin: 0;
+        white-space: pre-wrap;
+      }
     }
   }
 }
@@ -1495,39 +1602,79 @@ export default {
   }
 }
 
+// 中间面板 - 代码编辑器
 .submit-card {
-  margin-top: 20px;
+  .panel-card;
+
+  .code-editor-header {
+    padding: 0 0 15px 0;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 15px;
+
+    /deep/ .ivu-switch {
+      margin-right: 10px;
+    }
+  }
+}
+
+.code-editor-container {
+  width: 100%;
+  flex: 1;
+  min-height: 350px;
   margin-bottom: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid @border-color;
-  transition: all 0.3s ease;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f0f0f0;
+  position: relative;
 
-  &:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
+  /deep/ .CodeMirror {
+    height: 100% !important;
+    min-height: 350px;
+    border: none;
+    background: @background-color;
+    font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
   }
 
-  /deep/ .ivu-card-head {
-    border-bottom: 1px solid @border-color;
-    padding: 14px 20px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
+  /deep/ .CodeMirror-scroll {
+    height: 100% !important;
+    min-height: 350px;
   }
 
-  /deep/ .ivu-card-body {
-    padding: 20px;
+  /deep/ .CodeMirror-gutter {
+    background: #f8f9fa;
+    border-right: 1px solid #e8e8e8;
   }
+
+  /deep/ .CodeMirror-line {
+    padding: 0 10px;
+  }
+
+  @media (max-width: 1200px) {
+    min-height: 300px;
+
+    /deep/ .CodeMirror {
+      min-height: 300px;
+    }
+
+    /deep/ .CodeMirror-scroll {
+      min-height: 300px;
+    }
+  }
+}
+
+.status-section {
+  margin-bottom: 20px;
 
   .status {
-    float: left;
     display: flex;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 
     span {
       margin-right: 10px;
-      margin-left: 10px;
       font-weight: 500;
       color: @text-color;
     }
@@ -1538,182 +1685,163 @@ export default {
       border-radius: 4px;
     }
   }
-
-  .captcha-container {
-    display: inline-block;
-    margin-bottom: 15px;
-
-    img {
-      cursor: pointer;
-      border-radius: 4px;
-      border: 1px solid @border-color;
-    }
-
-    .captcha-code {
-      width: auto;
-      margin-top: -20px;
-      margin-left: 20px;
-    }
-  }
 }
 
-// 代码编辑器样式
-.code-editor-container {
-  width: 100%;
-  height: 400px;
-  margin-bottom: 20px;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-
-  /deep/ .CodeMirror {
-    height: 100% !important;
-    border: none;
-    background: @background-color;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  /deep/ .CodeMirror-scroll {
-    height: 100% !important;
-  }
-
-  /deep/ .CodeMirror-gutter {
-    background: #f0f0f0;
-    border-right: 1px solid #ddd;
-  }
-
-  /deep/ .CodeMirror-line {
-    padding: 0;
-  }
-}
-
-// 按钮样式
-.problem-buttons {
-  text-align: right;
+.captcha-container {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+
+  img {
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid @border-color;
+    height: 32px;
+  }
+
+  .captcha-code {
+    width: 120px;
+  }
+}
+
+.problem-buttons {
+  display: flex;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-top: 15px;
+  margin-top: auto;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
 
   .btn-explain,
   .btn-submit,
   .btn-recommend {
     flex: 1;
     min-width: 120px;
-    border-radius: 20px;
+    border-radius: 6px;
     font-weight: 500;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 768px) {
+      min-width: 100px;
+      font-size: 14px;
+      padding: 5px 10px;
     }
   }
 
   .btn-explain {
-    background: linear-gradient(120deg, @primary-color 0%, #096dd9 100%);
+    background: linear-gradient(120deg, #1890ff 0%, #096dd9 100%);
     border: none;
     color: white;
 
     &:hover {
-      box-shadow: 0 4px 12px rgba(@primary-color, 0.3);
+      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
     }
   }
 
   .btn-submit {
-    background: linear-gradient(120deg, @warning-color 0%, #d46b08 100%);
+    background: linear-gradient(120deg, #fa8c16 0%, #d46b08 100%);
     border: none;
     color: white;
 
     &:hover {
-      box-shadow: 0 4px 12px rgba(@warning-color, 0.3);
+      box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3);
     }
   }
 
   .btn-recommend {
-    background: linear-gradient(120deg, @secondary-color 0%, #389e0d 100%);
+    background: linear-gradient(120deg, #52c41a 0%, #389e0d 100%);
     border: none;
     color: white;
 
     &:hover {
-      box-shadow: 0 4px 12px rgba(@secondary-color, 0.3);
+      box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
     }
   }
 }
 
-// AI助手样式
+// 右侧面板 - AI助手
 .ai-chat-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid @border-color;
-  transition: all 0.3s ease;
+  .panel-card;
+}
 
-  &:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
+.ai-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: @primary-color;
+    margin-left: 8px;
   }
 
-  .ai-chat-header {
+  .ai-options {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
+    gap: 15px;
 
-    .card-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: @primary-color;
-      margin-left: 8px;
+    /deep/ .ivu-checkbox-wrapper {
+      font-size: 13px;
+      margin-right: 0;
     }
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
 
     .ai-options {
-      display: flex;
-      gap: 10px;
-    }
-  }
-
-  .ai-chat-container {
-    height: calc(100% - 60px);
-    display: flex;
-    flex-direction: column;
-  }
-
-  .ai-chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
-    background-color: @background-color;
-  }
-
-  .ai-chat-input {
-    padding: 15px;
-    border-top: 1px solid @border-color;
-    background-color: white;
-  }
-
-  .ai-message {
-    margin-bottom: 15px;
-    padding: 10px;
-    border-radius: 8px;
-    max-width: 80%;
-    word-wrap: break-word;
-
-    &.user {
-      background-color: #e6f7ff;
       align-self: flex-end;
-      border-bottom-right-radius: 0;
     }
+  }
+}
 
-    &.assistant {
-      background-color: @background-color;
-      align-self: flex-start;
-      border-bottom-left-radius: 0;
-    }
+.ai-chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+  height: 100%;
+}
+
+.ai-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  background-color: #fafafa;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border: 1px solid #f0f0f0;
+}
+
+.ai-message {
+  margin-bottom: 15px;
+  padding: 12px 15px;
+  border-radius: 8px;
+  max-width: 90%;
+  word-wrap: break-word;
+
+  &.user {
+    background-color: #e6f7ff;
+    align-self: flex-end;
+    border-bottom-right-radius: 0;
+    margin-left: auto;
+    border: 1px solid #91d5ff;
+  }
+
+  &.assistant {
+    background-color: @card-background;
+    align-self: flex-start;
+    border-bottom-left-radius: 0;
+    border: 1px solid #f0f0f0;
   }
 
   .message-header {
@@ -1723,71 +1851,141 @@ export default {
 
     .message-sender {
       margin-left: 8px;
-      font-weight: 500;
+      font-weight: 600;
       color: @text-color;
+      font-size: 14px;
+    }
+
+    /deep/ .ivu-icon {
+      font-size: 16px;
     }
   }
 
   .message-content {
     color: @text-color;
     line-height: 1.6;
+    font-size: 14px;
+
+    /deep/ p {
+      margin: 0 0 10px 0;
+    }
+
+    /deep/ pre {
+      background: #f0f0f0;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
   }
 }
 
-.submit-card {
-  margin-top: 20px;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-  border: 1px solid #e8f4ff;
-  transition: all 0.3s ease;
+.ai-chat-input {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 15px;
 
-  &:hover {
-    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
-    transform: translateY(-2px);
-  }
-
-  /deep/ .ivu-card-head {
-    border-bottom: 1px solid #e8f4ff;
-    padding: 14px 20px;
-    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
-    border-radius: 8px 8px 0 0;
-  }
-
-  /deep/ .ivu-card-body {
-    padding: 20px;
-    position: relative;
-  }
-
-  // 添加CodeMirror容器样式
-  .code-editor-container {
-    width: 100%;
-    height: 400px;
-    margin-bottom: 20px;
+  /deep/ .ivu-input {
+    margin-bottom: 10px;
     border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
 
-    /deep/ .CodeMirror {
-      height: 100% !important;
-      border: none;
-      background: #f8f9fa;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      font-size: 14px;
-      line-height: 1.5;
+.ai-chat-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+
+  /deep/ .ivu-btn {
+    border-radius: 6px;
+  }
+
+  /deep/ .ivu-btn-primary {
+    background: @primary-color;
+    border-color: @primary-color;
+  }
+}
+
+// 诊断组件样式
+.code-diagnostic-container {
+  margin: 15px 0;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  background: #fafafa;
+  padding: 15px;
+
+  .diagnostic-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: @primary-color;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// 响应式优化
+@media (max-width: 1199px) {
+  .problem-container {
+    flex-direction: column;
+  }
+
+  .problem-left-panel,
+  .problem-center-panel,
+  .problem-right-panel {
+    margin-bottom: 15px;
+  }
+
+  .problem-buttons {
+
+    .btn-explain,
+    .btn-submit,
+    .btn-recommend {
+      flex: 1;
+      min-width: 100px;
+    }
+  }
+
+  .ai-chat-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+
+    .ai-options {
+      align-self: stretch;
+      justify-content: space-between;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .problem-container {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .panel-card {
+    /deep/ .ivu-card-head {
+      padding: 12px 15px;
     }
 
-    /deep/ .CodeMirror-scroll {
-      height: 100% !important;
+    /deep/ .ivu-card-body {
+      padding: 15px;
     }
+  }
 
-    /deep/ .CodeMirror-gutter {
-      background: #f0f0f0;
-      border-right: 1px solid #ddd;
+  .problem-buttons {
+    flex-direction: column;
+
+    .btn-explain,
+    .btn-submit,
+    .btn-recommend {
+      width: 100%;
     }
+  }
 
-    /deep/ .CodeMirror-line {
-      padding: 0;
+  #problem-content {
+    .sample {
+      flex-direction: column;
+      gap: 15px;
     }
   }
 }

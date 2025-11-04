@@ -622,5 +622,7 @@ export const m = {
   Score: "Score",
   Recommendation_Reason: "Recommendation Reason",
   Samples_Input: "Sample Input",
-  Samples_Output: "Sample Output"
+  Samples_Output: "Sample Output",
+  Sample_Input: "Sample Input",
+  Sample_Output: "Sample Output"
 };
