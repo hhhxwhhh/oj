@@ -11,11 +11,11 @@
             <p class="content" v-html="problem.description"></p>
 
             <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-                }}: {{ problem.io_mode.input }})</span></p>
+            }}: {{ problem.io_mode.input }})</span></p>
             <p class="content" v-html="problem.input_description"></p>
 
             <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
-                }}: {{ problem.io_mode.output }})</span></p>
+            }}: {{ problem.io_mode.output }})</span></p>
             <p class="content" v-html="problem.output_description"></p>
 
             <div v-for="(sample, index) of problem.samples" :key="index">
@@ -202,15 +202,6 @@
       </Card>
     </div>
 
-    <!-- 原有模态框保持不变 -->
-    <Modal v-model="graphVisible" class="statistic-modal">
-      <div id="pieChart-detail">
-        <ECharts :options="largePie" :initOptions="largePieInitOpts"></ECharts>
-      </div>
-      <div slot="footer">
-        <Button type="ghost" @click="graphVisible = false">{{ $t('m.Close') }}</Button>
-      </div>
-    </Modal>
 
     <Modal v-model="showExplanationModal" :title="$t('m.Code_Explanation')" width="800" class="explanation-modal">
       <div class="modal-actions" style="text-align: right; margin-bottom: 10px;">
@@ -251,6 +242,23 @@
         <Button @click="closeComplexityModal">{{ $t('m.Close') }}</Button>
       </div>
     </Modal>
+
+
+    <!-- 统计信息模态框 -->
+    <Modal v-model="graphVisible" class="statistic-modal" :title="$t('m.Statistic')" width="600">
+      <div v-if="problem && problem.id">
+        <ProblemStatistics :problem="problem" />
+      </div>
+      <div v-else class="no-statistics-data">
+        <Icon type="ios-alert-outline" size="40" class="no-data-icon" />
+        <p>{{ $t('m.No_Statistics_Data_Available') }}</p>
+      </div>
+      <div slot="footer">
+        <Button type="ghost" @click="graphVisible = false">{{ $t('m.Close') }}</Button>
+      </div>
+    </Modal>
+
+
   </div>
 </template>
 
@@ -280,6 +288,7 @@ import VerticalMenuItem from '../../components/verticalMenu/verticalMenu-item.vu
 import NextProblemRecommendation from './NextProblemRecommendation.vue'
 import CodeDiagnostic from '../../components/CodeDiagnostic.vue'
 import ProblemComplexity from '../../components/ProblemComplexity.vue'
+import ProblemStatistics from '../../components/ProblemStatistics.vue'
 // 只显示这些状态的图形占用
 const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
 
@@ -290,7 +299,8 @@ export default {
     CodeDiagnostic,
     ProblemComplexity,
     Highlight,
-    CodeMirror
+    CodeMirror,
+    ProblemStatistics
   },
   data() {
     return {
@@ -1796,15 +1806,18 @@ export default {
     padding: 12px 20px;
   }
 
-  #pieChart-detail {
-    height: 480px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .no-statistics-data {
+    text-align: center;
+    padding: 40px 20px;
 
-    /deep/ .echarts {
-      width: 100%;
-      height: 100%;
+    .no-data-icon {
+      color: #c5c8ce;
+      margin-bottom: 15px;
+    }
+
+    p {
+      color: #515a6e;
+      font-size: 16px;
     }
   }
 }

@@ -625,5 +625,6 @@ export const m = {
   Samples_Output: "Sample Output",
   Sample_Input: "Sample Input",
   Sample_Output: "Sample Output",
-  More_Info: "More Info"
+  More_Info: "More Info",
+  No_Statistics_Data_Available: "No Statistics Data Available"
 };
