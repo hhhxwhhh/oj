@@ -11,11 +11,11 @@
             <p class="content" v-html="problem.description"></p>
 
             <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-                }}: {{ problem.io_mode.input }})</span></p>
+            }}: {{ problem.io_mode.input }})</span></p>
             <p class="content" v-html="problem.input_description"></p>
 
             <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
-                }}: {{ problem.io_mode.output }})</span></p>
+            }}: {{ problem.io_mode.output }})</span></p>
             <p class="content" v-html="problem.output_description"></p>
 
             <div v-for="(sample, index) of problem.samples" :key="index">
@@ -47,6 +47,26 @@
               <p class="title">{{ $t('m.Source') }}</p>
               <p class="content">{{ problem.source }}</p>
             </div>
+
+
+            <div class="problem-info-buttons">
+              <ButtonGroup size="small">
+                <Button @click="showProblemInfoModal = true">
+                  <Icon type="information-circled"></Icon>
+                  {{ $t('m.More_Info') }}
+                </Button>
+                <Button @click="showComplexityAnalysis">
+                  <Icon type="ios-pulse"></Icon>
+                  {{ $t('m.Complexity_Analysis') }}
+                </Button>
+                <Button v-if="problem.statistic_info && (!this.contestID || OIContestRealTimePermission)"
+                  @click="graphVisible = true">
+                  <Icon type="ios-analytics"></Icon>
+                  {{ $t('m.Statistic') }}
+                </Button>
+              </ButtonGroup>
+            </div>
+
           </div>
         </Panel>
       </div>
@@ -333,6 +353,7 @@ export default {
       problemID: '',
       submitting: false,
       conversationId: null,
+      showProblemInfoModal: false,
       code: '',
       language: 'C++',
       theme: 'solarized',
@@ -1648,30 +1669,82 @@ export default {
       gap: 15px;
     }
 
-    &-input,
-    &-output {
+    .sample-input,
+    .sample-output {
       flex: 1;
-      min-width: 250px;
+      min-width: 200px;
 
       .title {
-        font-size: 16px;
         margin: 0 0 10px 0;
-        padding-bottom: 5px;
-        border-bottom: 1px solid #e8e8e8;
+        padding: 0;
+        border: none;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+
+        .copy {
+          margin-left: 8px;
+        }
       }
 
       pre {
         background: @background-color;
-        border: 1px solid #e8e8e8;
-        border-radius: 4px;
-        padding: 12px;
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
         font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
         font-size: 14px;
-        line-height: 1.4;
-        overflow-x: auto;
+        line-height: 1.5;
         margin: 0;
         white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 300px;
+        overflow-y: auto;
       }
+    }
+  }
+
+  .problem-info-buttons {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid @border-color;
+    text-align: center;
+
+    /deep/ .ivu-btn {
+      margin: 0 5px;
+
+      @media (max-width: 768px) {
+        display: block;
+        margin: 5px auto;
+        width: 80%;
+      }
+    }
+  }
+}
+
+// 添加题目信息模态框样式
+.problem-info-modal-content {
+  .info-item {
+    display: flex;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 600;
+      width: 120px;
+      color: @text-color;
+    }
+
+    .info-value {
+      flex: 1;
+      color: #2c3e50;
     }
   }
 }
