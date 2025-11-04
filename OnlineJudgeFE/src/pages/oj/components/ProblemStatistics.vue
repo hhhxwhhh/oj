@@ -152,7 +152,12 @@ export default {
                 legend: {
                     orient: 'vertical',
                     left: 'left',
-                    data: data.map(item => item.name)
+                    data: data.map(item => item.name),
+                    textStyle: {
+                        fontSize: 12,
+                        fontWeight: 'normal'
+                    },
+                    icon: 'circle'
                 },
                 series: [
                     {
