@@ -626,5 +626,8 @@ export const m = {
   Sample_Input: "Sample Input",
   Sample_Output: "Sample Output",
   More_Info: "More Info",
-  No_Statistics_Data_Available: "No Statistics Data Available"
+  No_Statistics_Data_Available: "No Statistics Data Available",
+  If_problem_id_does_not_exist:
+    "If problem id does not exist, please check the problem id",
+  Regenerate: "Regenerate"
 };

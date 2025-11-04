@@ -1496,7 +1496,7 @@ class AIRecommendationService:
             X = []  
             y = []  
             
-            # 获取所有提交记录作为训练数据
+            import math
             submissions = Submission.objects.all()[:10000]  
             
             for submission in submissions:
@@ -1810,6 +1810,7 @@ class AIRecommendationService:
             
             # 获取所有可见题目
             from problem.models import Problem
+            import math
             all_problems = Problem.objects.filter(visible=True)
             
             # 计算每个题目的推荐分数
@@ -1820,9 +1821,16 @@ class AIRecommendationService:
                 
                 try:
                     score = gnn_recommender.predict_score(problem.id, list(user_knowledge_states))
-                    problem_scores.append((problem.id, float(score), "基于GNN推荐"))
+                    # 确保score是有效的数值
+                    if score is not None and not (isinstance(score, float) and (math.isnan(score) or math.isinf(score))):
+                        problem_scores.append((problem.id, float(score), "基于GNN推荐"))
+                    else:
+                        # 如果score无效，使用默认值
+                        problem_scores.append((problem.id, 0.0, "基于GNN推荐"))
                 except Exception as e:
                     logger.warning(f"GNN prediction failed for problem {problem.id}: {str(e)}")
+                    # 即使预测失败，也要添加默认推荐项
+                    problem_scores.append((problem.id, 0.0, "基于GNN推荐"))
                     continue
             
             # 按分数排序
@@ -1896,12 +1904,14 @@ class AIRecommendationService:
             try:
                 from .models import AIRecommendation
                 for problem_id, score, reason in recommendations:
+                    # 确保score不为None，如果为None则设置为默认值0.0
+                    safe_score = score if score is not None else 0.0
                     AIRecommendation.objects.create(
                         user_id=user_id,
                         problem_id=problem_id,
                         algorithm_used=selected_algorithm,
                         recommendation_reason=reason,
-                        confidence_score=score
+                        confidence_score=safe_score
                     )
             except Exception as e:
                 logger.error(f"Failed to save recommendation record: {str(e)}")

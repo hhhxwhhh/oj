@@ -282,6 +282,8 @@
                         <h3>How was this learning path?</h3>
                         <p>Help us improve by providing feedback on your experience.</p>
                         <Rate v-model="pathRating" />
+                        <Input v-model="pathFeedback" type="textarea" :rows="4"
+                            placeholder="Please provide detailed feedback..." style="margin: 10px 0;" />
                         <Button type="primary" @click="submitFeedback" :loading="feedbackLoading"
                             style="margin-top: 10px;">
                             Submit Feedback
@@ -317,6 +319,7 @@ export default {
             recentPaths: [],
             completingNode: null,
             pathRating: 0,
+            pathFeedback: '',
             feedbackLoading: false
 
         }
@@ -378,8 +381,8 @@ export default {
 
         goToConcept(conceptId) {
             if (conceptId) {
-                // For now, just show a message. In a real implementation, this would navigate to a concept page
-                this.$Message.info('Concept viewing is not implemented yet');
+                // Navigate to concept learning page
+                this.$router.push({ name: 'concept-details', params: { conceptID: conceptId } });
             } else {
                 this.$Message.warning('Concept not available');
             }
@@ -387,8 +390,8 @@ export default {
 
         goToProject(projectId) {
             if (projectId) {
-                // For now, just show a message. In a real implementation, this would navigate to a project page
-                this.$Message.info('Project viewing is not implemented yet');
+                // Navigate to project viewing page
+                this.$router.push({ name: 'project-details', params: { projectID: projectId } });
             } else {
                 this.$Message.warning('Project not available');
             }
@@ -438,12 +441,19 @@ export default {
 
             this.feedbackLoading = true;
             try {
-                // In a real implementation, this would call an API endpoint
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+                // Submit feedback to backend API
+                const feedbackData = {
+                    path_id: this.currentPath.id,
+                    rating: this.pathRating,
+                    feedback: this.pathFeedback
+                };
+
+                await api.sendFeedback(feedbackData);
                 this.$Message.success('Thank you for your feedback!');
                 this.pathRating = 0;
+                this.pathFeedback = '';
             } catch (err) {
-                this.$Message.error('Failed to submit feedback');
+                this.$Message.error('Failed to submit feedback: ' + (err.message || 'Unknown error'));
             } finally {
                 this.feedbackLoading = false;
             }
@@ -554,7 +564,7 @@ export default {
                     this.$Message.success('节点状态已更新!');
                 }
             } catch (err) {
-                this.$Message.error('更新节点状态失败');
+                this.$Message.error('更新节点状态失败: ' + (err.message || 'Unknown error'));
             } finally {
                 this.completingNode = null;
             }

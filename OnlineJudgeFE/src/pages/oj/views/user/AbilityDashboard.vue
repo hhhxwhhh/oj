@@ -123,51 +123,48 @@
                 <p>正在分析能力趋势...</p>
             </div>
             <div v-else-if="trendData.error" class="trend-error">
-                <Icon type="md-warning" size="30" color="#ff9900" />
-                <p>趋势分析失败: {{ trendData.error }}</p>
-                <Button @click="loadTrendData" size="small">重试</Button>
+                <Icon type="md-alert" size="30" color="#ff9900" />
+                <p>获取趋势数据失败: {{ trendData.error }}</p>
             </div>
             <div v-else-if="trendData.noData" class="trend-no-data">
                 <Icon type="md-information-circle" size="30" color="#ccc" />
-                <p>暂无足够数据进行趋势分析，请继续使用系统以积累数据</p>
+                <p>暂无足够的历史数据来分析趋势</p>
             </div>
             <div v-else class="trend-content">
-                <Tabs value="overall" @on-click="changeTrendTab">
-                    <TabPane label="综合能力" name="overall">
-                        <div class="trend-summary">
-                            <div class="trend-indicator"
-                                :class="(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend) || 'unknown'">
-                                <Icon
-                                    :type="getTrendIcon(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend)"
-                                    :size="24"
-                                    :color="getTrendColor(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend)" />
-                                <span>{{ getTrendText(trendData.analysis && trendData.analysis.overall_score &&
-                                    trendData.analysis.overall_score.trend) }}</span>
-                            </div>
-                            <div class="trend-stats">
-                                <div class="stat-item">
-                                    <span class="stat-label">变化率:</span>
-                                    <span class="stat-value"
-                                        :class="getSlopeClass(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.slope)">
-                                        {{ ((trendData.analysis && trendData.analysis.overall_score &&
-                                            trendData.analysis.overall_score.slope) || 0 * 24).toFixed(2) }}/天
-                                    </span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">置信度:</span>
-                                    <span class="stat-value">
-                                        {{ ((trendData.analysis && trendData.analysis.overall_score &&
-                                            trendData.analysis.overall_score.confidence) || 0 * 100).toFixed(1) }}%
-                                    </span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">模型:</span>
-                                    <span class="stat-value">{{
-                                        getTrendModelText(trendData.analysis && trendData.analysis.overall_score &&
-                                            trendData.analysis.overall_score.model_type) }}</span>
-                                </div>
-                            </div>
+                <div class="trend-summary">
+                    <div class="trend-indicator"
+                        :class="trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend">
+                        <Icon
+                            :type="getTrendIcon(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.trend)" />
+                        <span>{{ getTrendText(trendData.analysis && trendData.analysis.overall_score &&
+                            trendData.analysis.overall_score.trend) }}</span>
+                    </div>
+                    <div class="trend-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">日均变化:</span>
+                            <span class="stat-value"
+                                :class="getSlopeClass(trendData.analysis && trendData.analysis.overall_score && trendData.analysis.overall_score.slope)">
+                                {{ ((trendData.analysis && trendData.analysis.overall_score &&
+                                    trendData.analysis.overall_score.slope) || 0).toFixed(2) }}/天
+                            </span>
                         </div>
+                        <div class="stat-item">
+                            <span class="stat-label">置信度:</span>
+                            <span class="stat-value">
+                                {{ ((trendData.analysis && trendData.analysis.overall_score &&
+                                    trendData.analysis.overall_score.confidence) || 0 * 100).toFixed(1) }}%
+                            </span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">模型:</span>
+                            <span class="stat-value">{{
+                                getTrendModelText(trendData.analysis && trendData.analysis.overall_score &&
+                                    trendData.analysis.overall_score.model_type) }}</span>
+                        </div>
+                    </div>
+                </div>
+                <Tabs @on-click="changeTrendTab" :animated="false">
+                    <TabPane label="综合能力" name="overall">
                         <ECharts :options="overallTrendChartOptions" :autoresize="true" style="height: 300px;">
                         </ECharts>
                     </TabPane>
@@ -254,26 +251,20 @@ export default {
                 legend: {
                     data: ['你的得分', '平均水平']
                 },
-                grid: {
-                    left: '3%',
-                    right: '4%',
-                    bottom: '3%',
-                    containLabel: true
-                },
                 xAxis: {
-                    type: 'value',
-                    boundaryGap: [0, 0.01],
-                    max: 100
-                },
-                yAxis: {
                     type: 'category',
                     data: ['基础编程', '数据结构', '算法设计', '问题解决']
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 100
                 },
                 series: [
                     {
                         name: '你的得分',
                         type: 'bar',
-                        data: [0, 0, 0, 0]
+                        data: [0, 0, 0, 0],
+                        barGap: 0
                     },
                     {
                         name: '平均水平',
@@ -289,12 +280,9 @@ export default {
                 loading: false,
                 error: null,
                 noData: false,
-                analysis: {
-                    overall_score: {}
-                },
+                analysis: {},
                 history: []
             },
-
 
             overallTrendChartOptions: {
                 title: {
@@ -793,6 +781,7 @@ export default {
                 const res = await api.assessProgrammingAbility()
                 if (res && res.data && res.data.data) {
                     await this.loadAbilityData()
+                    await this.loadTrendData()
                     this.$success('能力评估已完成')
                 } else {
                     throw new Error('评估响应无效')
@@ -866,6 +855,17 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 20px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.last-assessed {
+    font-size: 14px;
+    color: #808695;
 }
 
 .dashboard-section {
@@ -978,24 +978,6 @@ export default {
     text-align: center;
     color: #808695;
     font-style: italic;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.last-assessed {
-    font-size: 14px;
-    color: #808695;
 }
 
 .trend-loading,
