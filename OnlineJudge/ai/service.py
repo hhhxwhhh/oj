@@ -2788,7 +2788,6 @@ class KnowledgePointService:
         """
         try:
             problem = Problem.objects.get(id=problem_id)
-            # 修复：通过KnowledgePoint模型检查关联，而不是problem.knowledge_points
             from .models import KnowledgePoint
             associated_knowledge_points = KnowledgePoint.objects.filter(related_problems=problem)
             

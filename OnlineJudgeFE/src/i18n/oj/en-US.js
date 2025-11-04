@@ -631,5 +631,8 @@ export const m = {
     "If problem id does not exist, please check the problem id",
   Regenerate: "Regenerate",
   Failed_to_load_problem_data: "Failed to load problem data",
-  No_Review_Result: "No Review Result"
+  No_Review_Result: "No Review Result",
+  AI_Code_Assist_Unavailable: "AI Code Assist Unavailable",
+  Loading_Editor: "Loading Editor...",
+  Default: "Default"
 };

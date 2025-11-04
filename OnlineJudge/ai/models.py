@@ -81,13 +81,14 @@ class AICodeExplanationCache(models.Model):
 class AIRecommendation(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE)
     problem=models.ForeignKey(Problem,on_delete=models.CASCADE)
-    score=models.FloatField()
+    score=models.FloatField(null=True, blank=True)  
     reason=models.TextField()
     created_at=models.DateTimeField(auto_now_add=True)
 
     algorithm_used = models.CharField(max_length=50, default='hybrid')
     recommendation_reason = models.TextField(blank=True, null=True)
     confidence_score = models.FloatField(default=0.0)
+
 
     class Meta:
         db_table='ai_recommendation'

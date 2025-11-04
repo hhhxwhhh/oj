@@ -115,6 +115,12 @@ import 'codemirror/addon/edit/closebrackets.js'
 // 行号和状态栏
 import 'codemirror/addon/display/rulers.js'
 
+// 添加 keyMap 插件导入
+import 'codemirror/keymap/sublime.js'
+import 'codemirror/keymap/vim.js'
+import 'codemirror/keymap/emacs.js'
+
+
 export default {
   name: 'CodeMirror',
   components: {
@@ -179,7 +185,7 @@ export default {
           completeSingle: false
         },
         rulers: [{ column: 80, className: 'ruler-80' }],
-        keyMap: 'sublime',
+        keyMap: 'default',
         extraKeys: {
           'Ctrl-Space': () => this.triggerAutoCompletion(),
           'Ctrl-F': 'findPersistent',
