@@ -11,11 +11,11 @@
             <p class="content" v-html="problem.description"></p>
 
             <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-            }}: {{ problem.io_mode.input }})</span></p>
+                }}: {{ problem.io_mode.input }})</span></p>
             <p class="content" v-html="problem.input_description"></p>
 
             <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
-            }}: {{ problem.io_mode.output }})</span></p>
+                }}: {{ problem.io_mode.output }})</span></p>
             <p class="content" v-html="problem.output_description"></p>
 
             <div v-for="(sample, index) of problem.samples" :key="index">
@@ -147,6 +147,14 @@
             <Checkbox v-model="includeCode">代码</Checkbox>
           </div>
         </div>
+        <div class="model-selection" v-if="aiModels.length > 0">
+          <Select v-model="selectedModel" size="small" style="width:100%" placeholder="选择AI模型">
+            <Option v-for="model in aiModels" :value="model.id" :key="model.id">
+              {{ model.name }}
+            </Option>
+          </Select>
+        </div>
+
         <div class="ai-chat-container">
           <div class="ai-chat-messages" ref="chatMessages">
             <div v-for="(message, index) in aiMessages" :key="index" :class="['ai-message', message.role]">
@@ -375,7 +383,10 @@ export default {
       aiSending: false,
       includeProblem: true,
       includeCode: true,
-      toggleInfo: true
+      toggleInfo: true,
+      aiModels: [],
+      selectedModel: null
+
     }
   },
   beforeRouteEnter(to, from, next) {
@@ -394,6 +405,7 @@ export default {
     this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, { menu: false })
     this.init()
     this.startDiagnosisTimer()
+    this.loadAIModels()
   },
   methods: {
     ...mapActions(['changeDomTitle']),
@@ -502,6 +514,19 @@ export default {
         this.$error(this.$t('m.Failed_to_load_problem_data'))
       })
     },
+    async loadAIModels() {
+      try {
+        const res = await api.getAIModels()
+        this.aiModels = res.data.data || []
+        if (this.aiModels.length > 0) {
+          this.selectedModel = this.aiModels[0].id
+        }
+      } catch (err) {
+        console.error("获取AI模型列表失败:", err)
+        this.aiModels = []
+      }
+    },
+
     formatHtmlContent(content) {
       if (!content) return '';
 
@@ -1249,12 +1274,10 @@ export default {
 
         // 如果没有会话ID，先创建会话
         if (!this.conversationId) {
-          console.log('创建新的AI会话');
           const convRes = await api.createAIConversation({
             title: this.problem.title.substring(0, 20),
             problem_id: this.problem.id
           });
-          console.log('会话创建响应:', convRes);
           this.conversationId = convRes.data.data.id;
         }
 
@@ -1267,7 +1290,10 @@ export default {
           role: "user"
         };
 
-        console.log('发送AI消息请求数据:', requestData);
+        // 如果选择了模型，则添加到请求数据中
+        if (this.selectedModel) {
+          requestData.model_id = this.selectedModel;
+        }
 
         // 检查API对象和方法是否存在
         if (!api || typeof api.sendAIMessage !== 'function') {
@@ -1275,7 +1301,6 @@ export default {
         }
 
         const res = await api.sendAIMessage(requestData);
-        console.log('AI消息响应数据:', res);
 
         // 检查响应格式
         if (!res || !res.data) {
@@ -1294,7 +1319,6 @@ export default {
             responseContent = res.data.data.content;
           }
 
-          console.log('AI回复内容:', responseContent);
 
           this.aiMessages.push({
             role: 'assistant',
@@ -1331,6 +1355,16 @@ export default {
         });
       }
     },
+    clearAIChat() {
+      this.aiMessages = [
+        {
+          role: 'assistant',
+          content: '你好！我是你的AI编程助手。你可以问我关于这道题的任何问题，我会尽力帮助你。'
+        }
+      ];
+      this.conversationId = null;
+    },
+
 
 
   },
@@ -1465,6 +1499,7 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 
   @media (max-width: 1199px) {
     height: auto;
@@ -1496,6 +1531,7 @@ export default {
     min-width: 100%;
   }
 }
+
 
 // 面板通用样式
 .panel-card {
@@ -1540,6 +1576,10 @@ export default {
 
   /deep/ .ivu-card-body {
     padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%; // 明确设置高度
   }
 
   .panel-title {
@@ -1656,14 +1696,17 @@ export default {
 .submit-card {
   .panel-card;
 
+  /deep/ .ivu-card-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%; // 明确设置高度
+  }
+
   .code-editor-header {
     padding: 0 0 15px 0;
     border-bottom: 1px solid #f0f0f0;
     margin-bottom: 15px;
-
-    /deep/ .ivu-switch {
-      margin-right: 10px;
-    }
   }
 }
 
@@ -1677,6 +1720,7 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 1px solid #f0f0f0;
   position: relative;
+  overflow-y: auto; // 保持滚动条
 
   /deep/ .CodeMirror {
     height: 100% !important;
@@ -1759,9 +1803,9 @@ export default {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: auto;
   padding-top: 15px;
   border-top: 1px solid #f0f0f0;
+  flex-shrink: 0; // 防止按钮区域被压缩
 
   .btn-explain,
   .btn-submit,
@@ -1860,6 +1904,26 @@ export default {
   flex-direction: column;
   min-height: 300px;
   height: 100%;
+}
+
+// 添加模型选择样式
+.model-selection {
+  margin-bottom: 15px;
+
+  /deep/ .ivu-select {
+    width: 100%;
+  }
+
+  /deep/ .ivu-select-selection {
+    border-radius: 6px;
+    height: 32px;
+  }
+
+  /deep/ .ivu-select-placeholder,
+  /deep/ .ivu-select-selected-value {
+    height: 32px;
+    line-height: 32px;
+  }
 }
 
 .ai-chat-messages {
