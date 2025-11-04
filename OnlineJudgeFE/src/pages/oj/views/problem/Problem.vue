@@ -324,6 +324,7 @@ export default {
       contestID: '',
       problemID: '',
       submitting: false,
+      conversationId: null,
       code: '',
       language: 'C++',
       theme: 'solarized',
@@ -517,8 +518,6 @@ export default {
 
       return content;
     },
-
-
 
 
     startDiagnosisTimer() {
@@ -1243,25 +1242,84 @@ export default {
           }
         });
 
-        const res = await api.sendAIMessage({
-          message: aiQuery,
-          problem_id: this.problem.id
-        });
+        // 检查必要参数
+        if (!this.problem || !this.problem.id) {
+          throw new Error('题目信息不完整');
+        }
+
+        // 如果没有会话ID，先创建会话
+        if (!this.conversationId) {
+          console.log('创建新的AI会话');
+          const convRes = await api.createAIConversation({
+            title: this.problem.title.substring(0, 20),
+            problem_id: this.problem.id
+          });
+          console.log('会话创建响应:', convRes);
+          this.conversationId = convRes.data.data.id;
+        }
+
+        // 发送消息时包含conversation_id
+        const requestData = {
+          conversation_id: this.conversationId,
+          content: aiQuery,
+          problem_id: this.problem.id,
+          code: this.code,
+          role: "user"
+        };
+
+        console.log('发送AI消息请求数据:', requestData);
+
+        // 检查API对象和方法是否存在
+        if (!api || typeof api.sendAIMessage !== 'function') {
+          throw new Error('API对象或sendAIMessage方法不存在');
+        }
+
+        const res = await api.sendAIMessage(requestData);
+        console.log('AI消息响应数据:', res);
+
+        // 检查响应格式
+        if (!res || !res.data) {
+          throw new Error('服务器返回了空响应');
+        }
 
         if (res.data && res.data.data) {
           // 添加AI回复到聊天记录
+          // 使用兼容性更好的方式获取响应内容
+          var responseContent = '抱歉，我没有理解你的问题。';
+          if (res.data.data.ai_message && res.data.data.ai_message.content) {
+            responseContent = res.data.data.ai_message.content;
+          } else if (res.data.data.response) {
+            responseContent = res.data.data.response;
+          } else if (res.data.data.content) {
+            responseContent = res.data.data.content;
+          }
+
+          console.log('AI回复内容:', responseContent);
+
           this.aiMessages.push({
             role: 'assistant',
-            content: res.data.data.response || res.data.data.content || '抱歉，我没有理解你的问题。'
+            content: responseContent
           });
         } else {
-          throw new Error('Invalid response from AI');
+          // 检查是否有错误信息
+          if (res.data && res.data.error) {
+            throw new Error(`服务器返回错误: ${res.data.error}`);
+          }
+          throw new Error('AI返回数据格式不正确');
         }
       } catch (err) {
         console.error('AI消息发送失败:', err);
+        // 更详细的错误信息
+        let errorMessage = '抱歉，我现在无法回答你的问题。请稍后再试。';
+        if (err.response && err.response.data) {
+          errorMessage += ' 错误详情: ' + JSON.stringify(err.response.data);
+        } else if (err.message) {
+          errorMessage += ' 错误信息: ' + err.message;
+        }
+
         this.aiMessages.push({
           role: 'assistant',
-          content: '抱歉，我现在无法回答你的问题。请稍后再试。'
+          content: errorMessage
         });
       } finally {
         this.aiSending = false;
@@ -1274,14 +1332,6 @@ export default {
       }
     },
 
-    clearAIChat() {
-      this.aiMessages = [
-        {
-          role: 'assistant',
-          content: '你好！我是你的AI编程助手。你可以问我关于这道题的任何问题，我会尽力帮助你。'
-        }
-      ];
-    },
 
   },
   computed: {
