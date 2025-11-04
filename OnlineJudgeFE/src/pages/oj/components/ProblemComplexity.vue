@@ -20,7 +20,8 @@
                         </div>
 
                         <div class="complexity-level">
-                            <Tag :color="getComplexityLevelColor(complexityData.complexity_score)" class="level-tag">
+                            <Tag :color="getComplexityLevelColor(complexityData.complexity_score)" class="level-tag"
+                                :bordered="false" style="width: 100%; text-align: center;">
                                 {{ getComplexityLevel(complexityData.complexity_score) }}
                             </Tag>
                             <p class="level-label">复杂度等级</p>
@@ -180,7 +181,6 @@ export default {
     }
 }
 </script>
-
 <style scoped lang="less">
 .problem-complexity {
     margin-top: 20px;
@@ -219,6 +219,7 @@ export default {
                         font-weight: 600;
                         color: #2d8cf0;
                         line-height: 1;
+                        letter-spacing: 0.5px;
                     }
 
                     .score-label {
@@ -242,6 +243,17 @@ export default {
                         white-space: normal;
                         word-break: break-word;
                         line-height: 1.4;
+                        border-radius: 20px;
+                        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s ease;
+                        background-color: #f0f0f0;
+                        color: #333;
+                        border: none;
+
+                        &:hover {
+                            transform: translateY(-1px);
+                            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+                        }
                     }
 
                     .level-label {
@@ -317,6 +329,9 @@ export default {
                 margin: 0 0 10px 0;
                 font-size: 15px;
                 font-weight: 500;
+                color: #2d8cf0;
+                border-bottom: 1px solid #e8eaec;
+                padding-bottom: 8px;
             }
 
             .keywords-list {
@@ -324,6 +339,16 @@ export default {
                     margin-right: 8px;
                     margin-bottom: 8px;
                     font-weight: 500;
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    background-color: #f0f0f0;
+                    color: #333;
+                    border: none;
+
+                    &:hover {
+                        transform: scale(1.05);
+                    }
                 }
             }
         }

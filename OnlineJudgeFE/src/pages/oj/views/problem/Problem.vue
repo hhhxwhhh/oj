@@ -11,11 +11,11 @@
             <p class="content" v-html="problem.description"></p>
 
             <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-            }}: {{ problem.io_mode.input }})</span></p>
+                }}: {{ problem.io_mode.input }})</span></p>
             <p class="content" v-html="problem.input_description"></p>
 
             <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
-            }}: {{ problem.io_mode.output }})</span></p>
+                }}: {{ problem.io_mode.output }})</span></p>
             <p class="content" v-html="problem.output_description"></p>
 
             <div v-for="(sample, index) of problem.samples" :key="index">
@@ -240,56 +240,7 @@
         <p style="text-align: center; margin-top: 10px;">{{ $t('m.Loading_Complexity_Data') }}</p>
       </div>
 
-      <div v-else-if="complexityData" class="complexity-content">
-        <div class="complexity-header">
-          <div class="complexity-level">
-            <Tag :color="getComplexityColor(complexityData.complexity_score)" class="level-tag">
-              {{ getComplexityLevelText(complexityData.complexity_score) }}
-            </Tag>
-            <div class="level-label">{{ $t('m.Complexity_Level') }}</div>
-          </div>
-          <div class="complexity-score">
-            <div class="score-value">{{ complexityData.complexity_score.toFixed(1) }}</div>
-            <div class="score-label">{{ $t('m.Complexity_Score') }}</div>
-          </div>
-        </div>
-
-        <div class="complexity-grid">
-          <div class="metric-item">
-            <Icon type="ios-book" size="24" class="metric-icon" />
-            <div class="metric-value">{{ complexityData.word_count }}</div>
-            <div class="metric-label">{{ $t('m.Word_Count') }}</div>
-          </div>
-          <div class="metric-item">
-            <Icon type="ios-chatbubbles" size="24" class="metric-icon" />
-            <div class="metric-value">{{ complexityData.sentence_count }}</div>
-            <div class="metric-label">{{ $t('m.Sentence_Count') }}</div>
-          </div>
-        </div>
-
-        <div class="detail-section" v-if="complexityData.keywords && complexityData.keywords.length">
-          <h4>{{ $t('m.Keywords') }}</h4>
-          <div class="keywords-container">
-            <Tag v-for="(keyword, index) in complexityData.keywords" :key="index" color="primary" class="keyword-tag">
-              {{ keyword }}
-            </Tag>
-          </div>
-        </div>
-
-        <div class="detail-section" v-if="complexityData.readability_score || complexityData.grade_level">
-          <h4>{{ $t('m.Readability_Analysis') }}</h4>
-          <div class="readability-grid">
-            <div class="readability-item" v-if="complexityData.readability_score">
-              <div class="readability-value">{{ complexityData.readability_score.toFixed(1) }}</div>
-              <div class="readability-label">{{ $t('m.Readability_Score') }}</div>
-            </div>
-            <div class="readability-item" v-if="complexityData.grade_level">
-              <div class="readability-value">{{ complexityData.grade_level }}</div>
-              <div class="readability-label">{{ $t('m.Grade_Level') }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProblemComplexity v-else-if="problem.id" :problem-id="problem.id" />
 
       <div v-else class="no-complexity-data">
         <Icon type="ios-information-circle-outline" size="48" class="info-icon" />
@@ -1704,47 +1655,317 @@ export default {
     }
   }
 
+  // 优化题目信息按钮样式
   .problem-info-buttons {
     margin-top: 30px;
     padding-top: 20px;
     border-top: 1px solid @border-color;
     text-align: center;
 
-    /deep/ .ivu-btn {
-      margin: 0 5px;
+    /deep/ .ivu-btn-group {
+      display: inline-flex;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
       @media (max-width: 768px) {
-        display: block;
-        margin: 5px auto;
-        width: 80%;
+        flex-direction: column;
+        width: 100%;
+      }
+    }
+
+    /deep/ .ivu-btn {
+      background: @card-background;
+      border: 1px solid #e0e0e0;
+      color: @text-color;
+      transition: all 0.3s ease;
+      padding: 8px 16px;
+
+      &:hover {
+        background: #f0f8ff;
+        border-color: @primary-color;
+        color: @primary-color;
+      }
+
+      &:first-child:not(:last-child) {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+
+      &:last-child:not(:first-child) {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+
+      &:not(:first-child):not(:last-child) {
+        border-radius: 0;
+      }
+
+      @media (max-width: 768px) {
+        margin: 0;
+        border-radius: 0;
+
+        &:first-child {
+          border-top-left-radius: 6px;
+          border-top-right-radius: 6px;
+        }
+
+        &:last-child {
+          border-bottom-left-radius: 6px;
+          border-bottom-right-radius: 6px;
+        }
+      }
+
+      /deep/ .ivu-icon {
+        margin-right: 5px;
       }
     }
   }
 }
 
-// 添加题目信息模态框样式
+// 优化题目信息模态框样式
 .problem-info-modal-content {
+  padding: 10px 0;
+
   .info-item {
     display: flex;
     margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 12px 15px;
+    border-radius: 6px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: #f0f8ff;
+      border-color: #d0e6ff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
 
     &:last-child {
       margin-bottom: 0;
-      padding-bottom: 0;
-      border-bottom: none;
     }
 
     .info-label {
       font-weight: 600;
-      width: 120px;
-      color: @text-color;
+      width: 130px;
+      color: @primary-color;
+      display: flex;
+      align-items: center;
+
+      &::after {
+        content: ":";
+        margin-left: 5px;
+      }
     }
 
     .info-value {
       flex: 1;
       color: #2c3e50;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+
+      /deep/ .ivu-tag {
+        margin: 2px 0;
+      }
+    }
+  }
+}
+
+// 优化统计图表模态框样式
+.statistic-modal {
+  /deep/ .ivu-modal {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /deep/ .ivu-modal-header {
+    background: linear-gradient(120deg, #f8faff 0%, #f0f8ff 100%);
+    border-bottom: 1px solid #f0f0f0;
+    padding: 14px 20px;
+  }
+
+  /deep/ .ivu-modal-body {
+    padding: 20px;
+  }
+
+  /deep/ .ivu-modal-footer {
+    border-top: 1px solid #f0f0f0;
+    padding: 12px 20px;
+  }
+
+  #pieChart-detail {
+    height: 480px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /deep/ .echarts {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+// 优化复杂度分析模态框样式
+.complexity-modal {
+  /deep/ .ivu-modal {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /deep/ .ivu-modal-header {
+    background: linear-gradient(120deg, #f8faff 0%, #f0f8ff 100%);
+    border-bottom: 1px solid #f0f0f0;
+    padding: 14px 20px;
+  }
+
+  /deep/ .ivu-modal-body {
+    padding: 20px;
+  }
+
+  .complexity-content {
+    .complexity-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background: #f8faff;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      margin-bottom: 20px;
+
+      .complexity-level {
+        text-align: center;
+
+        .level-tag {
+          font-size: 16px;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-weight: 600;
+        }
+
+        .level-label {
+          font-weight: 600;
+          margin-top: 8px;
+          color: @text-color;
+        }
+      }
+
+      .complexity-score {
+        text-align: center;
+
+        .score-value {
+          font-size: 28px;
+          font-weight: 700;
+          color: @primary-color;
+        }
+
+        .score-label {
+          font-weight: 600;
+          margin-top: 4px;
+          color: @text-color;
+        }
+      }
+    }
+
+    .complexity-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+
+      .metric-item {
+        text-align: center;
+        padding: 15px;
+        background: #fafafa;
+        border-radius: 6px;
+        border: 1px solid #f0f0f0;
+
+        .metric-icon {
+          color: @primary-color;
+          margin-bottom: 10px;
+        }
+
+        .metric-value {
+          font-size: 20px;
+          font-weight: 700;
+          color: #2c3e50;
+          margin-bottom: 5px;
+        }
+
+        .metric-label {
+          font-size: 14px;
+          color: @text-color;
+        }
+      }
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+
+      h4 {
+        font-size: 18px;
+        font-weight: 600;
+        color: @primary-color;
+        margin: 0 0 15px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid @border-color;
+      }
+
+      .keywords-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+
+        /deep/ .ivu-tag {
+          margin: 0;
+        }
+      }
+
+      .readability-grid {
+        display: flex;
+        gap: 20px;
+
+        .readability-item {
+          text-align: center;
+          padding: 15px;
+          background: #fafafa;
+          border-radius: 6px;
+          border: 1px solid #f0f0f0;
+          flex: 1;
+
+          .readability-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+          }
+
+          .readability-label {
+            font-size: 14px;
+            color: @text-color;
+          }
+        }
+      }
+    }
+  }
+
+  .complexity-loading,
+  .no-complexity-data {
+    text-align: center;
+    padding: 40px 20px;
+
+    .info-icon {
+      color: #c5c8ce;
+      margin-bottom: 15px;
+    }
+
+    p {
+      color: @text-color;
+      font-size: 16px;
     }
   }
 }

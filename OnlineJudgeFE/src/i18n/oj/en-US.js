@@ -624,5 +624,6 @@ export const m = {
   Samples_Input: "Sample Input",
   Samples_Output: "Sample Output",
   Sample_Input: "Sample Input",
-  Sample_Output: "Sample Output"
+  Sample_Output: "Sample Output",
+  More_Info: "More Info"
 };
