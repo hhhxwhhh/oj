@@ -629,5 +629,6 @@ export const m = {
   No_Statistics_Data_Available: "No Statistics Data Available",
   If_problem_id_does_not_exist:
     "If problem id does not exist, please check the problem id",
-  Regenerate: "Regenerate"
+  Regenerate: "Regenerate",
+  Failed_to_load_problem_data: "Failed to load problem data"
 };

@@ -11,11 +11,11 @@
             <p class="content" v-html="problem.description"></p>
 
             <p class="title">{{ $t('m.Input') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.FromFile')
-            }}: {{ problem.io_mode.input }})</span></p>
+                }}: {{ problem.io_mode.input }})</span></p>
             <p class="content" v-html="problem.input_description"></p>
 
             <p class="title">{{ $t('m.Output') }} <span v-if="problem.io_mode.io_mode == 'File IO'">({{ $t('m.ToFile')
-            }}: {{ problem.io_mode.output }})</span></p>
+                }}: {{ problem.io_mode.output }})</span></p>
             <p class="content" v-html="problem.output_description"></p>
 
             <div v-for="(sample, index) of problem.samples" :key="index">
@@ -93,6 +93,7 @@
             @changeLang="onChangeLang" @suggestions="onSuggestionsReceived">
           </CodeMirror>
         </div>
+
 
 
         <Row type="flex" justify="space-between">
@@ -867,19 +868,26 @@ export default {
       this.refreshStatus = setTimeout(checkStatus, 1000)
     },
     submitCode() {
-      if (this.code.trim() === '') {
+      let currentCode = this.code;
+      if (this.$refs.codeMirror) {
+        currentCode = this.$refs.codeMirror.editor.getValue();
+      }
+
+      if (!currentCode || currentCode.trim() === '') {
         this.$error(this.$i18n.t('m.Code_can_not_be_empty'))
         return
       }
+
       this.submissionId = ''
       this.result = { result: 9 }
       this.submitting = true
       let data = {
         problem_id: this.problem.id,
         language: this.language,
-        code: this.code,
+        code: currentCode,  // 使用当前代码而不是this.code
         contest_id: this.contestID
       }
+
       if (this.captchaRequired) {
         data.captcha = this.captchaCode
       }
