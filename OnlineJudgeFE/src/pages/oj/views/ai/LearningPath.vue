@@ -651,20 +651,50 @@ export default {
 }
 
 .online-learning-entry {
-    background-color: #f0f8ff;
-    border: 1px solid #2d8cf0;
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 20px;
+    text-align: center;
+    padding: 30px 20px;
+    background: linear-gradient(120deg, #f0f8ff 0%, #e6f7ff 100%);
+    border-radius: 10px;
+    border: 1px solid #d0e6ff;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.1);
+    margin: 20px 0;
+    transition: all 0.3s ease;
+
+    &:hover {
+        box-shadow: 0 6px 16px rgba(24, 144, 255, 0.15);
+        transform: translateY(-2px);
+    }
 
     h3 {
-        margin-top: 0;
-        color: #2d8cf0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #17233d;
+        margin-bottom: 12px;
     }
 
     p {
-        color: #657180;
-        margin-bottom: 15px;
+        color: #515a6e;
+        font-size: 14px;
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+
+    .ivu-btn {
+        background: linear-gradient(120deg, #1890ff 0%, #096dd9 100%);
+        border: none;
+        padding: 8px 20px;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+        transition: all 0.3s ease;
+
+        &:hover {
+            box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .ivu-icon {
+            margin-right: 6px;
+        }
     }
 }
 
