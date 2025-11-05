@@ -543,6 +543,22 @@ export default {
       if (this.disabled || !this.ollamaAvailable) return
 
       try {
+        // 获取当前行内容，用于更精确的上下文分析
+        const currentLine = this.editor.getLine(cursor.line) || ''
+        const previousLines = []
+        const contextLines = Math.min(10, cursor.line) // 获取最多前10行作为上下文
+
+        for (let i = cursor.line - contextLines; i < cursor.line; i++) {
+          if (i >= 0) {
+            previousLines.push(this.editor.getLine(i))
+          }
+        }
+
+        const contextCode = previousLines.join('\n')
+
+        // 分析当前所在的代码结构（函数、类等）
+        const codeContext = this.analyzeCodeContext(contextCode, currentLine, cursor.ch)
+
         const res = await api.getOllamaCodeCompletion({
           code: code,
           language: this.language,
@@ -551,7 +567,8 @@ export default {
             line: cursor.line,
             ch: cursor.ch
           },
-          problem_id: this.problemId
+          problem_id: this.problemId,
+          context: codeContext
         })
 
         if (res.data && res.data.data && res.data.data.completions) {
@@ -564,30 +581,147 @@ export default {
         await this.fetchAutoCompletion(code, prefix, cursor)
       }
     },
+    analyzeCodeContext(contextCode, currentLine, cursorPosition) {
+      const context = {
+        type: 'unknown',
+        scope: '',
+        indentLevel: 0,
+        isInFunction: false,
+        isInClass: false,
+        lastKeyword: '',
+        imports: []
+      }
 
-    async checkOllamaAvailability() {
-      if (!this.useOllama || this.disabled) return
+      // 计算缩进级别
+      const indentMatch = currentLine.match(/^(\s*)/)
+      context.indentLevel = indentMatch ? indentMatch[1].length : 0
+
+      // 检查是否在函数或类中
+      const lines = contextCode.split('\n')
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i]
+        if (line.trim().startsWith('def ') || line.trim().startsWith('function ')) {
+          context.isInFunction = true
+          context.scope = line.trim()
+          break
+        } else if (line.trim().startsWith('class ')) {
+          context.isInClass = true
+          context.scope = line.trim()
+          break
+        }
+      }
+
+      // 检查最后的关键字
+      const keywords = ['if', 'else', 'elif', 'for', 'while', 'try', 'except', 'with', 'def', 'class']
+      const codeBeforeCursor = currentLine.substring(0, cursorPosition)
+      const words = codeBeforeCursor.split(/\s+/).filter(w => w.length > 0)
+      if (words.length > 0) {
+        const lastWord = words[words.length - 1]
+        if (keywords.includes(lastWord)) {
+          context.lastKeyword = lastWord
+        }
+      }
+
+      // 检查导入语句
+      const importRegex = /(import\s+|from\s+.*\s+import\s+)(.*)/
+      for (const line of lines) {
+        const match = line.match(importRegex)
+        if (match) {
+          context.imports.push(match[2].trim())
+        }
+      }
+
+      // 判断上下文类型
+      if (context.isInFunction) {
+        context.type = 'function'
+      } else if (context.isInClass) {
+        context.type = 'class'
+      } else if (context.lastKeyword) {
+        context.type = context.lastKeyword
+      }
+
+      return context
+    },
+    async triggerSmartCompletion() {
+      if (this.disabled || !this.autoCompletionEnabled) return
+
+      if (!this.editor) return
+
+      const code = this.editor.getValue()
+      const cursor = this.editor.getCursor()
+      const line = this.editor.getLine(cursor.line) || ''
+
+      // 检查是否应该触发补全
+      if (!this.shouldTriggerCompletion(line, cursor.ch)) {
+        return
+      }
+
+      // 提取前缀
+      let start = cursor.ch
+      while (start > 0 && /[\w$.]/.test(line.charAt(start - 1))) {
+        start--
+      }
+
+      const prefix = line.slice(start, cursor.ch)
+
+      // 检查是否在字符串内部
+      const lineBeforeCursor = line.substring(0, cursor.ch)
+      const quoteCount = (lineBeforeCursor.match(/["']/g) || []).length
+      const inString = quoteCount % 2 === 1
+
+      if (inString) return
 
       try {
-        const res = await api.getOllamaModels()
-        if (res.data && res.data.data && res.data.data.length > 0) {
-          this.ollamaAvailable = true
-          this.ollamaModels = res.data.data
-          this.selectedOllamaModel = res.data.data.find(m => m.is_active) || res.data.data[0]
+        if (this.useOllama && this.ollamaAvailable) {
+          await this.fetchOllamaAutoCompletion(code, prefix, cursor)
         } else {
-          this.ollamaAvailable = false
+          await this.fetchAutoCompletion(code, prefix, cursor)
         }
-      } catch (err) {
-        this.ollamaAvailable = false
-        console.warn('Ollama not available:', err)
+      } catch (error) {
+        console.error('Auto completion error:', error)
       }
     },
+    shouldTriggerCompletion(line, cursorPosition) {
+      // 如果光标前是点号，触发补全
+      if (cursorPosition > 0 && line.charAt(cursorPosition - 1) === '.') {
+        return true
+      }
 
+      // 如果光标前是空格且前面有关键字，可能触发补全
+      if (cursorPosition > 1 && line.charAt(cursorPosition - 1) === ' ') {
+        const prevChar = line.charAt(cursorPosition - 2)
+        if (/[a-zA-Z]/.test(prevChar)) {
+          return true
+        }
+      }
+
+      // 默认情况下，根据配置决定是否触发
+      return this.autoCompletionEnabled
+    },
     showAutoCompletionHints(completions, prefix) {
       if (!this.editor || this.disabled || !completions || !completions.length) return
 
+      // 按相关性排序补全建议
+      const sortedCompletions = [...completions].sort((a, b) => {
+        // 优先显示匹配前缀的建议
+        const aMatchesPrefix = a.text.startsWith(prefix)
+        const bMatchesPrefix = b.text.startsWith(prefix)
+
+        if (aMatchesPrefix && !bMatchesPrefix) return -1
+        if (!aMatchesPrefix && bMatchesPrefix) return 1
+
+        // 然后按描述质量排序
+        const aHasDescription = a.description && a.description.length > 0
+        const bHasDescription = b.description && b.description.length > 0
+
+        if (aHasDescription && !bHasDescription) return -1
+        if (!aHasDescription && bHasDescription) return 1
+
+        return 0
+      })
+
       const hints = {
-        list: completions.map(item => ({
+        list: sortedCompletions.map(item => ({
           text: item.text,
           displayText: item.text + (item.description ? ` - ${item.description}` : ''),
           className: 'code-autocomplete-hint',
@@ -610,7 +744,10 @@ export default {
             }
 
             element.appendChild(wrapper)
-          }
+          },
+          // 添加补全项的额外信息
+          detail: item.detail || '',
+          kind: item.kind || 'text'
         })),
         from: this.editor.getCursor(),
         to: this.editor.getCursor()
@@ -655,9 +792,30 @@ export default {
       this.editor.showHint({
         hint: () => hints,
         completeSingle: false,
-        alignWithWord: false
+        alignWithWord: false,
+        // 添加自定义样式
+        container: document.querySelector('.code-editor')
       })
     },
+
+    async checkOllamaAvailability() {
+      if (!this.useOllama || this.disabled) return
+
+      try {
+        const res = await api.getOllamaModels()
+        if (res.data && res.data.data && res.data.data.length > 0) {
+          this.ollamaAvailable = true
+          this.ollamaModels = res.data.data
+          this.selectedOllamaModel = res.data.data.find(m => m.is_active) || res.data.data[0]
+        } else {
+          this.ollamaAvailable = false
+        }
+      } catch (err) {
+        this.ollamaAvailable = false
+        console.warn('Ollama not available:', err)
+      }
+    },
+
 
     scheduleSuggestions() {
       if (this.disabled) return
