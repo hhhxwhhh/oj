@@ -20,6 +20,7 @@ class OllamaCodeCompletionAPI(APIView):
         prefix = request.data.get("prefix", "")
         problem_id = request.data.get("problem_id")
         model_id = request.data.get("model_id")
+        context = request.data.get("context", {})  # 新增上下文参数
         
         try:
             # 获取Ollama模型配置
@@ -43,7 +44,8 @@ class OllamaCodeCompletionAPI(APIView):
                 code=code,
                 prefix=prefix,
                 language=language,
-                problem_context=problem_context
+                problem_context=problem_context,
+                context=context  # 传递上下文信息
             )
             
             return self.success(completion_result)
