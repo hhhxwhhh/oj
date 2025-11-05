@@ -67,14 +67,9 @@ export default {
   display: flex;
   align-items: center;
 
+  /* 完全移除蓝色竖线 */
   &::before {
-    content: '';
-    display: inline-block;
-    width: 4px;
-    height: 16px;
-    background: #1890ff;
-    margin-right: 10px;
-    border-radius: 2px;
+    display: none;
   }
 }
 
