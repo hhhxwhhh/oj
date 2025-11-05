@@ -4,7 +4,7 @@
       <Col :span="22">
       <Card class="overview-card" :padding="20" shadow>
         <div class="overview-header">
-          <Icon type="md-list" size="24" color="#2d8cf0" />
+          <Icon type="md-list" size="24" color="#1890ff" />
           <h2 class="overview-title">{{ title }}</h2>
         </div>
         <div class="overview-stats">
@@ -41,7 +41,7 @@
           <ul class="filter">
             <li>
               <Dropdown @on-click="handleResultChange" class="filter-dropdown">
-                <Button type="default" size="small">
+                <Button type="primary" ghost size="small">
                   {{ status }}
                   <Icon type="md-arrow-dropdown"></Icon>
                 </Button>
@@ -67,7 +67,7 @@
 
             <li>
               <Button type="primary" icon="md-refresh" @click="getSubmissions" size="small">{{ $t('m.Refresh')
-                }}</Button>
+              }}</Button>
             </li>
           </ul>
         </div>
@@ -367,12 +367,21 @@ export default {
 <style scoped lang="less">
 .submission-list-container {
   padding: 20px 0;
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f7ff 100%);
+  min-height: calc(100vh - 150px);
 
   .overview-card {
     margin-bottom: 20px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: none;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+    background: linear-gradient(135deg, #ffffff 0%, #f5f9ff 100%);
+    transition: all 0.3s ease;
+
+    &:hover {
+      box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+      transform: translateY(-2px);
+    }
 
     .overview-header {
       display: flex;
@@ -382,7 +391,12 @@ export default {
       .overview-title {
         margin: 0 0 0 10px;
         font-size: 22px;
-        font-weight: 500;
+        font-weight: 600;
+        color: #0c2135;
+        background: linear-gradient(90deg, #1890ff, #40a9ff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
     }
 
@@ -394,24 +408,35 @@ export default {
       .stat-item {
         display: flex;
         align-items: center;
+        padding: 15px;
+        border-radius: 8px;
+        background: rgba(24, 144, 255, 0.05);
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: rgba(24, 144, 255, 0.1);
+          transform: translateY(-3px);
+        }
 
         .stat-icon {
           margin-right: 10px;
-          color: #2d8cf0;
+          color: #1890ff;
+          font-size: 24px;
         }
 
         .stat-content {
           .stat-label {
             margin: 0;
             font-size: 14px;
-            color: #808695;
+            color: #597ef7;
+            font-weight: 500;
           }
 
           .stat-value {
             margin: 5px 0 0;
             font-size: 18px;
-            font-weight: 600;
-            color: #17233d;
+            font-weight: 700;
+            color: #0c2135;
           }
         }
       }
@@ -420,17 +445,31 @@ export default {
 
   .submission-panel {
     margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+    border: 1px solid rgba(24, 144, 255, 0.1);
+    background: #ffffff;
+
+    .ivu-card-head {
+      background: linear-gradient(90deg, #f0f8ff 0%, #e6f7ff 100%);
+      border-bottom: 1px solid rgba(24, 144, 255, 0.15);
+    }
 
     .panel-title {
       font-size: 18px;
-      font-weight: 500;
+      font-weight: 600;
+      color: #0c2135;
+
+      i {
+        color: #1890ff;
+      }
     }
 
     .panel-extra {
       .filter {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
 
         li {
           list-style: none;
@@ -438,24 +477,57 @@ export default {
 
         .filter-dropdown {
           /deep/ .ivu-btn {
-            padding: 2px 8px;
+            padding: 4px 12px;
+            border: 1px solid #1890ff;
+            color: #1890ff;
+            background: #ffffff;
+
+            &:hover {
+              background: #e6f7ff;
+            }
           }
         }
 
         .filter-switch {
           /deep/ .ivu-switch {
-            min-width: 50px;
+            min-width: 60px;
+            border: 1px solid #1890ff;
+
+            &.ivu-switch-checked {
+              border-color: #1890ff;
+              background-color: #1890ff;
+            }
           }
         }
 
         .filter-input {
-          width: 150px;
+          width: 160px;
+
+          /deep/ .ivu-input {
+            border: 1px solid #1890ff;
+
+            &:focus {
+              border-color: #40a9ff;
+              box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+            }
+          }
+        }
+
+        .ivu-btn {
+          background: #1890ff;
+          border-color: #1890ff;
+
+          &:hover {
+            background: #40a9ff;
+            border-color: #40a9ff;
+          }
         }
       }
     }
 
     .submission-table {
       border: none;
+      background: #ffffff;
 
       /deep/ .ivu-table {
         &::before {
@@ -463,14 +535,26 @@ export default {
         }
 
         &-thead>tr>th {
-          background-color: #f8f9fa;
+          background: linear-gradient(180deg, #f0f8ff 0%, #e6f7ff 100%);
           font-weight: 600;
-          color: #333;
-          border-bottom: 1px solid #e8eaec;
+          color: #0c2135;
+          border-bottom: 1px solid rgba(24, 144, 255, 0.2);
+          font-size: 14px;
         }
 
-        &-tbody>tr>td {
-          border-bottom: 1px solid #f2f2f2;
+        &-tbody>tr {
+          &:hover {
+            background: #f0f8ff;
+          }
+
+          >td {
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+          }
+        }
+
+        &-stripe &-tbody>tr:nth-child(2n) {
+          background: #fafcff;
         }
       }
     }
@@ -480,6 +564,10 @@ export default {
     display: flex;
     justify-content: center;
     margin-bottom: 20px;
+    padding: 10px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
 
     .submission-pagination {
       /deep/ .ivu-page {
@@ -493,40 +581,86 @@ export default {
   // 链接样式
   .submission-id-link,
   .problem-link {
-    color: #2d8cf0;
+    color: #1890ff;
     cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
 
     &:hover {
-      color: #57a3f3;
+      color: #40a9ff;
       text-decoration: underline;
     }
   }
 
   .author-link {
-    color: #2d8cf0;
+    color: #1890ff;
+    font-weight: 500;
+    transition: all 0.2s ease;
 
     &:hover {
-      color: #57a3f3;
+      color: #40a9ff;
       text-decoration: underline;
     }
   }
 
   // 响应式设计
   @media (max-width: 768px) {
+    padding: 10px 0;
+
     .overview-stats {
       flex-direction: column;
+      gap: 10px;
 
       .stat-item {
-        margin-bottom: 10px;
+        margin-bottom: 0;
       }
     }
 
     .panel-extra {
       .filter {
         flex-wrap: wrap;
+        gap: 8px;
 
         .filter-input {
           width: 120px;
+        }
+      }
+    }
+
+    .submission-panel {
+      .ivu-card-head {
+        padding: 10px 15px;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    .overview-card {
+      .overview-stats {
+        .stat-item {
+          padding: 10px;
+
+          .stat-icon {
+            font-size: 18px;
+          }
+
+          .stat-content {
+            .stat-label {
+              font-size: 12px;
+            }
+
+            .stat-value {
+              font-size: 16px;
+            }
+          }
+        }
+      }
+    }
+
+    .panel-extra {
+      .filter {
+        .filter-input {
+          width: 100px;
         }
       }
     }
