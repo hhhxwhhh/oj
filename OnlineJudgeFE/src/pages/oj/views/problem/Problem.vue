@@ -90,7 +90,7 @@
         <div class="code-editor-container">
           <CodeMirror ref="codeMirror" :value="code" :languages="problem.languages" :language="language" :theme="theme"
             :problem-id="problemID" :use-ollama="useOllama" @resetCode="onResetToTemplate" @changeTheme="onChangeTheme"
-            @changeLang="onChangeLang" @suggestions="onSuggestionsReceived">
+            @changeLang="onChangeLang" @suggestions="onSuggestionsReceived" @input="onCodeInput">
           </CodeMirror>
         </div>
 
@@ -389,6 +389,8 @@ export default {
     this.init()
     this.startDiagnosisTimer()
     this.loadAIModels()
+    this.updateSubmitButtonState();
+
   },
   methods: {
     ...mapActions(['changeDomTitle']),
@@ -497,6 +499,14 @@ export default {
         this.$error(this.$t('m.Failed_to_load_problem_data'))
       })
     },
+    onCodeInput(value) {
+      this.code = value;
+
+      this.$nextTick(() => {
+        this.updateSubmitButtonState();
+      });
+    },
+
     async loadAIModels() {
       try {
         const res = await api.getAIModels()
@@ -508,6 +518,9 @@ export default {
         console.error("获取AI模型列表失败:", err)
         this.aiModels = []
       }
+    },
+    updateSubmitButtonState() {
+      this.problemSubmitDisabled = !this.code || this.code.trim() === '';
     },
 
     formatHtmlContent(content) {

@@ -2722,8 +2722,7 @@ class KnowledgePointService:
 
         try:
             problem = Problem.objects.get(id=problem_id)
-            # 如果题目没有关联知识点，根据标签自动创建
-            if not problem.knowledge_points.exists():
+            if not KnowledgePoint.objects.filter(related_problems=problem).exists():
                 KnowledgePointService.create_knowledge_points_from_tags(problem)
         except Exception as e:
             logger.error(f"Failed to ensure problem-knowledge association: {str(e)}")
