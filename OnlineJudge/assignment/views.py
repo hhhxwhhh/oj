@@ -47,7 +47,8 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         
         if all_students:
             # 分配给所有学生
-            students = User.objects.filter(admin_type=User.REGULAR_USER)
+            from account.models import AdminType
+            students = User.objects.filter(admin_type=AdminType.REGULAR_USER)
         else:
             # 分配给指定学生
             students = User.objects.filter(id__in=student_ids)
@@ -301,8 +302,8 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                 'total_submissions': total_submissions,
                 'average_score': round(avg_score, 2),
                 'completion_rate': round(
-                    (solved_problems / assignment.assignmentproblem_set.count() * 100) 
-                    if assignment.assignmentproblem_set.count() > 0 else 0, 2
+                    (solved_problems / assignment.assignment_problems.count() * 100) 
+                    if assignment.assignment_problems.count() > 0 else 0, 2
                 )
             })
         
@@ -1011,7 +1012,7 @@ class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
                 'status': sa.status,
                 'score': sa.score,
                 'max_score': sa.max_score,
-                'problem_count': assignment.assignmentproblem_set.count()
+                'problem_count': assignment.assignment_problems.count()
             })
         
         return Response(assignments_data)
@@ -1058,7 +1059,9 @@ class StudentAssignmentProgressAPI(APIView):
         
         try:
             student_assignment = StudentAssignment.objects.select_related(
-                'assignment', 'student'
+                'assignment', 'student', 'assignment__creator'
+            ).prefetch_related(
+                'assignment__assignment_problems__problem'
             ).get(pk=pk)
             
             # 检查权限
@@ -1145,7 +1148,7 @@ class UserAssignmentsAPI(APIView):
                 'status': sa.status,
                 'score': sa.score,
                 'max_score': sa.max_score,
-                'problem_count': assignment.assignmentproblem_set.count()
+                'problem_count': assignment.assignment_problems.count()
             })
         
         return self.success(assignments_data)

@@ -40,13 +40,17 @@ class StudentAssignmentSerializer(serializers.ModelSerializer):
         return obj.student.username
     
     def get_student_realname(self, obj):
-        return obj.student.real_name
+        return getattr(obj.student, 'real_name', None)
     
     def get_personalized_problems_detail(self, obj):
         if obj.personalized_problems:
             problem_ids = obj.get_personalized_problems()
             problems = Problem.objects.filter(_id__in=problem_ids)
-            return ProblemSerializer(problems, many=True).data
+            try:
+                return ProblemSerializer(problems, many=True).data
+            except Exception:
+                # 如果序列化出现问题，返回一个空列表或者简化信息
+                return [{'id': p.id, '_id': p._id, 'title': p.title} for p in problems]
         return []
     
 class AssignmentStatisticsSerializer(serializers.ModelSerializer):
@@ -62,7 +66,7 @@ class AssignmentStatisticsSerializer(serializers.ModelSerializer):
         return obj.student.username
     
     def get_student_realname(self, obj):
-        return obj.student.real_name
+        return getattr(obj.student, 'real_name', None)
     
     def get_problem_title(self, obj):
         return obj.problem.title
