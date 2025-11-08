@@ -17,7 +17,7 @@ urlpatterns = [
     url(r"^api/admin/", include("utils.urls")),
     url(r"^api/admin/", include("account.urls.admin")),
     url(r"^api/", include("ai.urls")),
-    url(r"^api/admin/assignment/", include("assignment.urls.admin")),
+    url(r"^api/admin/assignments/", include("assignment.urls.admin")),
     url(r"^api/assignment/", include("assignment.urls.oj")),
 ]
 if settings.DEBUG:

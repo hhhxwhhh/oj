@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import BasePermission,IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
 from .models import Assignment, AssignmentProblem, StudentAssignment, AssignmentStatistics
@@ -30,20 +31,10 @@ from django.http import JsonResponse, HttpResponse
 import json as json_module
 
 
-class IsAdminOrSuperAdmin(BasePermission):
-    """
-    自定义权限类，允许管理员或超级管理员访问
-    """
-    def has_permission(self, request, view):
-        user = request.user
-        return user.is_authenticated and (user.is_super_admin() or user.is_admin_role())
-
-
-
 class AssignmentViewSet(viewsets.ModelViewSet):
     queryset = Assignment.objects.all()
     serializer_class = AssignmentSerializer
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [IsAuthenticated]  # 只要求用户已认证
     
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
@@ -931,7 +922,6 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         return Response(rankings)
 
 
-
 class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StudentAssignment.objects.all()
     serializer_class = StudentAssignmentSerializer
@@ -999,7 +989,7 @@ class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
         """
         user = request.user
         if not user.is_authenticated:
-            return self.success({'error': '用户未登录'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': '用户未登录'}, status=status.HTTP_401_UNAUTHORIZED)
         
         # 获取分配给当前用户的所有作业
         student_assignments = StudentAssignment.objects.filter(student=user).select_related(
@@ -1024,8 +1014,7 @@ class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
                 'problem_count': assignment.assignmentproblem_set.count()
             })
         
-        return self.success(assignments_data)
-
+        return Response(assignments_data)
 
 
 class StudentAssignmentDetailAPI(APIView):

@@ -653,5 +653,11 @@ export const m = {
   Not_Started: "Not Started",
   In_Progress: "In Progress",
   Ended: "Ended",
-  Settings: "Settings"
+  Settings: "Settings",
+  Title_Placeholder: "Please enter a title for the assignment",
+  Description_Placeholder: "Please enter a description for the assignment",
+  Rule_Type_Placeholder: "Please select a rule type for the assignment",
+  Personalized_Tip: "Personalized Tip",
+  Start_Time_Placeholder: "Please select a start time for the assignment",
+  End_Time_Placeholder: "Please select an end time for the assignment"
 };
