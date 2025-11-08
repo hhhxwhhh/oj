@@ -136,19 +136,22 @@ export default {
             })
         },
         getStudentAssignmentDetail() {
-            api.$http.get(`/api/admin/student-assignments/${this.studentAssignmentId}/`).then(res => {
+            this.$http.get(`/assignment/student-assignments/${this.studentAssignmentId}/`).then(res => {
                 this.studentAssignment = res.data.data
             }).catch(() => {
             })
         },
+
+
         getProgressData() {
-            api.getStudentAssignmentProgress(this.studentAssignmentId).then(res => {
+            this.$http.get(`/assignment/student-assignments/${this.studentAssignmentId}/progress/`).then(res => {
                 this.loading = false
                 this.progressData = res.data.data
             }).catch(() => {
                 this.loading = false
             })
         },
+
         goBack() {
             this.$router.go(-1)
         },

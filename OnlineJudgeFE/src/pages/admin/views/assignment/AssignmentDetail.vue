@@ -87,8 +87,8 @@
                 </el-button>
             </div>
             <el-table :data="problems" style="width: 100%">
-                <el-table-column prop="problem._id" label="ID" width="80" />
-                <el-table-column prop="problem.title" :label="$t('m.Title')" />
+                <el-table-column prop="_id" label="ID" width="80" />
+                <el-table-column prop="title" :label="$t('m.Title')" />
                 <el-table-column prop="score" :label="$t('m.Score')" width="100" />
                 <el-table-column fixed="right" :label="$t('m.Option')" width="100">
                     <template slot-scope="scope">

@@ -659,5 +659,9 @@ export const m = {
   Rule_Type_Placeholder: "Please select a rule type for the assignment",
   Personalized_Tip: "Personalized Tip",
   Start_Time_Placeholder: "Please select a start time for the assignment",
-  End_Time_Placeholder: "Please select an end time for the assignment"
+  End_Time_Placeholder: "Please select an end time for the assignment",
+  Add_Successfully: "Add Successfully",
+  Remove_Problem_Tips:
+    "Are you sure you want to remove this problem from the assignment?",
+  Warning: "Warning"
 };
