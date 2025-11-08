@@ -1,7 +1,7 @@
 <template>
     <div class="assignment-container">
         <div class="assignment-content">
-            <Panel :padding="20" shadow>
+            <Panel :padding="24" shadow>
                 <div slot="title" class="panel-title">{{ $t('m.Assignment') }}</div>
                 <div class="assignment-list">
                     <div v-if="loading" class="loading-container">
@@ -10,7 +10,7 @@
                     </div>
                     <div v-else>
                         <div v-if="assignments.length === 0" class="no-assignments">
-                            <Icon type="ios-book-outline" size="60" />
+                            <Icon type="ios-book-outline" size="80" />
                             <p>{{ $t('m.No_Assignments') }}</p>
                         </div>
                         <div v-else>
@@ -27,17 +27,17 @@
                                             <div class="info-item">
                                                 <Icon type="ios-calendar" />
                                                 <span>{{ $t('m.Start_Time') }}: {{ assignment.start_time | localtime
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                             <div class="info-item">
                                                 <Icon type="ios-calendar" />
                                                 <span>{{ $t('m.End_Time') }}: {{ assignment.end_time | localtime
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                             <div class="info-item">
                                                 <Icon type="ios-list" />
                                                 <span>{{ $t('m.Problems_Count') }}: {{ assignment.problem_count
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -114,47 +114,52 @@ export default {
 .assignment-container {
     margin: 20px auto;
     max-width: 1200px;
+    width: 100%;
 
     .assignment-content {
         margin: 0 20px;
 
         .panel-title {
-            font-size: 22px;
-            font-weight: 600;
+            font-size: 26px;
+            font-weight: 700;
             color: #2c3e50;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
         }
 
         .loading-container {
             text-align: center;
-            padding: 40px 0;
+            padding: 60px 0;
 
             p {
                 margin-top: 15px;
                 color: #666;
+                font-size: 16px;
             }
         }
 
         .no-assignments {
             text-align: center;
-            padding: 60px 20px;
+            padding: 80px 20px;
             color: #999;
 
             p {
                 margin-top: 20px;
-                font-size: 18px;
+                font-size: 20px;
             }
         }
 
         .assignment-item {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
 
             .assignment-card {
                 cursor: pointer;
                 transition: all 0.3s ease;
                 border: 1px solid #e8eaec;
+                border-radius: 8px;
 
                 &:hover {
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
                     border-color: #40a9ff;
                 }
 
@@ -163,6 +168,9 @@ export default {
                     justify-content: space-between;
                     align-items: center;
                     margin-bottom: 15px;
+                    padding: 15px 20px;
+                    background-color: #f8f9fa;
+                    border-bottom: 1px solid #eee;
 
                     h3 {
                         margin: 0;
@@ -172,10 +180,13 @@ export default {
                 }
 
                 .assignment-meta {
+                    padding: 15px 20px;
+
                     .description {
                         color: #666;
                         margin-bottom: 15px;
                         line-height: 1.6;
+                        font-size: 14px;
                     }
 
                     .assignment-info {
@@ -213,6 +224,7 @@ export default {
                     .assignment-header {
                         flex-direction: column;
                         align-items: flex-start;
+                        padding: 15px 15px;
 
                         h3 {
                             margin-bottom: 10px;
@@ -220,6 +232,8 @@ export default {
                     }
 
                     .assignment-meta {
+                        padding: 15px 15px;
+
                         .assignment-info {
                             flex-direction: column;
                             gap: 8px;
