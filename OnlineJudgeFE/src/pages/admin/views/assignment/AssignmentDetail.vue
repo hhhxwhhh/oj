@@ -309,10 +309,20 @@ export default {
             })
         },
         getAllStudents() {
-            api.getUserList(1, 1000, 'Regular User').then(res => {
-                this.students = res.data.data.results
-            })
+            api.getUserList(1, 1000).then(res => {
+                // 过滤出普通用户（Regular User）
+                this.students = res.data.data.results.filter(user => user.admin_type === 'Regular User');
+                // 确保每个学生都有real_name属性
+                this.students.forEach(student => {
+                    if (student.real_name === null || student.real_name === undefined) {
+                        student.real_name = '';
+                    }
+                });
+            }).catch(err => {
+                console.error('获取学生列表失败:', err);
+            });
         },
+
         refreshAssignedStudents() {
             this.getAssignedStudents()
         },

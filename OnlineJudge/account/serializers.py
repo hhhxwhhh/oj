@@ -57,7 +57,11 @@ class UserAdminSerializer(serializers.ModelSerializer):
                   "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
 
     def get_real_name(self, obj):
-        return obj.userprofile.real_name
+        try:
+            return obj.userprofile.real_name if obj.userprofile.real0_name else ''
+        except:
+            return ''
+
 
 
 class UserSerializer(serializers.ModelSerializer):

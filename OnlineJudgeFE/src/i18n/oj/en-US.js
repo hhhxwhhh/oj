@@ -663,5 +663,6 @@ export const m = {
   Add_Successfully: "Add Successfully",
   Remove_Problem_Tips:
     "Are you sure you want to remove this problem from the assignment?",
-  Warning: "Warning"
+  Warning: "Warning",
+  OK: "OK"
 };

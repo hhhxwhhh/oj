@@ -296,7 +296,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             top_students.append({
                 'student_id': student.id,
                 'student_username': student.username,
-                'student_real_name': student.real_name or '',
+                'student_real_name': getattr(student.userprofile, 'real_name', '') if hasattr(student, 'userprofile') else '',
                 'total_score': round(total_score, 2),
                 'solved_problems': solved_problems,
                 'total_submissions': total_submissions,
