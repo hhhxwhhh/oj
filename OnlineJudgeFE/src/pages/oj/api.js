@@ -462,6 +462,10 @@ export default {
   },
   getUserAbilityTrend() {
     return ajax("/ai/user-ability-trend/", "get");
+  },
+  //assignment相关接口
+  getUserAssignments() {
+    return ajax("assignment/user-assignments", "get");
   }
 };
 

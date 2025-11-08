@@ -6,6 +6,7 @@ import KnowledgeGraph from "../views/ai/KnowledgeGraph.vue";
 import KnowledgePointProblems from "../views/ai/KnowledgePointProblems.vue";
 import AbilityDashboard from "../views/user/AbilityDashboard.vue";
 import OnlineLearningRecommendation from "../views/ai/OnlineLearningRecommendation.vue";
+import Assignment from "../views/assignment/Assignment.vue";
 import {
   About,
   ACMRank,
@@ -233,5 +234,11 @@ export default [
     path: "/code-diagnosis",
     meta: { title: "Code Diagnosis" },
     component: CodeDiagnosis
+  },
+  {
+    name: "assignment",
+    path: "/assignment",
+    meta: { requiresAuth: true, title: "Assignment" },
+    component: Assignment
   }
 ];

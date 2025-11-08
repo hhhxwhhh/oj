@@ -254,5 +254,22 @@ export const m = {
   Loading_recommendations: "正在加载推荐...",
   No_recommendations_available: "暂无推荐题目",
   Score: "得分",
-  Recommendation_Reason: "推荐理由"
+  Recommendation_Reason: "推荐理由",
+  MySubmissions: "我的提交",
+  Assignment: "作业",
+  Settings: "设置",
+  Management: "后台管理",
+  MySubmissions: "我的提交",
+  Assignment: "作业",
+  Assignments: "作业列表",
+  No_Assignments: "暂无作业",
+  Loading: "加载中...",
+  Failed_to_get_Assignments: "获取作业失败",
+  Start_Time: "开始时间",
+  End_Time: "结束时间",
+  Problems_Count: "题目数量",
+  Not_Started: "未开始",
+  In_Progress: "进行中",
+  Ended: "已结束",
+  Settings: "设置"
 };

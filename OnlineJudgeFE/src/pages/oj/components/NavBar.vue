@@ -57,7 +57,7 @@
       <template v-if="!isAuthenticated">
         <div class="btn-menu">
           <Button type="primary" ghost ref="loginBtn" shape="circle" @click="handleBtnClick('login')">{{ $t('m.Login')
-            }}
+          }}
           </Button>
           <Button v-if="website.allow_register" type="primary" ghost shape="circle" @click="handleBtnClick('register')"
             style="margin-left: 5px;">{{ $t('m.Register') }}
@@ -75,6 +75,7 @@
           <Dropdown-menu slot="list">
             <Dropdown-item name="/user-home">{{ $t('m.MyHome') }}</Dropdown-item>
             <Dropdown-item name="/status?myself=1">{{ $t('m.MySubmissions') }}</Dropdown-item>
+            <Dropdown-item name="/assignment">{{ $t('m.Assignment') }}</Dropdown-item>
             <Dropdown-item name="/learning-path">{{ $t('m.Learning_Path') }}</Dropdown-item>
             <Dropdown-item name="/knowledge-points">{{ $t('m.Knowledge_Points') }}</Dropdown-item>
             <Dropdown-item name="/setting/profile">{{ $t('m.Settings') }}</Dropdown-item>
