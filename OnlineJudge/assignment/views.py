@@ -944,12 +944,14 @@ class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
             problems = [ap.problem for ap in assignment_problems]
         
         # 获取统计数据
-        statistics = AssignmentStatistics.objects.filter(
-            assignment=assignment,
-            student=student_assignment.student,
-            problem__id__in=problem_ids
-        )
-        
+        if problem_ids:  # 只有当problem_ids不为空时才执行查询
+            statistics = AssignmentStatistics.objects.filter(
+                assignment=assignment,
+                student=student_assignment.student,
+                problem___id__in=problem_ids  
+            )
+        else:
+            statistics = AssignmentStatistics.objects.none()
         # 计算进度
         total_problems = len(problem_ids)
         solved_problems = statistics.filter(accepted_count__gt=0).count()
@@ -1082,11 +1084,14 @@ class StudentAssignmentProgressAPI(APIView):
                 problems = [ap.problem for ap in assignment_problems]
             
             # 获取统计数据
-            statistics = AssignmentStatistics.objects.filter(
-                assignment=assignment,
-                student=student_assignment.student,
-                problem__id__in=problem_ids
-            )
+            if problem_ids:  # 只有当problem_ids不为空时才执行查询
+                statistics = AssignmentStatistics.objects.filter(
+                    assignment=assignment,
+                    student=student_assignment.student,
+                    problem___id__in=problem_ids  #
+                )
+            else:
+                statistics = AssignmentStatistics.objects.none()
             
             # 计算进度
             total_problems = len(problem_ids)

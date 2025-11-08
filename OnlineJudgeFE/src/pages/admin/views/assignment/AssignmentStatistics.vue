@@ -181,6 +181,9 @@ export default {
         this.initCharts()
     },
     beforeDestroy() {
+        // 移除窗口大小改变事件监听器
+        window.removeEventListener('resize', this.resizeCharts)
+
         if (this.completionChart) {
             this.completionChart.dispose()
         }
@@ -232,13 +235,14 @@ export default {
             window.addEventListener('resize', this.resizeCharts)
         },
         resizeCharts() {
-            if (this.completionChart) {
+            if (this.completionChart && this.completionChart.resize) {
                 this.completionChart.resize()
             }
-            if (this.completionBarChart) {
+            if (this.completionBarChart && this.completionBarChart.resize) {
                 this.completionBarChart.resize()
             }
         },
+
         updateCharts() {
             // 更新完成情况饼图
             if (this.completionChart) {
