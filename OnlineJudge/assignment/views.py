@@ -1,7 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission,IsAuthenticated
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
 from .models import Assignment, AssignmentProblem, StudentAssignment, AssignmentStatistics
@@ -26,6 +25,9 @@ from django.template.loader import render_to_string
 from utils.shortcuts import datetime2str
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
+from django.views import View
+from django.http import JsonResponse, HttpResponse
+import json as json_module
 
 
 class IsAdminOrSuperAdmin(BasePermission):
@@ -35,6 +37,7 @@ class IsAdminOrSuperAdmin(BasePermission):
     def has_permission(self, request, view):
         user = request.user
         return user.is_authenticated and (user.is_super_admin() or user.is_admin_role())
+
 
 
 class AssignmentViewSet(viewsets.ModelViewSet):
@@ -932,11 +935,13 @@ class AssignmentViewSet(viewsets.ModelViewSet):
 class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StudentAssignment.objects.all()
     serializer_class = StudentAssignmentSerializer
+    permission_classes=[IsAuthenticated]
     
     @action(detail=True, methods=['get'], url_path='progress')
     def get_progress(self, request, pk=None):
         student_assignment = self.get_object()
         assignment = student_assignment.assignment
+
         
         # 获取题目列表
         if assignment.is_personalized:
@@ -986,3 +991,172 @@ class StudentAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='user-assignments')
+    def get_user_assignments(self, request):
+        """
+        获取当前用户的所有作业
+        """
+        user = request.user
+        if not user.is_authenticated:
+            return self.success({'error': '用户未登录'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # 获取分配给当前用户的所有作业
+        student_assignments = StudentAssignment.objects.filter(student=user).select_related(
+            'assignment', 'assignment__creator'
+        )
+        
+        # 构造返回数据
+        assignments_data = []
+        for sa in student_assignments:
+            assignment = sa.assignment
+            assignments_data.append({
+                'id': assignment.id,
+                'title': assignment.title,
+                'description': assignment.description,
+                'start_time': assignment.start_time,
+                'end_time': assignment.end_time,
+                'create_time': assignment.create_time,
+                'creator': assignment.creator.username,
+                'status': sa.status,
+                'score': sa.score,
+                'max_score': sa.max_score,
+                'problem_count': assignment.assignmentproblem_set.count()
+            })
+        
+        return self.success(assignments_data)
+
+
+
+class StudentAssignmentDetailAPI(APIView):
+    """
+    获取单个学生作业详情
+    """
+    
+    def get(self, request, pk):
+        # 检查用户是否认证
+        if not request.user.is_authenticated:
+            return self.error("请先登录", err="login-required")
+        
+        try:
+            student_assignment = StudentAssignment.objects.select_related(
+                'assignment', 'student', 'assignment__creator'
+            ).prefetch_related(
+                'assignment__assignmentproblem_set__problem'
+            ).get(pk=pk)
+            
+            # 检查权限 - 只有作业所有者或管理员可以查看
+            if (request.user != student_assignment.student and 
+                not request.user.is_admin_role() and 
+                not request.user.is_super_admin()):
+                return self.error("权限不足", err="permission-denied")
+            
+            serializer = StudentAssignmentSerializer(student_assignment)
+            return self.success(serializer.data)
+        except StudentAssignment.DoesNotExist:
+            return self.error("未找到该学生作业", err="not-found")
+
+
+class StudentAssignmentProgressAPI(APIView):
+    """
+    获取学生作业进度
+    """
+    
+    def get(self, request, pk):
+        # 检查用户是否认证
+        if not request.user.is_authenticated:
+            return self.error("请先登录", err="login-required")
+        
+        try:
+            student_assignment = StudentAssignment.objects.select_related(
+                'assignment', 'student'
+            ).get(pk=pk)
+            
+            # 检查权限
+            if (request.user != student_assignment.student and 
+                not request.user.is_admin_role() and 
+                not request.user.is_super_admin()):
+                return self.error("权限不足", err="permission-denied")
+            
+            assignment = student_assignment.assignment
+            
+            # 获取题目列表
+            if assignment.is_personalized:
+                problem_ids = student_assignment.get_personalized_problems()
+                problems = Problem.objects.filter(_id__in=problem_ids)
+            else:
+                assignment_problems = AssignmentProblem.objects.filter(assignment=assignment)
+                problem_ids = [ap.problem._id for ap in assignment_problems]
+                problems = [ap.problem for ap in assignment_problems]
+            
+            # 获取统计数据
+            statistics = AssignmentStatistics.objects.filter(
+                assignment=assignment,
+                student=student_assignment.student,
+                problem__id__in=problem_ids
+            )
+            
+            # 计算进度
+            total_problems = len(problem_ids)
+            solved_problems = statistics.filter(accepted_count__gt=0).count()
+            
+            progress_data = {
+                'total_problems': total_problems,
+                'solved_problems': solved_problems,
+                'completion_rate': round((solved_problems / total_problems * 100) if total_problems > 0 else 0, 2),
+                'problems': []
+            }
+            
+            for problem in problems:
+                stat = next((s for s in statistics if s.problem._id == problem._id), None)
+                problem_data = {
+                    'id': problem._id,
+                    'title': problem.title,
+                    'submission_count': stat.submission_count if stat else 0,
+                    'accepted_count': stat.accepted_count if stat else 0,
+                    'best_score': stat.best_score if stat else 0,
+                    'is_solved': stat.accepted_count > 0 if stat else False
+                }
+                progress_data['problems'].append(problem_data)
+            
+            return self.success(progress_data)
+        except StudentAssignment.DoesNotExist:
+            return self.error("未找到该学生作业", err="not-found")
+
+
+class UserAssignmentsAPI(APIView):
+    """
+    获取当前用户的所有作业
+    """
+    
+    def get(self, request):
+        # 检查用户是否认证
+        if not request.user.is_authenticated:
+            return self.error("请先登录", err="login-required")
+        
+        user = request.user
+        
+        # 获取分配给当前用户的所有作业
+        student_assignments = StudentAssignment.objects.filter(student=user).select_related(
+            'assignment', 'assignment__creator'
+        )
+        
+        # 构造返回数据
+        assignments_data = []
+        for sa in student_assignments:
+            assignment = sa.assignment
+            assignments_data.append({
+                'id': assignment.id,
+                'title': assignment.title,
+                'description': assignment.description,
+                'start_time': assignment.start_time,
+                'end_time': assignment.end_time,
+                'create_time': assignment.create_time,
+                'creator': assignment.creator.username,
+                'status': sa.status,
+                'score': sa.score,
+                'max_score': sa.max_score,
+                'problem_count': assignment.assignmentproblem_set.count()
+            })
+        
+        return self.success(assignments_data)

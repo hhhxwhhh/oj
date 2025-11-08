@@ -17,7 +17,8 @@ urlpatterns = [
     url(r"^api/admin/", include("utils.urls")),
     url(r"^api/admin/", include("account.urls.admin")),
     url(r"^api/", include("ai.urls")),
-    path('api/admin/', include('assignment.urls')),
+    url(r"^api/admin/assignment/", include("assignment.urls.admin")),
+    url(r"^api/assignment/", include("assignment.urls.oj")),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
