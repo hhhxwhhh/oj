@@ -194,16 +194,24 @@ export default {
 
         // 添加反馈提交方法
         async submitFeedback(accepted) {
-            if (!this.recommendedProblem || !this.recommendedProblem.recommendation_id) {
+            // 改进检查条件，支持多种可能的ID字段
+            if (!this.recommendedProblem) {
+                this.$Message.warning(this.$t('m.No_recommendation_to_feedback'));
+                return;
+            }
+
+            const recommendationId = this.recommendedProblem.id
+
+            if (!recommendationId) {
                 this.$Message.warning(this.$t('m.No_recommendation_to_feedback'));
                 return;
             }
 
             try {
                 await api.submitRecommendationFeedback({
-                    recommendation_id: this.recommendedProblem.recommendation_id,
+                    recommendation_id: recommendationId,
                     accepted: accepted,
-                    solved: false // 可以根据实际情况设置
+                    solved: false
                 });
 
                 this.$Message.success(this.$t('m.Feedback_submitted'));
@@ -214,7 +222,24 @@ export default {
                 }
             } catch (error) {
                 console.error('Failed to submit feedback:', error);
-                this.$error(this.$t('m.Failed_to_submit_feedback'));
+
+                // 改进错误处理，更好地显示错误信息
+                let errorMessage = this.$t('m.Failed_to_submit_feedback');
+                if (error && error.response && error.response.data) {
+                    if (typeof error.response.data === 'string') {
+                        errorMessage = error.response.data;
+                    } else if (error.response.data.error) {
+                        errorMessage = error.response.data.error;
+                    } else if (error.response.data.detail) {
+                        errorMessage = error.response.data.detail;
+                    } else {
+                        errorMessage = JSON.stringify(error.response.data);
+                    }
+                } else if (error && error.message) {
+                    errorMessage = error.message;
+                }
+
+                this.$error(errorMessage);
             }
         },
     }

@@ -664,5 +664,9 @@ export const m = {
   Remove_Problem_Tips:
     "Are you sure you want to remove this problem from the assignment?",
   Warning: "Warning",
-  OK: "OK"
+  OK: "OK",
+  Is_this_recommendation_helpful: "Is this recommendation helpful?",
+  Yes_It_is_helpful: "Yes, it is helpful",
+  No_It_is_not_helpful: "No, it is not helpful",
+  No_recommendation_to_feedback: "No recommendation to feedback"
 };
