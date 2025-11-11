@@ -315,6 +315,19 @@ class AIRecommendProblemsAPI(APIView):
             elif algorithm == 'hybrid':
                 recommendations = AIRecommendationService.hybrid_recommendations(user.id, count)
                 logger.info(f"Hybrid filtering generated {len(recommendations)} recommendations")
+            elif algorithm == 'deep_learning':
+                recommendations = AIRecommendationService.deep_learning_recommendations(user.id, count)
+                logger.info(f"Deep learning filtering generated {len(recommendations)} recommendations")
+            elif algorithm == 'ml_enhanced':
+                recommendations = AIRecommendationService.ml_enhanced_recommendations(user.id, count)
+                logger.info(f"ML enhanced filtering generated {len(recommendations)} recommendations")
+            elif algorithm == 'online_learning':
+                recommendations = AIRecommendationService.get_online_learning_recommendations(user.id, count)
+                logger.info(f"Online learning filtering generated {len(recommendations)} recommendations")
+            elif algorithm == 'reinforcement_learning':
+                # 使用强化学习算法
+                recommendations = AIRecommendationService.recommend_problems(user.id, count, 'reinforcement_learning')
+                logger.info(f"Reinforcement learning filtering generated {len(recommendations)} recommendations")
             else:
                 recommendations = AIRecommendationService.intelligent_hybrid_recommendations(user.id, count)
                 logger.info(f"Intelligent hybrid filtering generated {len(recommendations)} recommendations")
@@ -342,13 +355,20 @@ class AIRecommendProblemsAPI(APIView):
             for problem_id, score, reason in recommendations:
                 if problem_id in problem_dict:
                     problem = problem_dict[problem_id]
+                    # 计算通过率
+                    acceptance_rate = 0
+                    if problem.submission_number > 0:
+                        acceptance_rate = problem.accepted_number / problem.submission_number
+                    
                     result.append({
                         'id': problem.id,
                         'title': problem.title,
                         'description': problem.description,
                         'difficulty': problem.difficulty,
                         'score': score,
-                        'reason': reason
+                        'reason': reason,
+                        'acceptance_rate': acceptance_rate,
+                        'problem_display_id': problem._id
                     })
             
             return self.success(result)
