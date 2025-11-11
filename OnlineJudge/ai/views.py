@@ -298,38 +298,64 @@ class AIDiagnoseSubmissionAPI(APIView):
 class AIRecommendProblemsAPI(APIView):
     @login_required
     def get(self, request):
-        user = request.user
-        count = int(request.GET.get("count", 10))
-        algorithm = request.GET.get("algorithm", "hybrid")  
-        
         try:
-            active_model_exists = AIModel.objects.filter(is_active=True).exists()
-            # 使用指定的算法获取推荐
-            recommendations = AIRecommendationService.recommend_problems(
-                user.id, count, algorithm=algorithm)
+            user = request.user
+            count = int(request.GET.get('count', 10))
+            algorithm = request.GET.get('algorithm', 'hybrid')
+            
+            logger.info(f"Generating recommendations for user {user.id} using algorithm {algorithm}")
+            
+            # 根据算法类型选择推荐方法
+            if algorithm == 'collaborative_filtering':
+                recommendations = AIRecommendationService.collaborative_filtering_recommendations(user.id, count)
+                logger.info(f"Collaborative filtering generated {len(recommendations)} recommendations")
+            elif algorithm == 'content_based':
+                recommendations = AIRecommendationService.content_based_recommendations(user.id, count)
+                logger.info(f"Content-based filtering generated {len(recommendations)} recommendations")
+            elif algorithm == 'hybrid':
+                recommendations = AIRecommendationService.hybrid_recommendations(user.id, count)
+                logger.info(f"Hybrid filtering generated {len(recommendations)} recommendations")
+            else:
+                recommendations = AIRecommendationService.intelligent_hybrid_recommendations(user.id, count)
+                logger.info(f"Intelligent hybrid filtering generated {len(recommendations)} recommendations")
+            
+            # 保存推荐记录（使用安全的方法）
+            recommendation_records = []
+            for problem_id, score, reason in recommendations:
+                recommendation_records.append({
+                    'problem_id': problem_id,
+                    'score': score,
+                    'reason': reason,
+                    'algorithm_used': algorithm
+                })
+            
+            # 使用安全的方法保存推荐记录
+            AIRecommendationService.save_recommendations(user, recommendation_records)
+            
+            # 获取题目详情
+            problem_ids = [rec[0] for rec in recommendations]
+            problems = Problem.objects.filter(id__in=problem_ids)
+            problem_dict = {p.id: p for p in problems}
+            
+            # 构造返回数据
             result = []
             for problem_id, score, reason in recommendations:
-                try:
-                    problem = Problem.objects.prefetch_related('tags').get(id=problem_id)
-                    tags = list(problem.tags.values_list('name', flat=True))
+                if problem_id in problem_dict:
+                    problem = problem_dict[problem_id]
                     result.append({
-                        "problem_id": problem.id,
-                        "problem_display_id": problem._id,
-                        "title": problem.title,
-                        "difficulty": problem.difficulty,
-                        "score": score,
-                        "algorithm_score": score,  # 为前端显示保留算法分数
-                        "reason": reason,
-                        "acceptance_rate": problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0,
-                        "tags": tags
+                        'id': problem.id,
+                        'title': problem.title,
+                        'description': problem.description,
+                        'difficulty': problem.difficulty,
+                        'score': score,
+                        'reason': reason
                     })
-                except Problem.DoesNotExist:
-                    continue
             
             return self.success(result)
+            
         except Exception as e:
-            logger.error(f"Recommendation failed: {str(e)}", exc_info=True)
-            return self.error("推荐失败，请稍后重试")
+            logger.error(f"Failed to generate recommendations: {str(e)}")
+            return self.error("生成推荐失败，请稍后重试")
         
 class AIRecommendationFeedbackAPI(APIView):
     @login_required

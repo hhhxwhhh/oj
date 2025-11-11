@@ -4,7 +4,7 @@ import json
 import re
 from django.db import transaction,models
 from django.utils import timezone
-from .models import AIModel, AIMessage,AICodeExplanationCache,AIUserKnowledgeState,AIUserLearningPath,AIUserLearningPathNode
+from .models import AIModel, AIMessage,AICodeExplanationCache,AIUserKnowledgeState,AIUserLearningPath,AIUserLearningPathNode,AIRecommendation
 from .models import KnowledgePoint,AIUserKnowledgeState,AIAbilityDimension,AIProgrammingAbility,AIUserAbilityDetail
 from .models import AIRecommendationFeedback
 from problem.models import Problem,ProblemTag
@@ -621,20 +621,95 @@ class AIRecommendationService:
     
     
     @staticmethod
-    def collaborative_filtering_recommendations(user_id,count=10):
-        """基于协同过滤推荐算法"""
-        user_problems=AIRecommendationService.get_user_problem_matrix()
-        similarities=AIRecommendationService.improved_similarity_matrix(
-            user_problems=user_problems,target_user_id=user_id)
-        solved_problems=user_problems.get(user_id,set())
-        candidate_problems=defaultdict(float)
-        for similar_user_id ,similarity in similarities.items():
-            if similarity>0.1:
-                for problem_id in user_problems[similar_user_id]:
-                    if problem_id not in solved_problems:
-                        candidate_problems[problem_id] += similarity
-        sorted_candidate_problems=sorted(candidate_problems.items(),key=lambda x: x[1],reverse=True)
-        return [(problem_id, score, "基于相似用户推荐") for problem_id, score in sorted_candidate_problems[:count]]
+    def collaborative_filtering_recommendations(user_id, count=10):
+        """
+        协同过滤推荐算法
+        基于相似用户的行为推荐题目
+        """
+        try:
+            logger.info(f"Starting collaborative filtering recommendation for user {user_id}")
+            
+            # 获取当前用户已解决的题目
+            user_submissions = Submission.objects.filter(
+                user_id=user_id, 
+                result=0  # 假设0表示通过
+            ).values_list('problem_id', flat=True)
+            
+            user_solved_problems = set(user_submissions)
+            logger.info(f"User {user_id} has solved {len(user_solved_problems)} problems")
+            
+            if not user_solved_problems:
+                logger.info(f"User {user_id} has no solved problems, returning empty recommendations")
+                return []
+            
+            # 获取其他用户及其解决的题目
+            other_users_data = {}
+            other_submissions = Submission.objects.filter(
+                result=0
+            ).exclude(
+                user_id=user_id
+            ).values('user_id', 'problem_id')
+            
+            for sub in other_submissions:
+                user = sub['user_id']
+                problem = sub['problem_id']
+                if user not in other_users_data:
+                    other_users_data[user] = set()
+                other_users_data[user].add(problem)
+            
+            logger.info(f"Found {len(other_users_data)} other users with submission data")
+            
+            if not other_users_data:
+                logger.info("No other users found for collaborative filtering")
+                return []
+            
+            # 计算用户相似度
+            user_similarities = {}
+            user_solved_list = list(user_solved_problems)
+            
+            for other_user_id, other_user_problems in other_users_data.items():
+                # 计算Jaccard相似度
+                intersection = len(user_solved_problems.intersection(other_user_problems))
+                union = len(user_solved_problems.union(other_user_problems))
+                
+                if union > 0:
+                    similarity = intersection / union
+                    user_similarities[other_user_id] = similarity
+                else:
+                    user_similarities[other_user_id] = 0
+            
+            # 选择最相似的用户（相似度大于0）
+            similar_users = {user_id: sim for user_id, sim in user_similarities.items() if sim > 0}
+            logger.info(f"Found {len(similar_users)} similar users")
+            
+            if not similar_users:
+                logger.info("No similar users found")
+                return []
+            
+            # 根据相似用户推荐题目
+            problem_scores = defaultdict(float)
+            
+            for similar_user_id, similarity in similar_users.items():
+                # 获取相似用户解决但当前用户未解决的题目
+                similar_user_problems = other_users_data.get(similar_user_id, set())
+                candidate_problems = similar_user_problems - user_solved_problems
+                
+                # 根据相似度为候选题目打分
+                for problem_id in candidate_problems:
+                    problem_scores[problem_id] += similarity
+            
+            # 转换为列表并排序
+            recommendations = [(problem_id, score, "基于协同过滤推荐") 
+                             for problem_id, score in problem_scores.items()]
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+            
+            logger.info(f"Generated {len(recommendations)} collaborative filtering recommendations")
+            return recommendations[:count]
+            
+        except Exception as e:
+            logger.error(f"Collaborative filtering recommendation failed: {str(e)}")
+            return []
+
     @staticmethod
     def content_based_recommendations(user_id,count=10):
         """基于内容的推荐：使用TF-IDF和余弦相似度分析题目描述相似性"""
@@ -774,6 +849,43 @@ class AIRecommendationService:
         except Exception as e:
             logger.error(f"Error calculating knowledge weight: {e}")
             return 1.0
+    @staticmethod
+    def save_recommendations(user, recommendations_data):
+        """
+        安全地保存推荐记录，避免唯一约束冲突
+        """
+        saved_recommendations = []
+        
+        for rec_data in recommendations_data:
+            try:
+                problem_id = rec_data['problem_id']
+                score = rec_data['score']
+                reason = rec_data['reason']
+                algorithm_used = rec_data.get('algorithm_used', 'hybrid')
+                confidence_score = rec_data.get('confidence_score', 0.0)
+                
+                # 使用update_or_create避免唯一约束冲突
+                recommendation, created = AIRecommendation.objects.update_or_create(
+                    user=user,
+                    problem_id=problem_id,
+                    defaults={
+                        'score': score,
+                        'reason': reason,
+                        'algorithm_used': algorithm_used,
+                        'confidence_score': confidence_score
+                    }
+                )
+                
+                saved_recommendations.append({
+                    'recommendation': recommendation,
+                    'created': created
+                })
+                
+            except Exception as e:
+                logger.error(f"Failed to save recommendation for user {user.id}, problem {problem_id}: {str(e)}")
+                continue
+        
+        return saved_recommendations
     @staticmethod
     def hybrid_recommendations(user_id, count=10):
         """
@@ -2128,6 +2240,46 @@ class AILearningPathService:
         # 根据目标确定学习路径内容
         path_content = AILearningPathService._generate_path_content(goal, current_level)
         
+        # 生成题目推荐
+        try:
+            # 获取协同过滤推荐
+            cf_recommendations = AIRecommendationService.collaborative_filtering_recommendations(user_id, count=5)
+            logger.info(f"Collaborative filtering generated {len(cf_recommendations)} recommendations")
+            
+            # 获取内容推荐
+            cb_recommendations = AIRecommendationService.content_based_recommendations(user_id, count=5)
+            logger.info(f"Content-based filtering generated {len(cb_recommendations)} recommendations")
+            
+            # 合并推荐结果
+            all_recommendations = cf_recommendations + cb_recommendations
+            
+            # 去重并按分数排序
+            unique_recommendations = {}
+            for problem_id, score, reason in all_recommendations:
+                if problem_id not in unique_recommendations or score > unique_recommendations[problem_id][0]:
+                    unique_recommendations[problem_id] = (score, reason)
+            
+            sorted_recommendations = sorted(
+                [(pid, score, reason) for pid, (score, reason) in unique_recommendations.items()],
+                key=lambda x: x[1], 
+                reverse=True
+            )
+            
+            # 添加推荐到学习路径内容参考中
+            recommendation_info = "\n推荐题目:\n"
+            for i, (problem_id, score, reason) in enumerate(sorted_recommendations[:5]):
+                try:
+                    problem = Problem.objects.get(id=problem_id)
+                    recommendation_info += f"{i+1}. {problem.title} (推荐理由: {reason}, 分数: {score:.2f})\n"
+                except Problem.DoesNotExist:
+                    continue
+            
+            path_content += recommendation_info
+            
+        except Exception as e:
+            logger.error(f"Error generating recommendations for learning path: {str(e)}")
+            path_content += "\n推荐题目: 暂无推荐\n"
+        
         # 构建系统提示
         system_prompt = {
             "role": "system",
@@ -2188,6 +2340,7 @@ class AILearningPathService:
             3. 确保JSON格式正确，可以直接解析
             4. 根据用户知识点掌握情况，针对性地推荐需要加强的知识点
             5. 优先推荐掌握程度低于0.7的知识点相关学习内容
+            6. 可以包含前面推荐算法生成的题目推荐
             """
         }
         
@@ -2197,23 +2350,19 @@ class AILearningPathService:
         if not ai_model:
             raise Exception("No active AI model found")
         
-        try:
-            response = AIService.call_ai_model(messages, ai_model)
-            # 清理响应内容，确保是有效的JSON
-            import json
-            import re
-            
-            # 尝试提取JSON内容
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
-                response = json_match.group()
-            
-            path_data = json.loads(response)
-            return path_data
-        except Exception as e:
-            logger.error(f"Failed to generate learning path: {str(e)}")
-            logger.error(f"AI response: {response}")
-            raise Exception(f"Failed to generate learning path: {str(e)}")
+        response = AIService.call_ai_model(messages, ai_model)
+        response = AIService.clean_response(response)
+        # 解析响应
+        import json
+        import re
+        
+        # 尝试提取JSON内容
+        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        if json_match:
+            response = json_match.group()
+        
+        path_data = json.loads(response)
+        return path_data
     @staticmethod
     def _assess_user_level(submissions):
         """
@@ -2979,7 +3128,7 @@ class KnowledgePointService:
             
             # 创建反馈记录
             recommendation = AIRecommendation.objects.get(id=recommendation_id)
-            feedback = AIRecommendationFeedback.objects.create(
+            feedback = AIRecommendationFeedback.objects.update_or_create(
                 user_id=user_id,
                 problem=recommendation.problem,
                 recommendation=recommendation,
