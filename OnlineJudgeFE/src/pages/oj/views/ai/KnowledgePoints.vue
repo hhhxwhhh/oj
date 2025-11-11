@@ -52,7 +52,10 @@
 
                     <div class="knowledge-points-list">
                         <h3>详细掌握情况</h3>
-                        <Table :columns="columns" :data="knowledgePoints" :loading="loading"></Table>
+                        <Table :columns="columns" :data="paginatedKnowledgePoints" :loading="loading"></Table>
+                        <Page :total="knowledgePoints.length" :page-size="pageSize" :current="currentPage"
+                            @on-change="handlePageChange" show-sizer :page-size-opts="[10, 20, 30, 50]"
+                            @on-page-size-change="handlePageSizeChange" class="knowledge-points-pagination" />
                     </div>
 
                     <div class="recommendations-section" v-if="recommendations.length > 0">
@@ -84,7 +87,6 @@
         </Row>
     </div>
 </template>
-
 <script>
 import api from '@oj/api'
 import Panel from '@oj/components/Panel.vue'
@@ -99,6 +101,8 @@ export default {
             loading: false,
             knowledgePoints: [],
             recommendations: [],
+            currentPage: 1,
+            pageSize: 30,
             columns: [
                 {
                     title: '知识点',
@@ -211,6 +215,11 @@ export default {
                     : 0;
                 return level < 0.5;
             }).length
+        },
+        paginatedKnowledgePoints() {
+            const start = (this.currentPage - 1) * this.pageSize;
+            const end = start + this.pageSize;
+            return this.knowledgePoints.slice(start, end);
         }
     },
     mounted() {
@@ -269,6 +278,9 @@ export default {
                         proficiency_level: proficiency_level
                     };
                 });
+
+                // 重置分页到第一页
+                this.currentPage = 1;
             } catch (err) {
                 console.error('获取知识点掌握情况失败:', err)
                 this.$error('获取知识点掌握情况失败: ' + (err.message || '未知错误'))
@@ -291,6 +303,22 @@ export default {
                 name: 'problem-details',
                 params: { problemID: problemId }
             })
+        },
+
+        handlePageChange(page) {
+            this.currentPage = page;
+            // 滚动到表格顶部
+            this.$nextTick(() => {
+                const tableElement = document.querySelector('.knowledge-points-list');
+                if (tableElement) {
+                    tableElement.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        },
+
+        handlePageSizeChange(pageSize) {
+            this.pageSize = pageSize;
+            this.currentPage = 1; // 重置到第一页
         }
     }
 }
@@ -346,6 +374,112 @@ export default {
 
         h3 {
             margin-bottom: 15px;
+        }
+    }
+
+    .recommendations-section {
+        h3 {
+            margin-bottom: 15px;
+        }
+
+        .recommendations-list {
+            .recommendation-card {
+                margin-bottom: 15px;
+
+                .recommendation-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin-bottom: 10px;
+
+                    strong {
+                        font-size: 16px;
+                    }
+                }
+
+                .recommendation-content {
+                    p {
+                        margin: 5px 0;
+                    }
+
+                    .recommended-problems {
+                        ul {
+                            padding-left: 20px;
+
+                            li {
+                                margin: 3px 0;
+
+                                a {
+                                    color: #2d8cf0;
+                                    cursor: pointer;
+
+                                    &:hover {
+                                        text-decoration: underline;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+.knowledge-points-container {
+    .knowledge-points-header {
+        text-align: center;
+        margin-bottom: 30px;
+
+        h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #808695;
+        }
+    }
+
+    .knowledge-points-stats {
+        margin-bottom: 30px;
+
+        .stat-card {
+            text-align: center;
+
+            .stat-item {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                .stat-text {
+                    margin-left: 10px;
+
+                    .stat-number {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #2d8cf0;
+                    }
+
+                    .stat-label {
+                        font-size: 12px;
+                        color: #808695;
+                    }
+                }
+            }
+        }
+    }
+
+    .knowledge-points-list {
+        margin-bottom: 30px;
+
+        h3 {
+            margin-bottom: 15px;
+        }
+
+        .knowledge-points-pagination {
+            margin-top: 20px;
+            text-align: center;
         }
     }
 
