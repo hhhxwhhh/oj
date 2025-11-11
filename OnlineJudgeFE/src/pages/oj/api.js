@@ -466,6 +466,21 @@ export default {
   //assignment相关接口
   getUserAssignments() {
     return ajax("assignment/user-assignments", "get");
+  },
+  getSimilarKnowledgePoints(knowledgePointId, params = {}) {
+    return ajax(`ai/knowledge_point/${knowledgePointId}/similar/`, "GET", {
+      params: params
+    });
+  },
+
+  getUserSimilarKnowledgePoints(knowledgePointId, params = {}) {
+    return ajax(`ai/knowledge_point/${knowledgePointId}/user_similar/`, "GET", {
+      params: params
+    });
+  },
+
+  updateKnowledgePointEmbeddings() {
+    return ajax("ai/knowledge_point/update_embeddings/", "POST");
   }
 };
 

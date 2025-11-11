@@ -6,7 +6,7 @@ from django.db import transaction,models
 # Create your views here.
 from utils.api import APIView,validate_serializer
 from account.decorators import login_required,super_admin_required,admin_role_required
-from .models import AIModel,AIConversation,AIMessage,AICodeReview,AIFeedback,KnowledgePoint,AIUserLearningPath
+from .models import AIModel,AIConversation,AIMessage,AICodeReview,AIFeedback,KnowledgePoint,AIUserLearningPath,AIUserKnowledgeState
 from .serializers import (
     AIModelSerializer, CreateAIModelSerializer,
     AIConversationSerializer, CreateAIConversationSerializer,
@@ -1456,84 +1456,250 @@ class AIUserAbilityTrendAPI(APIView):
             return self.error("获取能力趋势分析失败")
 
 
-@api_view(['POST'])
-def update_knowledge_point_embeddings(request):
-    """
-    更新知识点向量表示
-    """
-    try:
-        count = KnowledgePointSimilarityService.update_knowledge_point_embeddings()
-        return Response({
-            'success': True,
-            'message': f'成功更新{count}个知识点的向量表示'
-        }, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({
-            'success': False,
-            'message': f'更新失败: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+import numpy as np
+from scipy.spatial.distance import cosine
+from django.http import JsonResponse
 
-@api_view(['GET'])
-def get_similar_knowledge_points(request, knowledge_point_id):
-    """
-    获取与指定知识点相似的知识点
-    """
-    try:
-        k = int(request.GET.get('k', 10))
-        similar_points = KnowledgePointSimilarityService.get_similar_knowledge_points(
-            knowledge_point_id, k)
+class KnowledgePointSimilarAPI(APIView):
+    def get(self, request, knowledge_point_id):
+        try:
+            k = int(request.GET.get('k', 10))
+            
+            # 获取目标知识点
+            try:
+                target_kp = KnowledgePoint.objects.get(id=knowledge_point_id)
+            except KnowledgePoint.DoesNotExist:
+                return self.error("知识点不存在")
+            
+            # 获取所有其他知识点
+            all_kps = KnowledgePoint.objects.exclude(id=knowledge_point_id)
+            
+            # 计算相似度
+            similarities = []
+            for kp in all_kps:
+                similarity = self.calculate_content_similarity(target_kp, kp)
+                if similarity > 0.01:  # 过滤掉相似度极低的
+                    similarities.append({
+                        'knowledge_point': kp,
+                        'similarity': similarity
+                    })
+            
+            # 按相似度排序
+            similarities.sort(key=lambda x: x['similarity'], reverse=True)
+            
+            # 格式化结果
+            results = []
+            for item in similarities[:k]:
+                results.append({
+                    'id': item['knowledge_point'].id,
+                    'name': item['knowledge_point'].name,
+                    'description': item['knowledge_point'].description,
+                    'similarity': round(item['similarity'], 4)
+                })
+            
+            return self.success(results)
+        except Exception as e:
+            return self.error(str(e))
+    
+    def calculate_content_similarity(self, kp1, kp2):
+        """
+        基于内容计算知识点相似度
+        """
+        # 如果任一知识点没有embedding，返回0
+        if not kp1.embedding or not kp2.embedding:
+            return 0.0
         
-        results = []
-        for item in similar_points:
-            results.append({
-                'id': item['knowledge_point'].id,
-                'name': item['knowledge_point'].name,
-                'description': item['knowledge_point'].description,
-                'similarity': round(item['similarity'], 4),
-                'content_similarity': round(item.get('content_similarity', 0), 4),
-                'user_similarity': round(item.get('user_similarity', 0), 4)
-            })
-        
-        return Response({
-            'success': True,
-            'data': results
-        }, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({
-            'success': False,
-            'message': f'获取相似知识点失败: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            # 解析向量
+            vec1 = np.array([float(x) for x in kp1.embedding.split(',')])
+            vec2 = np.array([float(x) for x in kp2.embedding.split(',')])
+            
+            # 计算余弦相似度
+            # 避免全零向量
+            if np.linalg.norm(vec1) == 0 or np.linalg.norm(vec2) == 0:
+                return 0.0
+            
+            similarity = 1 - cosine(vec1, vec2)
+            return max(0.0, similarity)  # 确保非负
+        except Exception:
+            return 0.0
 
-@api_view(['GET'])
-def get_user_similar_knowledge_points(request, knowledge_point_id):
-    """
-    基于用户掌握情况获取相似知识点
-    """
-    try:
-        user_id = request.user.id
-        k = int(request.GET.get('k', 10))
+
+class KnowledgePointUserSimilarAPI(APIView):
+    def get(self, request, knowledge_point_id):
+        try:
+            user = request.user
+            k = int(request.GET.get('k', 10))
+            
+            # 获取目标知识点
+            try:
+                target_kp = KnowledgePoint.objects.get(id=knowledge_point_id)
+            except KnowledgePoint.DoesNotExist:
+                return self.error("知识点不存在")
+            
+            # 获取用户对该知识点的掌握情况
+            try:
+                target_state = AIUserKnowledgeState.objects.get(
+                    user=user, knowledge_point_id=knowledge_point_id)
+            except AIUserKnowledgeState.DoesNotExist:
+                # 如果用户没有该知识点的记录，回退到基于内容的相似度
+                similar_api = KnowledgePointSimilarAPI()
+                return similar_api.get(request, knowledge_point_id)
+            
+            # 获取用户学习过的所有知识点
+            user_knowledge_states = AIUserKnowledgeState.objects.filter(user=user)
+            user_kp_ids = [state.knowledge_point_id for state in user_knowledge_states]
+            
+            # 获取所有知识点
+            all_kps = KnowledgePoint.objects.exclude(id=knowledge_point_id)
+            
+            # 计算相似度
+            similarities = []
+            for kp in all_kps:
+                # 内容相似度
+                content_similarity = self.calculate_content_similarity(target_kp, kp)
+                
+                # 用户掌握情况相似度
+                user_similarity = 0.0
+                if kp.id in user_kp_ids:
+                    user_similarity = self.calculate_user_similarity(user, knowledge_point_id, kp.id)
+                
+                # 加权综合相似度 (70%内容相似度 + 30%用户相似度)
+                combined_similarity = 0.7 * content_similarity + 0.3 * user_similarity
+                
+                if combined_similarity > 0.01:
+                    similarities.append({
+                        'knowledge_point': kp,
+                        'similarity': combined_similarity,
+                        'content_similarity': content_similarity,
+                        'user_similarity': user_similarity
+                    })
+            
+            # 按相似度排序
+            similarities.sort(key=lambda x: x['similarity'], reverse=True)
+            
+            # 格式化结果
+            results = []
+            for item in similarities[:k]:
+                results.append({
+                    'id': item['knowledge_point'].id,
+                    'name': item['knowledge_point'].name,
+                    'description': item['knowledge_point'].description,
+                    'similarity': round(item['similarity'], 4),
+                    'content_similarity': round(item.get('content_similarity', 0), 4),
+                    'user_similarity': round(item.get('user_similarity', 0), 4)
+                })
+            
+            return self.success(results)
+        except Exception as e:
+            return self.error(str(e))
+    
+    def calculate_content_similarity(self, kp1, kp2):
+        """
+        基于内容计算知识点相似度
+        """
+        # 如果任一知识点没有embedding，返回0
+        if not kp1.embedding or not kp2.embedding:
+            return 0.0
         
-        similar_points = KnowledgePointSimilarityService.get_user_similar_knowledge_points(
-            user_id, knowledge_point_id, k)
+        try:
+            # 解析向量
+            vec1 = np.array([float(x) for x in kp1.embedding.split(',')])
+            vec2 = np.array([float(x) for x in kp2.embedding.split(',')])
+            
+            # 计算余弦相似度
+            # 避免全零向量
+            if np.linalg.norm(vec1) == 0 or np.linalg.norm(vec2) == 0:
+                return 0.0
+            
+            similarity = 1 - cosine(vec1, vec2)
+            return max(0.0, similarity)  # 确保非负
+        except Exception:
+            return 0.0
+    
+    def calculate_user_similarity(self, user, kp1_id, kp2_id):
+        """
+        基于用户掌握情况计算知识点相似度
+        """
+        try:
+            # 获取用户对两个知识点的掌握情况
+            state1 = AIUserKnowledgeState.objects.get(
+                user=user, knowledge_point_id=kp1_id)
+            state2 = AIUserKnowledgeState.objects.get(
+                user=user, knowledge_point_id=kp2_id)
+        except AIUserKnowledgeState.DoesNotExist:
+            return 0.0
         
-        results = []
-        for item in similar_points:
-            results.append({
-                'id': item['knowledge_point'].id,
-                'name': item['knowledge_point'].name,
-                'description': item['knowledge_point'].description,
-                'similarity': round(item['similarity'], 4),
-                'content_similarity': round(item.get('content_similarity', 0), 4),
-                'user_similarity': round(item.get('user_similarity', 0), 4)
-            })
+        # 使用掌握程度计算相似度
+        proficiency1 = state1.proficiency_level
+        proficiency2 = state2.proficiency_level
         
-        return Response({
-            'success': True,
-            'data': results
-        }, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({
-            'success': False,
-            'message': f'获取相似知识点失败: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # 简单的相似度计算：掌握程度差的绝对值的补集
+        similarity = 1.0 - abs(proficiency1 - proficiency2)
+        return max(0.0, similarity)
+
+
+class KnowledgePointUpdateEmbeddingsAPI(APIView):
+    def post(self, request):
+        try:
+            # 获取所有知识点
+            knowledge_points = KnowledgePoint.objects.all()
+            
+            # 构建题目-知识点映射
+            problem_kp_mapping = {}
+            kp_problem_mapping = {}
+            
+            for kp in knowledge_points:
+                problems = kp.related_problems.all()
+                kp_problem_mapping[kp.id] = [p.id for p in problems]
+                for problem in problems:
+                    if problem.id not in problem_kp_mapping:
+                        problem_kp_mapping[problem.id] = []
+                    problem_kp_mapping[problem.id].append(kp.id)
+            
+            # 构建前置知识点映射
+            prerequisite_mapping = {}
+            for kp in knowledge_points:
+                prerequisites = kp.parent_points.all()
+                prerequisite_mapping[kp.id] = [p.id for p in prerequisites]
+            
+            # 构建向量维度映射
+            all_problem_ids = list(problem_kp_mapping.keys())
+            all_kp_ids = list(kp_problem_mapping.keys())
+            
+            if not all_problem_ids and not all_kp_ids:
+                return self.success("没有知识点需要更新")
+            
+            problem_id_to_index = {pid: i for i, pid in enumerate(all_problem_ids)}
+            kp_id_to_index = {kpid: i for i, kpid in enumerate(all_kp_ids)}
+            
+            # 为每个知识点创建向量表示
+            updated_count = 0
+            for kp in knowledge_points:
+                # 初始化向量（题目维度 + 知识点维度）
+                vector_size = len(all_problem_ids) + len(all_kp_ids)
+                if vector_size == 0:
+                    continue
+                    
+                vector = np.zeros(vector_size)
+                
+                # 设置相关题目的维度
+                for problem_id in kp_problem_mapping.get(kp.id, []):
+                    if problem_id in problem_id_to_index:
+                        vector[problem_id_to_index[problem_id]] = 1.0
+                
+                # 设置前置知识点的维度（较低权重）
+                for prereq_id in prerequisite_mapping.get(kp.id, []):
+                    if prereq_id in kp_id_to_index:
+                        vector[len(all_problem_ids) + kp_id_to_index[prereq_id]] = 0.5
+                
+                # 序列化向量并保存
+                vector_str = ','.join(map(str, vector))
+                kp.embedding = vector_str
+                kp.save()
+                updated_count += 1
+            
+            return self.success(f"成功更新{updated_count}个知识点的向量表示")
+        except Exception as e:
+            return self.error(f"更新失败: {str(e)}")
 

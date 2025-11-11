@@ -58,6 +58,31 @@
                             @on-page-size-change="handlePageSizeChange" class="knowledge-points-pagination" />
                     </div>
 
+                    <!-- 相似知识点推荐 -->
+                    <div class="similar-knowledge-points"
+                        v-if="selectedKnowledgePoint && similarKnowledgePoints.length > 0">
+                        <h3>与 "{{ selectedKnowledgePoint.knowledge_point }}" 相似的知识点</h3>
+                        <div class="similar-points-list">
+                            <Card v-for="(point, index) in similarKnowledgePoints" :key="index"
+                                class="similar-point-card" @click.native="selectKnowledgePoint(point)">
+                                <div class="similar-point-content">
+                                    <div class="point-header">
+                                        <strong>{{ point.name }}</strong>
+                                        <Tag color="primary">相似度: {{ (point.similarity * 100).toFixed(1) }}%</Tag>
+                                    </div>
+                                    <div class="point-description">{{ point.description }}</div>
+                                    <div class="similarity-details"
+                                        v-if="point.content_similarity || point.user_similarity">
+                                        <span v-if="point.content_similarity">内容相似度: {{ (point.content_similarity *
+                                            100).toFixed(1) }}%</span>
+                                        <span v-if="point.user_similarity">用户相似度: {{ (point.user_similarity *
+                                            100).toFixed(1) }}%</span>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+                    </div>
+
                     <div class="recommendations-section" v-if="recommendations.length > 0">
                         <h3>学习建议</h3>
                         <div class="recommendations-list">
@@ -101,13 +126,28 @@ export default {
             loading: false,
             knowledgePoints: [],
             recommendations: [],
+            similarKnowledgePoints: [], // 相似知识点
+            selectedKnowledgePoint: null, // 当前选中的知识点
             currentPage: 1,
             pageSize: 30,
             columns: [
                 {
                     title: '知识点',
                     key: 'knowledge_point',
-                    sortable: true
+                    sortable: true,
+                    render: (h, params) => {
+                        return h('a', {
+                            on: {
+                                click: () => {
+                                    this.selectKnowledgePoint(params.row);
+                                }
+                            },
+                            style: {
+                                color: '#2d8cf0',
+                                cursor: 'pointer'
+                            }
+                        }, params.row.knowledge_point);
+                    }
                 },
                 {
                     title: '掌握程度',
@@ -319,6 +359,26 @@ export default {
         handlePageSizeChange(pageSize) {
             this.pageSize = pageSize;
             this.currentPage = 1; // 重置到第一页
+        },
+
+        // 选择知识点并获取相似知识点
+        async selectKnowledgePoint(knowledgePoint) {
+            // 确保传入的是知识点对象且有id属性
+            if (!knowledgePoint || !knowledgePoint.id) {
+                console.error('无效的知识点对象:', knowledgePoint);
+                return;
+            }
+
+            this.selectedKnowledgePoint = knowledgePoint;
+            this.similarKnowledgePoints = [];
+
+            try {
+                const res = await api.getUserSimilarKnowledgePoints(knowledgePoint.id);
+                this.similarKnowledgePoints = res.data.data || [];
+            } catch (err) {
+                console.error('获取相似知识点失败:', err);
+                this.$Message.error('获取相似知识点失败');
+            }
         }
     }
 }
@@ -480,6 +540,55 @@ export default {
         .knowledge-points-pagination {
             margin-top: 20px;
             text-align: center;
+        }
+    }
+
+    .similar-knowledge-points {
+        margin-bottom: 30px;
+
+        h3 {
+            margin-bottom: 15px;
+            color: #2d8cf0;
+        }
+
+        .similar-points-list {
+            .similar-point-card {
+                margin-bottom: 15px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+
+                &:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+
+                .similar-point-content {
+                    .point-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 10px;
+
+                        strong {
+                            font-size: 16px;
+                            color: #2d8cf0;
+                        }
+                    }
+
+                    .point-description {
+                        color: #515a6e;
+                        margin-bottom: 10px;
+                        font-size: 14px;
+                    }
+
+                    .similarity-details {
+                        display: flex;
+                        gap: 15px;
+                        font-size: 12px;
+                        color: #808695;
+                    }
+                }
+            }
         }
     }
 

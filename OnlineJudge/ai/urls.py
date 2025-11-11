@@ -17,6 +17,9 @@ urlpatterns = [
     url(r"^ai/knowledge_graph/recommend/?$", views.KnowledgeGraphAPI.as_view(), name="knowledge_graph_recommend_api"),
     url(r"^ai/knowledge_point/problems/?$", views.KnowledgePointProblemsAPI.as_view(), name="knowledge_point_problems_api"),
     url(r"^ai/knowledge_point/initialize/?$", views.KnowledgePointInitializationAPI.as_view(), name="knowledge_point_initialize_api"),
+    url(r"^ai/knowledge_point/(?P<knowledge_point_id>\d+)/similar/?$", views.KnowledgePointSimilarAPI.as_view(), name="knowledge_point_similar_api"),
+    url(r"^ai/knowledge_point/(?P<knowledge_point_id>\d+)/user_similar/?$", views.KnowledgePointUserSimilarAPI.as_view(), name="knowledge_point_user_similar_api"),
+    url(r"^ai/knowledge_point/update_embeddings/?$", views.KnowledgePointUpdateEmbeddingsAPI.as_view(), name="knowledge_point_update_embeddings_api"),
         
     url(r"^ai/singleknowledge_point/?$", views.SingleKnowledgePointAPI.as_view(), name="single_knowledge_point_api"),
 
