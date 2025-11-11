@@ -1034,17 +1034,35 @@ class StudentAssignmentDetailAPI(APIView):
             student_assignment = StudentAssignment.objects.select_related(
                 'assignment', 'student', 'assignment__creator'
             ).prefetch_related(
-                'assignment__assignmentproblem_set__problem'
+                'assignment__assignment_problems__problem'
             ).get(pk=pk)
             
             # 检查权限 - 只有作业所有者或管理员可以查看
-            if (request.user != student_assignment.student and 
+            if (request.user.id != student_assignment.student.id and 
                 not request.user.is_admin_role() and 
                 not request.user.is_super_admin()):
                 return self.error("权限不足", err="permission-denied")
             
-            serializer = StudentAssignmentSerializer(student_assignment)
-            return self.success(serializer.data)
+            # 构造返回数据，确保包含assignment_id
+            data = {
+                'id': student_assignment.id,
+                'assignment_id': student_assignment.assignment.id,
+                'assignment': student_assignment.assignment.id,
+                'title': student_assignment.assignment.title,
+                'description': student_assignment.assignment.description,
+                'start_time': student_assignment.assignment.start_time,
+                'end_time': student_assignment.assignment.end_time,
+                'create_time': student_assignment.assignment.create_time,
+                'creator': student_assignment.assignment.creator.username,
+                'status': student_assignment.status,
+                'score': student_assignment.score,
+                'max_score': student_assignment.max_score,
+                'problem_count': student_assignment.assignment.assignment_problems.count(),
+                'student': student_assignment.student.id,
+                'student_username': student_assignment.student.username,
+            }
+            
+            return self.success(data)
         except StudentAssignment.DoesNotExist:
             return self.error("未找到该学生作业", err="not-found")
 
@@ -1067,7 +1085,8 @@ class StudentAssignmentProgressAPI(APIView):
             ).get(pk=pk)
             
             # 检查权限
-            if (request.user != student_assignment.student and 
+            # 改进权限检查逻辑，使用用户ID进行比较而不是对象实例
+            if (request.user.id != student_assignment.student.id and 
                 not request.user.is_admin_role() and 
                 not request.user.is_super_admin()):
                 return self.error("权限不足", err="permission-denied")
@@ -1143,7 +1162,8 @@ class UserAssignmentsAPI(APIView):
         for sa in student_assignments:
             assignment = sa.assignment
             assignments_data.append({
-                'id': assignment.id,
+                'id': sa.id,  
+                'assignment_id': assignment.id,  
                 'title': assignment.title,
                 'description': assignment.description,
                 'start_time': assignment.start_time,
@@ -1157,3 +1177,20 @@ class UserAssignmentsAPI(APIView):
             })
         
         return self.success(assignments_data)
+        
+class AssignmentProblemsAPI(APIView):
+    """
+    获取作业题目列表
+    """
+    
+    def get(self, request, pk):
+        try:
+            # 检查作业是否存在
+            assignment = Assignment.objects.get(pk=pk)
+            
+            # 获取作业中的所有题目
+            assignment_problems = AssignmentProblem.objects.filter(assignment=assignment)
+            serializer = AssignmentProblemSerializer(assignment_problems, many=True)
+            return self.success(serializer.data)
+        except Assignment.DoesNotExist:
+            return self.error("作业不存在", err="assignment-not-found")

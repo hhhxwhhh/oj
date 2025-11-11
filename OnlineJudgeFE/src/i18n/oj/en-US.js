@@ -668,5 +668,8 @@ export const m = {
   Is_this_recommendation_helpful: "Is this recommendation helpful?",
   Yes_It_is_helpful: "Yes, it is helpful",
   No_It_is_not_helpful: "No, it is not helpful",
-  No_recommendation_to_feedback: "No recommendation to feedback"
+  No_recommendation_to_feedback: "No recommendation to feedback",
+  Failed_to_get_Assignment_Details: "Failed to get assignment details",
+  undefined: "undefined",
+  Points: "Points"
 };

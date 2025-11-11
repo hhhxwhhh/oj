@@ -1,5 +1,5 @@
 from django.conf.urls import url
-from ..views import UserAssignmentsAPI, StudentAssignmentDetailAPI, StudentAssignmentProgressAPI
+from ..views import UserAssignmentsAPI, StudentAssignmentDetailAPI, StudentAssignmentProgressAPI, AssignmentProblemsAPI
 
 urlpatterns = [
     # 获取当前用户的所有作业
@@ -10,4 +10,7 @@ urlpatterns = [
     
     # 获取学生作业进度
     url(r'^student-assignments/(?P<pk>[0-9]+)/progress/?$', StudentAssignmentProgressAPI.as_view(), name="student_assignment_progress"),
+    
+    # 获取作业题目列表
+    url(r'^assignments/(?P<pk>[0-9]+)/problems/?$', AssignmentProblemsAPI.as_view(), name="assignment_problems"),
 ]

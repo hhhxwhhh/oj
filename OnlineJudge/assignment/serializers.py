@@ -16,15 +16,31 @@ class AssignmentSerializer(serializers.ModelSerializer):
         return obj.creator.username
     
 class AssignmentProblemSerializer(serializers.ModelSerializer):
+    problem_id = serializers.SerializerMethodField()
     problem_title = serializers.SerializerMethodField()
+    problem_difficulty = serializers.SerializerMethodField()
+    problem_accepted_number = serializers.SerializerMethodField()
+    problem_submission_number = serializers.SerializerMethodField()
     
     class Meta:
         model = AssignmentProblem
         fields = '__all__'
         read_only_fields = ('assignment',)
     
+    def get_problem_id(self, obj):
+        return obj.problem._id
+    
     def get_problem_title(self, obj):
         return obj.problem.title
+    
+    def get_problem_difficulty(self, obj):
+        return obj.problem.difficulty
+    
+    def get_problem_accepted_number(self, obj):
+        return obj.problem.accepted_number
+    
+    def get_problem_submission_number(self, obj):
+        return obj.problem.submission_number
     
 class StudentAssignmentSerializer(serializers.ModelSerializer):
     student_username = serializers.SerializerMethodField()

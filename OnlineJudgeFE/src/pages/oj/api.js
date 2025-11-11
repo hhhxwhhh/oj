@@ -467,6 +467,18 @@ export default {
   getUserAssignments() {
     return ajax("assignment/user-assignments", "get");
   },
+  getUserAssignmentDetail(assignmentID) {
+    return ajax(`assignment/student-assignments/${assignmentID}`, "get");
+  },
+  getAssignmentProblems(assignmentID) {
+    return ajax(`assignment/assignments/${assignmentID}/problems`, "get");
+  },
+  submitRecommendationFeedback(data) {
+    return ajax("ai/recommendation/feedback", "post", {
+      data
+    });
+  },
+
   getSimilarKnowledgePoints(knowledgePointId, params = {}) {
     return ajax(`ai/knowledge_point/${knowledgePointId}/similar/`, "GET", {
       params: params

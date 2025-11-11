@@ -7,6 +7,7 @@ import KnowledgePointProblems from "../views/ai/KnowledgePointProblems.vue";
 import AbilityDashboard from "../views/user/AbilityDashboard.vue";
 import OnlineLearningRecommendation from "../views/ai/OnlineLearningRecommendation.vue";
 import Assignment from "../views/assignment/Assignment.vue";
+import AssignmentDetails from "../views/assignment/AssignmentDetails.vue";
 import {
   About,
   ACMRank,
@@ -240,5 +241,11 @@ export default [
     path: "/assignment",
     meta: { requiresAuth: true, title: "Assignment" },
     component: Assignment
+  },
+  {
+    name: "assignment-details",
+    path: "/assignment/:assignmentID",
+    meta: { requiresAuth: true, title: "Assignment Details" },
+    component: AssignmentDetails
   }
 ];
