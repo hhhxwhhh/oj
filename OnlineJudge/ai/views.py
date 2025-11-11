@@ -20,11 +20,14 @@ from .serializers import (
 from .service import( 
     AIService,AIRecommendationService,AILearningPathService,
     AICodeDiagnosisService,KnowledgePointService ,AIProblemGenerationService,
-    AIProgrammingAbilityService,AIProgrammingAbility,NLPProblemAnalyzer,KnowledgeGraphGAT,KnowledgeGraphGNN,KnowledgeGraphService,)
+    AIProgrammingAbilityService,AIProgrammingAbility,NLPProblemAnalyzer,KnowledgeGraphGAT,KnowledgeGraphGNN,KnowledgeGraphService,KnowledgePointSimilarityService)
 from submission.models import Submission
 from account.models import User,UserProfile
 from problem.models import Problem
 import logging
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
 logger = logging.getLogger(__name__)
 class AIModelAdminAPI(APIView):
     def get(self,request):
@@ -1451,3 +1454,86 @@ class AIUserAbilityTrendAPI(APIView):
         except Exception as e:
             logger.error(f"Failed to get user ability trend: {str(e)}")
             return self.error("获取能力趋势分析失败")
+
+
+@api_view(['POST'])
+def update_knowledge_point_embeddings(request):
+    """
+    更新知识点向量表示
+    """
+    try:
+        count = KnowledgePointSimilarityService.update_knowledge_point_embeddings()
+        return Response({
+            'success': True,
+            'message': f'成功更新{count}个知识点的向量表示'
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'更新失败: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def get_similar_knowledge_points(request, knowledge_point_id):
+    """
+    获取与指定知识点相似的知识点
+    """
+    try:
+        k = int(request.GET.get('k', 10))
+        similar_points = KnowledgePointSimilarityService.get_similar_knowledge_points(
+            knowledge_point_id, k)
+        
+        results = []
+        for item in similar_points:
+            results.append({
+                'id': item['knowledge_point'].id,
+                'name': item['knowledge_point'].name,
+                'description': item['knowledge_point'].description,
+                'similarity': round(item['similarity'], 4),
+                'content_similarity': round(item.get('content_similarity', 0), 4),
+                'user_similarity': round(item.get('user_similarity', 0), 4)
+            })
+        
+        return Response({
+            'success': True,
+            'data': results
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'获取相似知识点失败: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def get_user_similar_knowledge_points(request, knowledge_point_id):
+    """
+    基于用户掌握情况获取相似知识点
+    """
+    try:
+        user_id = request.user.id
+        k = int(request.GET.get('k', 10))
+        
+        similar_points = KnowledgePointSimilarityService.get_user_similar_knowledge_points(
+            user_id, knowledge_point_id, k)
+        
+        results = []
+        for item in similar_points:
+            results.append({
+                'id': item['knowledge_point'].id,
+                'name': item['knowledge_point'].name,
+                'description': item['knowledge_point'].description,
+                'similarity': round(item['similarity'], 4),
+                'content_similarity': round(item.get('content_similarity', 0), 4),
+                'user_similarity': round(item.get('user_similarity', 0), 4)
+            })
+        
+        return Response({
+            'success': True,
+            'data': results
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'获取相似知识点失败: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

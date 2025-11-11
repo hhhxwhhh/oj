@@ -41,6 +41,8 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from datetime import datetime,timedelta
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.spatial.distance import cosine
 logger = logging.getLogger(__name__)
 online_recommender=OnlineLearningRecommender()
 ql_recommender=EnhancedQLearningRecommender()
@@ -5054,3 +5056,203 @@ class AIUserAbilityHistoryService:
             )
         
         return analysis_results
+    
+
+class KnowledgePointSimilarityService:
+    """
+    基于现有系统的知识点相似度计算服务
+    """
+    
+    @staticmethod
+    def update_knowledge_point_embeddings():
+        """
+        更新知识点的向量表示（基于相关题目和前置知识点）
+        """
+        from ai.models import KnowledgePoint
+        
+        # 获取所有知识点
+        knowledge_points = KnowledgePoint.objects.all()
+        
+        # 构建题目-知识点映射
+        problem_kp_mapping = {}
+        kp_problem_mapping = {}
+        
+        for kp in knowledge_points:
+            problems = kp.related_problems.all()
+            kp_problem_mapping[kp.id] = [p.id for p in problems]
+            for problem in problems:
+                if problem.id not in problem_kp_mapping:
+                    problem_kp_mapping[problem.id] = []
+                problem_kp_mapping[problem.id].append(kp.id)
+        
+        # 构建前置知识点映射
+        prerequisite_mapping = {}
+        for kp in knowledge_points:
+            prerequisites = kp.parent_points.all()
+            prerequisite_mapping[kp.id] = [p.id for p in prerequisites]
+        
+        # 为每个知识点生成向量表示
+        all_problem_ids = list(problem_kp_mapping.keys())
+        all_kp_ids = list(kp_problem_mapping.keys())
+        
+        # 构建向量维度映射
+        problem_id_to_index = {pid: i for i, pid in enumerate(all_problem_ids)}
+        kp_id_to_index = {kpid: i for i, kpid in enumerate(all_kp_ids)}
+        
+        # 为每个知识点创建向量表示
+        for kp in knowledge_points:
+            # 初始化向量（题目维度 + 知识点维度）
+            vector = np.zeros(len(all_problem_ids) + len(all_kp_ids))
+            
+            # 设置相关题目的维度
+            for problem_id in kp_problem_mapping.get(kp.id, []):
+                if problem_id in problem_id_to_index:
+                    vector[problem_id_to_index[problem_id]] = 1.0
+            
+            # 设置前置知识点的维度（较低权重）
+            for prereq_id in prerequisite_mapping.get(kp.id, []):
+                if prereq_id in kp_id_to_index:
+                    vector[len(all_problem_ids) + kp_id_to_index[prereq_id]] = 0.5
+            
+            # 序列化向量并保存
+            vector_str = ','.join(map(str, vector))
+            kp.embedding = vector_str
+            kp.save()
+        
+        return len(knowledge_points)
+    
+    @staticmethod
+    def calculate_similarity(kp1_id, kp2_id):
+        """
+        计算两个知识点之间的相似度
+        """
+        from ai.models import KnowledgePoint
+        
+        try:
+            kp1 = KnowledgePoint.objects.get(id=kp1_id)
+            kp2 = KnowledgePoint.objects.get(id=kp2_id)
+        except KnowledgePoint.DoesNotExist:
+            return 0.0
+        
+        if not kp1.embedding or not kp2.embedding:
+            return 0.0
+        
+        try:
+            # 解析向量
+            vec1 = np.array([float(x) for x in kp1.embedding.split(',')])
+            vec2 = np.array([float(x) for x in kp2.embedding.split(',')])
+            
+            # 计算余弦相似度
+            # 避免全零向量
+            if np.linalg.norm(vec1) == 0 or np.linalg.norm(vec2) == 0:
+                return 0.0
+            
+            similarity = 1 - cosine(vec1, vec2)
+            return max(0.0, similarity)  # 确保非负
+        except Exception as e:
+            print(f"计算相似度时出错: {e}")
+            return 0.0
+    
+    @staticmethod
+    def get_similar_knowledge_points(knowledge_point_id, k=10):
+        """
+        获取与指定知识点最相似的k个知识点
+        """
+        from ai.models import KnowledgePoint
+        
+        try:
+            target_kp = KnowledgePoint.objects.get(id=knowledge_point_id)
+        except KnowledgePoint.DoesNotExist:
+            return []
+        
+        # 获取所有其他知识点
+        all_kps = KnowledgePoint.objects.exclude(id=knowledge_point_id)
+        
+        # 计算相似度
+        similarities = []
+        for kp in all_kps:
+            similarity = KnowledgePointSimilarityService.calculate_similarity(
+                knowledge_point_id, kp.id)
+            if similarity > 0.01:  # 过滤掉相似度极低的
+                similarities.append({
+                    'knowledge_point': kp,
+                    'similarity': similarity
+                })
+        
+        # 按相似度排序
+        similarities.sort(key=lambda x: x['similarity'], reverse=True)
+        return similarities[:k]
+    
+    @staticmethod
+    def calculate_user_based_similarity(user_id, kp1_id, kp2_id):
+        """
+        基于用户掌握情况计算知识点相似度
+        """
+        from ai.models import AIUserKnowledgeState
+        
+        try:
+            # 获取用户对两个知识点的掌握情况
+            state1 = AIUserKnowledgeState.objects.get(
+                user_id=user_id, knowledge_point_id=kp1_id)
+            state2 = AIUserKnowledgeState.objects.get(
+                user_id=user_id, knowledge_point_id=kp2_id)
+        except AIUserKnowledgeState.DoesNotExist:
+            return 0.0
+        
+        # 使用掌握程度计算相似度
+        proficiency1 = state1.proficiency_level
+        proficiency2 = state2.proficiency_level
+        
+        # 简单的相似度计算：掌握程度差的绝对值的补集
+        similarity = 1.0 - abs(proficiency1 - proficiency2)
+        return max(0.0, similarity)
+    
+    @staticmethod
+    def get_user_similar_knowledge_points(user_id, knowledge_point_id, k=10):
+        """
+        基于用户掌握情况获取相似知识点
+        """
+        from ai.models import KnowledgePoint, AIUserKnowledgeState
+        
+        try:
+            target_state = AIUserKnowledgeState.objects.get(
+                user_id=user_id, knowledge_point_id=knowledge_point_id)
+        except AIUserKnowledgeState.DoesNotExist:
+            # 如果用户没有该知识点的记录，回退到基于内容的相似度
+            return KnowledgePointSimilarityService.get_similar_knowledge_points(
+                knowledge_point_id, k)
+        
+        # 获取用户学习过的所有知识点
+        user_knowledge_states = AIUserKnowledgeState.objects.filter(user_id=user_id)
+        user_kp_ids = [state.knowledge_point_id for state in user_knowledge_states]
+        
+        # 获取所有知识点
+        all_kps = KnowledgePoint.objects.exclude(id=knowledge_point_id)
+        
+        # 计算相似度
+        similarities = []
+        for kp in all_kps:
+            # 综合内容相似度和用户掌握情况相似度
+            content_similarity = KnowledgePointSimilarityService.calculate_similarity(
+                knowledge_point_id, kp.id)
+            
+            user_similarity = 0.0
+            if kp.id in user_kp_ids:
+                user_similarity = KnowledgePointSimilarityService.calculate_user_based_similarity(
+                    user_id, knowledge_point_id, kp.id)
+            
+            # 加权综合相似度
+            combined_similarity = 0.7 * content_similarity + 0.3 * user_similarity
+            
+            if combined_similarity > 0.01:
+                similarities.append({
+                    'knowledge_point': kp,
+                    'similarity': combined_similarity,
+                    'content_similarity': content_similarity,
+                    'user_similarity': user_similarity
+                })
+        
+        # 按相似度排序
+        similarities.sort(key=lambda x: x['similarity'], reverse=True)
+        return similarities[:k]
+
