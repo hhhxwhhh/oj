@@ -631,95 +631,166 @@ export default {
     }
 
     /deep/ .ivu-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      line-height: 1;
+
       &.ivu-tag-blue {
-        background: #e6f7ff;
-        border-color: #40a9ff;
-        color: #1890ff;
+        background: #1890ff;
+        border-color: #096dd9;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-green {
-        background: #f6ffed;
-        border-color: #52c41a;
-        color: #389e0d;
+        background: #52c41a;
+        border-color: #389e0d;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-yellow {
-        background: #fffbe6;
-        border-color: #faad14;
-        color: #d48806;
+        background: #faad14;
+        border-color: #d48806;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-red {
-        background: #fff1f0;
-        border-color: #ff4d4f;
-        color: #cf1322;
+        background: #ff4d4f;
+        border-color: #cf1322;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-purple {
-        background: #f9f0ff;
-        border-color: #9254de;
-        color: #722ed1;
+        background: #9254de;
+        border-color: #722ed1;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-cyan {
-        background: #e6fffb;
-        border-color: #13c2c2;
-        color: #08979c;
+        background: #13c2c2;
+        border-color: #08979c;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-orange {
-        background: #fff7e6;
-        border-color: #ffa940;
-        color: #d46b08;
+        background: #ffa940;
+        border-color: #d46b08;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-pink {
-        background: #fff0f6;
-        border-color: #ff85c0;
-        color: #c41d7f;
+        background: #ff85c0;
+        border-color: #c41d7f;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-magenta {
-        background: #fff0f6;
-        border-color: #ff69b4;
-        color: #c41d7f;
+        background: #ff69b4;
+        border-color: #c41d7f;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-volcano {
-        background: #fff2e8;
-        border-color: #ff7a45;
-        color: #d4380d;
+        background: #ff7a45;
+        border-color: #d4380d;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-geekblue {
-        background: #f0f5ff;
-        border-color: #40a9ff;
-        color: #1d39c4;
+        background: #40a9ff;
+        border-color: #1d39c4;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-lime {
-        background: #fcffe6;
-        border-color: #a0d911;
-        color: #5b8c00;
+        background: #a0d911;
+        border-color: #5b8c00;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
 
       &.ivu-tag-gold {
-        background: #fffbe6;
-        border-color: #ffc53d;
-        color: #d48806;
+        background: #ffc53d;
+        border-color: #d48806;
+        color: white;
         font-weight: 500;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
       }
     }
   }
