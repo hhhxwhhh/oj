@@ -387,11 +387,27 @@ class AIRecommendationFeedbackAPI(APIView):
             from .models import AIRecommendation, AIRecommendationFeedback
             from .service import KnowledgePointService, ql_recommender
             
-            # 获取推荐记录
             try:
-                recommendation = AIRecommendation.objects.get(id=data["recommendation_id"])
+                recommendation = AIRecommendation.objects.get(
+                    id=data["recommendation_id"]
+                )
             except AIRecommendation.DoesNotExist:
-                return self.error("Recommendation not found")
+                try:
+                    recommendation = AIRecommendation.objects.get(
+                        user=user,
+                        problem_id=data["recommendation_id"]
+                    )
+                except AIRecommendation.DoesNotExist:
+                    return self.error("Recommendation not found")
+            
+            # 检查是否已存在反馈记录
+            feedback_exists = AIRecommendationFeedback.objects.filter(
+                user=user,
+                recommendation=recommendation
+            ).exists()
+            
+            if feedback_exists:
+                return self.error("Feedback already submitted")
             
             # 创建反馈
             feedback = AIRecommendationFeedback.objects.create(
@@ -406,7 +422,7 @@ class AIRecommendationFeedbackAPI(APIView):
             # 处理反馈以优化推荐算法
             KnowledgePointService.process_recommendation_feedback(
                 user_id=user.id,
-                recommendation_id=data["recommendation_id"],
+                recommendation_id=recommendation.id,
                 accepted=data['accepted'],
                 solved=data.get("solved", False),
                 feedback_text=data.get("feedback", "")
@@ -420,7 +436,6 @@ class AIRecommendationFeedbackAPI(APIView):
                 else:
                     reward = -0.5
                 
-                # 更新强化学习模型
                 ql_recommender.update(user.id, 'reinforcement_learning', reward)
             
             return self.success(AIRecommendationFeedbackSerializer(feedback).data)

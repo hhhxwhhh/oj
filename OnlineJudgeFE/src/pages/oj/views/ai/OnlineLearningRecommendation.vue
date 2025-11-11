@@ -135,7 +135,24 @@ export default {
                 }
             } catch (error) {
                 console.error('Failed to submit feedback:', error);
-                this.$error(this.$t('m.Failed_to_submit_feedback'));
+
+                // 改进错误处理，更好地显示错误信息
+                let errorMessage = this.$t('m.Failed_to_submit_feedback');
+                if (error && error.response && error.response.data) {
+                    if (typeof error.response.data === 'string') {
+                        errorMessage = error.response.data;
+                    } else if (error.response.data.error) {
+                        errorMessage = error.response.data.error;
+                    } else if (error.response.data.detail) {
+                        errorMessage = error.response.data.detail;
+                    } else {
+                        errorMessage = JSON.stringify(error.response.data);
+                    }
+                } else if (error && error.message) {
+                    errorMessage = error.message;
+                }
+
+                this.$error(errorMessage);
             }
         },
 

@@ -2020,7 +2020,7 @@ class AIRecommendationService:
                 for problem_id, score, reason in recommendations:
                     # 确保score不为None，如果为None则设置为默认值0.0
                     safe_score = score if score is not None else 0.0
-                    AIRecommendation.objects.create(
+                    AIRecommendation.objects.update_or_create(
                         user_id=user_id,
                         problem_id=problem_id,
                         algorithm_used=selected_algorithm,
