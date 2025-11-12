@@ -10,9 +10,9 @@ class Command(BaseCommand):
     help = '为系统中所有现有用户和题目生成测试提交记录，并更新统计信息'
 
     def add_arguments(self, parser):
-        parser.add_argument('--submissions-per-user', type=int, default=5,
+        parser.add_argument('--submissions-per-user', type=int, default=3,
                             help='每个用户每个题目的平均提交次数')
-        parser.add_argument('--ac-rate', type=float, default=0.3,
+        parser.add_argument('--ac-rate', type=float, default=0.6,
                             help='通过率 (0.0-1.0)')
 
     def handle(self, *args, **options):
