@@ -174,28 +174,46 @@ class GNNBasedRecommender:
         """
         self.model.eval()
         with torch.no_grad():
-            # 确保问题ID在有效范围内
-            problem_id = max(0, min(problem_id, self.num_problems - 1))
-            problem_indices = torch.LongTensor([problem_id]).to(self.device)
-            
-            # 确保知识点ID在有效范围内
-            valid_knowledge_ids = [max(0, min(state.knowledge_point_id, self.num_knowledge_points - 1)) 
-                                 for state in user_knowledge_states]
-            
-            if not valid_knowledge_ids:
-                # 如果没有有效的知识点，返回默认低分
-                return 0.1
+            try:
+                # 确保输入是有效的
+                if not user_knowledge_states:
+                    # 如果没有知识点状态，返回默认分数
+                    return 0.5
                 
-            knowledge_indices = torch.LongTensor(valid_knowledge_ids).to(self.device)
-            
-            # 构建边索引（简化处理）
-            if len(knowledge_indices) > 0:
-                edge_index = torch.LongTensor([
-                    [i for i in range(len(knowledge_indices))],
-                    [len(knowledge_indices)] * len(knowledge_indices)
-                ]).to(self.device)
-            else:
-                edge_index = torch.empty((2, 0), dtype=torch.long).to(self.device)
-            
-            score = self.model(problem_indices, knowledge_indices, edge_index)
-            return score.cpu().numpy()[0] if len(score.shape) > 0 else score.cpu().numpy()
+                # 确保问题ID和知识点ID在有效范围内
+                problem_id = max(0, min(problem_id, self.model.num_problems - 1))
+                
+                valid_knowledge_ids = []
+                for state in user_knowledge_states:
+                    if hasattr(state, 'knowledge_point_id'):
+                        kp_id = max(0, min(state.knowledge_point_id, self.model.num_knowledge_points - 1))
+                        valid_knowledge_ids.append(kp_id)
+                
+                if not valid_knowledge_ids:
+                    # 如果没有有效的知识点ID，返回默认分数
+                    return 0.5
+                
+                problem_indices = torch.LongTensor([problem_id]).to(self.model.device)
+                knowledge_indices = torch.LongTensor(valid_knowledge_ids).to(self.model.device)
+                
+                # 构建合理的边索引
+                if len(knowledge_indices) > 0:
+                    # 创建从知识点到问题的边
+                    source_indices = torch.arange(len(knowledge_indices)).to(self.model.device)
+                    target_indices = torch.full((len(knowledge_indices),), len(knowledge_indices)).to(self.model.device)
+                    edge_index = torch.stack([source_indices, target_indices], dim=0)
+                else:
+                    # 创建空的边索引
+                    edge_index = torch.empty((2, 0), dtype=torch.long).to(self.model.device)
+                
+                score = self.model(problem_indices, knowledge_indices, edge_index)
+                # 确保返回的是标量值
+                if score.numel() > 0:
+                    return float(score.cpu().numpy().flatten()[0])
+                else:
+                    return 0.5
+                    
+            except Exception as e:
+                logger.error(f"GNN prediction error for problem {problem_id}: {str(e)}")
+                # 出错时返回默认分数
+                return 0.5

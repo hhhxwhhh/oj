@@ -6,7 +6,8 @@
           <img class="avatar" :src="profile.avatar" />
         </div>
         <div class="user-info">
-          <h2>{{ profile.user.username }}</h2>
+          <h2 v-if="profile && profile.user">{{ profile.user.username }}</h2>
+          <h2 v-else>Loading...</h2>
           <p v-if="profile.school" class="school">@{{ profile.school }}</p>
           <p v-if="profile.mood" class="mood">{{ profile.mood }}</p>
         </div>
