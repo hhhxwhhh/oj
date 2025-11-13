@@ -638,10 +638,6 @@ class AIRecommendationService:
             user_solved_problems = set(user_submissions)
             logger.info(f"User {user_id} has solved {len(user_solved_problems)} problems")
             
-            if not user_solved_problems:
-                logger.info(f"User {user_id} has no solved problems, returning empty recommendations")
-                return []
-            
             # 获取其他用户及其解决的题目
             other_users_data = {}
             other_submissions = Submission.objects.filter(
@@ -659,13 +655,13 @@ class AIRecommendationService:
             
             logger.info(f"Found {len(other_users_data)} other users with submission data")
             
+            # 如果没有其他用户数据，使用默认推荐
             if not other_users_data:
-                logger.info("No other users found for collaborative filtering")
-                return []
+                logger.info("No other users found for collaborative filtering, using fallback recommendation")
+                return AIRecommendationService.get_diverse_problems(user_id, count)
             
-            # 计算用户相似度
+            # 计算用户相似度（降低相似度阈值）
             user_similarities = {}
-            user_solved_list = list(user_solved_problems)
             
             for other_user_id, other_user_problems in other_users_data.items():
                 # 计算Jaccard相似度
@@ -678,13 +674,14 @@ class AIRecommendationService:
                 else:
                     user_similarities[other_user_id] = 0
             
-            # 选择最相似的用户（相似度大于0）
-            similar_users = {user_id: sim for user_id, sim in user_similarities.items() if sim > 0}
+            # 选择最相似的用户（使用更低的阈值）
+            similar_users = {user_id: sim for user_id, sim in user_similarities.items() if sim >= 0}  # 改为 >= 0
             logger.info(f"Found {len(similar_users)} similar users")
             
+            # 如果没有相似用户，使用基于流行度的推荐
             if not similar_users:
-                logger.info("No similar users found")
-                return []
+                logger.info("No similar users found, using popularity-based recommendation")
+                return AIRecommendationService.get_diverse_problems(user_id, count)
             
             # 根据相似用户推荐题目
             problem_scores = defaultdict(float)
@@ -694,9 +691,11 @@ class AIRecommendationService:
                 similar_user_problems = other_users_data.get(similar_user_id, set())
                 candidate_problems = similar_user_problems - user_solved_problems
                 
-                # 根据相似度为候选题目打分
+                # 根据相似度为候选题目打分（给低相似度也分配一定权重）
                 for problem_id in candidate_problems:
-                    problem_scores[problem_id] += similarity
+                    # 即使相似度为0，也给予基础权重
+                    adjusted_similarity = max(0.1, similarity)  
+                    problem_scores[problem_id] += adjusted_similarity
             
             # 转换为列表并排序
             recommendations = [(problem_id, score, "基于协同过滤推荐") 
@@ -704,11 +703,178 @@ class AIRecommendationService:
             recommendations.sort(key=lambda x: x[1], reverse=True)
             
             logger.info(f"Generated {len(recommendations)} collaborative filtering recommendations")
+            
+            # 如果推荐数量不足，补充多样化题目
+            if len(recommendations) < count:
+                additional_count = count - len(recommendations)
+                diverse_problems = AIRecommendationService.get_diverse_problems(user_id, additional_count)
+                existing_problem_ids = {rec[0] for rec in recommendations}
+                for problem_id, score, reason in diverse_problems:
+                    # 只添加未在推荐列表中的题目
+                    if problem_id not in existing_problem_ids and problem_id not in user_solved_problems:
+                        recommendations.append((problem_id, score * 0.7, "多样化题目补充推荐"))
+            
+            # 如果仍然没有足够的推荐，放宽过滤条件，允许推荐已解决过的题目
+            if len(recommendations) < count:
+                additional_count = count - len(recommendations)
+                # 从所有题目中选择，不再排除已解决的题目
+                all_problems = Problem.objects.filter(visible=True).order_by('-submission_number')[:additional_count * 2]
+                existing_problem_ids = {rec[0] for rec in recommendations}
+                for problem in all_problems:
+                    if len(recommendations) >= count:
+                        break
+                    if problem.id not in existing_problem_ids:
+                        acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                        recommendations.append((problem.id, acceptance_rate * 0.3, "全部题目补充推荐"))
+            
             return recommendations[:count]
             
         except Exception as e:
             logger.error(f"Collaborative filtering recommendation failed: {str(e)}")
-            return []
+            # 出错时返回多样化题目推荐
+            return AIRecommendationService.get_diverse_problems(user_id, count)
+
+    @staticmethod
+    def get_diverse_problems(user_id, count=10):
+        """
+        获取多样化的题目推荐，确保不同难度和标签的题目
+        """
+        try:
+            # 获取用户已解决的题目
+            user_solved_problems = set(
+                Submission.objects.filter(
+                    user_id=user_id, 
+                    result=0  # ACCEPTED = 0
+                ).values_list('problem_id', flat=True)
+            )
+            
+            # 同时考虑通过和部分通过的题目
+            user_attempted_problems = set(
+                Submission.objects.filter(
+                    user_id=user_id
+                ).values_list('problem_id', flat=True)
+            )
+            
+            logger.info(f"User {user_id} has solved {len(user_solved_problems)} problems")
+            logger.info(f"User {user_id} has attempted {len(user_attempted_problems)} problems")
+            
+            # 获取所有可见题目，按难度分组
+            all_problems = Problem.objects.filter(visible=True)
+            logger.info(f"Total visible problems: {all_problems.count()}")
+            
+            # 先尝试排除已解决的题目
+            available_problems = all_problems.exclude(id__in=user_solved_problems)
+            logger.info(f"Problems after excluding solved: {available_problems.count()}")
+            
+            # 如果排除已解决的题目后数量不足，尝试排除已尝试的题目
+            if available_problems.count() < count * 2:
+                available_problems = all_problems.exclude(id__in=user_solved_problems).exclude(id__in=user_attempted_problems)
+                logger.info(f"Problems after excluding attempted: {available_problems.count()}")
+            
+            # 如果仍然不足，就不排除任何题目
+            if available_problems.count() < count:
+                available_problems = all_problems
+                logger.info(f"Using all problems as fallback: {available_problems.count()}")
+            
+            # 按难度分组
+            problems_by_difficulty = defaultdict(list)
+            for problem in available_problems:
+                problems_by_difficulty[problem.difficulty].append(problem)
+            
+            # 从每个难度级别中选择题目
+            recommendations = []
+            difficulties = list(problems_by_difficulty.keys())
+            
+            # 确保至少有一个难度级别
+            if not difficulties:
+                # 最后的回退方案：获取所有题目中的前count个
+                fallback_problems = list(all_problems[:count * 2])
+                for i, problem in enumerate(fallback_problems[:count]):
+                    acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                    score = acceptance_rate * {
+                        'Low': 0.8,
+                        'Mid': 1.0,
+                        'High': 1.2
+                    }.get(problem.difficulty, 1.0)
+                    recommendations.append((problem.id, score, "全部题目回退推荐"))
+                return recommendations[:count]
+            
+            # 平均分配题目数量到各个难度级别
+            problems_per_difficulty = max(1, count // len(difficulties))
+            # 确保不会超过count数量
+            total_allocated = problems_per_difficulty * len(difficulties)
+            if total_allocated > count:
+                problems_per_difficulty = count // len(difficulties)
+            
+            for difficulty in difficulties:
+                problems = problems_by_difficulty[difficulty]
+                # 按通过率排序，优先推荐通过率适中的题目
+                problems.sort(key=lambda p: p.accepted_number / p.submission_number if p.submission_number > 0 else 0)
+                
+                # 选择适中的题目（避免太简单或太难）
+                if len(problems) <= 6:
+                    selected_problems = problems
+                else:
+                    mid_index = len(problems) // 2
+                    selected_problems = problems[max(0, mid_index-3):min(len(problems), mid_index+3)]
+                
+                # 确保不超过分配的数量
+                for problem in selected_problems[:problems_per_difficulty]:
+                    if len(recommendations) >= count:
+                        break
+                    
+                    # 计算推荐分数
+                    acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                    score = acceptance_rate * {
+                        'Low': 0.8,
+                        'Mid': 1.0,
+                        'High': 1.2
+                    }.get(problem.difficulty, 1.0)
+                    
+                    recommendations.append((problem.id, score, f"多样化推荐({difficulty})"))
+            
+            # 如果数量还不够，用热门题目补充
+            if len(recommendations) < count:
+                additional_needed = count - len(recommendations)
+                # 按提交数量排序获取热门题目
+                popular_problems = available_problems.order_by('-submission_number')[:additional_needed * 2]
+                
+                for problem in popular_problems:
+                    if len(recommendations) >= count:
+                        break
+                    # 避免重复添加
+                    if problem.id not in [rec[0] for rec in recommendations]:
+                        acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                        score = acceptance_rate * 0.5  # 给较低的分数
+                        recommendations.append((problem.id, score, "热门题目补充"))
+            
+            if len(recommendations) < count:
+                # 从所有可见题目中补充
+                all_visible_problems = list(all_problems)
+                for problem in all_visible_problems:
+                    if len(recommendations) >= count:
+                        break
+                    # 避免重复添加
+                    if problem.id not in [rec[0] for rec in recommendations]:
+                        acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                        score = acceptance_rate * 0.3  # 给更低的分数
+                        recommendations.append((problem.id, score, "全部题目补充"))
+            
+            logger.info(f"Generated {len(recommendations)} diverse recommendations")
+            return recommendations[:count]
+        except Exception as e:
+            logger.error(f"Error getting diverse problems: {str(e)}")
+            # 最后的回退方案：返回一些固定的题目
+            try:
+                fallback_problems = Problem.objects.filter(visible=True)[:count]
+                recommendations = []
+                for problem in fallback_problems:
+                    acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                    recommendations.append((problem.id, acceptance_rate, "紧急回退推荐"))
+                return recommendations
+            except Exception as fallback_error:
+                logger.error(f"Emergency fallback failed: {str(fallback_error)}")
+                return []
 
     @staticmethod
     def content_based_recommendations(user_id,count=10):
@@ -720,14 +886,13 @@ class AIRecommendationService:
                 result=0
             ).select_related('problem')
             
-            if not solved_problems:
-                from problem.models import Problem
-                problems = Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
-                return [(p.id, 0.5, "热门题目推荐") for p in problems]
-            
             # 获取所有可见题目
             from problem.models import Problem
             all_problems = Problem.objects.filter(visible=True)
+            
+            # 如果用户没有解决问题，或者解决了所有问题，返回多样化推荐
+            if not solved_problems or len(solved_problems) >= all_problems.count() * 0.9:
+                return AIRecommendationService.get_diverse_problems(user_id, count)
             
             # 提取已解决问题的描述
             solved_descriptions = [sp.problem.description for sp in solved_problems if sp.problem.description]
@@ -740,6 +905,9 @@ class AIRecommendationService:
             all_texts = solved_descriptions + all_descriptions
             
             # 创建TF-IDF向量
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.metrics.pairwise import cosine_similarity
+            
             vectorizer = TfidfVectorizer(max_features=1000, stop_words=None, ngram_range=(1, 2))
             tfidf_matrix = vectorizer.fit_transform(all_texts)
             
@@ -769,46 +937,37 @@ class AIRecommendationService:
                 
                 recommendations.append((problem.id, weighted_score, "基于题目内容相似性推荐"))
             
-            # 按相似度排序并返回前count个
+            # 按相似度排序
             recommendations.sort(key=lambda x: x[1], reverse=True)
+            
+            # 如果推荐数量不足，补充多样化题目
+            if len(recommendations) < count:
+                additional_count = count - len(recommendations)
+                diverse_problems = AIRecommendationService.get_diverse_problems(user_id, additional_count)
+                existing_problem_ids = {rec[0] for rec in recommendations}
+                for problem_id, score, reason in diverse_problems:
+                    if problem_id not in existing_problem_ids and problem_id not in solved_problem_ids:
+                        recommendations.append((problem_id, score * 0.7, "多样化题目补充推荐"))
+            
+            # 如果仍然没有足够的推荐，放宽过滤条件，允许推荐已解决过的题目
+            if len(recommendations) < count:
+                additional_count = count - len(recommendations)
+                # 从所有题目中选择，不再排除已解决的题目
+                all_problems_sorted = Problem.objects.filter(visible=True).order_by('-submission_number')[:additional_count * 2]
+                existing_problem_ids = {rec[0] for rec in recommendations}
+                for problem in all_problems_sorted:
+                    if len(recommendations) >= count:
+                        break
+                    if problem.id not in existing_problem_ids:
+                        acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                        recommendations.append((problem.id, acceptance_rate * 0.3, "全部题目补充推荐"))
+            
             return recommendations[:count]
             
         except Exception as e:
             logger.error(f"Content-based recommendation failed: {str(e)}")
             # 出错时返回基于标签的推荐
-            solved_submissions=Submission.objects.filter(
-                user_id=user_id,
-                result=0
-            ).select_related("problem")
-            solved_problems=[sub.problem for sub in solved_submissions]
-
-            if not solved_problems:
-                popular_problems=Problem.objects.filter(visible=True).order_by("-accepted_number")[:count]
-                return [(problem.id, 0, "基于热门题目推荐") for problem in popular_problems]
-            solved_tags=set()
-            for problem in solved_problems:
-                for tag in problem.tags.all():
-                    solved_tags.add(tag)
-
-            unsolved_problems = Problem.objects.filter(visible=True).exclude(
-                id__in=[p.id for p in solved_problems]
-            ).prefetch_related('tags')
-            candidate_problems=[]
-            for problem in unsolved_problems:
-                problem_tags = {tag.name for tag in problem.tags.all()}
-                if solved_tags and problem_tags:
-                    intersection=len(solved_tags.intersection(problem_tags))
-                    union=len(solved_tags.union(problem_tags))
-                    if union>0:
-                        similarity=intersection/union
-                        # 基于知识点掌握情况调整权重
-                        knowledge_weight = AIRecommendationService._calculate_knowledge_weight(
-                            user_id, problem)
-                        weighted_similarity = similarity * knowledge_weight
-                        candidate_problems.append((problem.id, weighted_similarity, "基于标签推荐"))
-
-            candidate_problems.sort(key=lambda x:x[1],reverse=True)
-            return candidate_problems[:count]
+            return AIRecommendationService.get_diverse_problems(user_id, count)
         
     @staticmethod
     def _calculate_knowledge_weight(user_id, problem):
@@ -891,109 +1050,89 @@ class AIRecommendationService:
         """
         混合推荐算法，结合协同过滤和内容推荐，并考虑用户行为数据
         """
-        cf_recommendations = AIRecommendationService.collaborative_filtering_recommendations(user_id=user_id, count=count*2)
-        cb_recommendations = AIRecommendationService.content_based_recommendations(user_id=user_id, count=count*2)
-        
-        behavior_weights = AIRecommendationService._get_user_behavior_weights(user_id)
-        
-        cf_weight, cb_weight = AIRecommendationService._calculate_algorithm_weights(
-            user_id, cf_recommendations, cb_recommendations)
-        
-        problem_scores = defaultdict(list)
-        reason_tracker = {}  # 跟踪每个题目的推荐理由
-        
-        for problem_id, score, reason in cf_recommendations:
-            problem_scores[problem_id].append(score * cf_weight)
-            if problem_id not in reason_tracker:
-                reason_tracker[problem_id] = []
-            reason_tracker[problem_id].append(("协同过滤", score * cf_weight, reason))
-                
-        for problem_id, score, reason in cb_recommendations:
-            problem_scores[problem_id].append(score * cb_weight)
-            if problem_id not in reason_tracker:
-                reason_tracker[problem_id] = []
-            reason_tracker[problem_id].append(("内容推荐", score * cb_weight, reason))
-            
-        final_recommendations = []
-        for problem_id, scores in problem_scores.items():
-            weighted_score = sum(scores)
-            behavior_weight = behavior_weights.get(problem_id, 1.0)
-            
-            # 综合分数 = 加权分数 * 行为权重
-            final_score = weighted_score * behavior_weight
-            
-            reasons = reason_tracker[problem_id]
-            if len(reasons) == 1:
-                # 只有一种算法产生了推荐
-                algorithm_type, weighted_score, original_reason = reasons[0]
-                combined_reason = f"混合推荐 ({algorithm_type}: {original_reason})"
-            else:
-                # 两种算法都产生了推荐
-                cf_info = next((r for r in reasons if r[0] == "协同过滤"), None)
-                cb_info = next((r for r in reasons if r[0] == "内容推荐"), None)
-                
-                if cf_info and cb_info:
-                    combined_reason = f"混合推荐 (协同过滤权重:{cf_weight:.2f}, 内容推荐权重:{cb_weight:.2f})"
-                elif cf_info:
-                    combined_reason = f"混合推荐 (协同过滤推荐)"
-                else:
-                    combined_reason = f"混合推荐 (内容推荐)"
-            
-            final_recommendations.append((problem_id, final_score, combined_reason))
-
-        # 按分数排序
-        final_recommendations.sort(key=lambda x: x[1], reverse=True)
-        return final_recommendations[:count]
-
-    
-    @staticmethod
-    def _calculate_algorithm_weights(user_id, cf_recommendations, cb_recommendations):
-        """
-        根据用户历史反馈动态计算算法权重
-        """
         try:
-            # 获取用户反馈数据
-            from .models import AIRecommendationFeedback
-            feedbacks = AIRecommendationFeedback.objects.filter(user_id=user_id)
+            cf_recommendations = AIRecommendationService.collaborative_filtering_recommendations(user_id=user_id, count=count*2)
+            cb_recommendations = AIRecommendationService.content_based_recommendations(user_id=user_id, count=count*2)
             
-            if not feedbacks.exists():
-                # 没有反馈数据，使用默认权重
-                return 0.5, 0.5
+            behavior_weights = AIRecommendationService._get_user_behavior_weights(user_id)
             
-            # 统计各算法推荐的接受情况
-            cf_accepted = 0
-            cf_total = 0
-            cb_accepted = 0
-            cb_total = 0
+            cf_weight, cb_weight = AIRecommendationService._calculate_algorithm_weights(
+                user_id, cf_recommendations, cb_recommendations)
             
-            for feedback in feedbacks:
-                recommendation_reason = feedback.recommendation.reason
-                if "协同过滤" in recommendation_reason or "相似用户" in recommendation_reason:
-                    cf_total += 1
-                    if feedback.accepted:
-                        cf_accepted += 1
-                elif "内容" in recommendation_reason or "题目内容相似性" in recommendation_reason:
-                    cb_total += 1
-                    if feedback.accepted:
-                        cb_accepted += 1
+            problem_scores = defaultdict(list)
+            reason_tracker = {}  # 跟踪每个题目的推荐理由
             
-            # 计算接受率
-            cf_acceptance_rate = cf_accepted / cf_total if cf_total > 0 else 0.5
-            cb_acceptance_rate = cb_accepted / cb_total if cb_total > 0 else 0.5
+            for problem_id, score, reason in cf_recommendations:
+                problem_scores[problem_id].append(score * cf_weight)
+                if problem_id not in reason_tracker:
+                    reason_tracker[problem_id] = []
+                reason_tracker[problem_id].append(("协同过滤", score * cf_weight, reason))
+                    
+            for problem_id, score, reason in cb_recommendations:
+                problem_scores[problem_id].append(score * cb_weight)
+                if problem_id not in reason_tracker:
+                    reason_tracker[problem_id] = []
+                reason_tracker[problem_id].append(("内容推荐", score * cb_weight, reason))
+                
+            final_recommendations = []
+            for problem_id, scores in problem_scores.items():
+                weighted_score = sum(scores)
+                behavior_weight = behavior_weights.get(problem_id, 1.0)
+                
+                # 综合分数 = 加权分数 * 行为权重
+                final_score = weighted_score * behavior_weight
+                
+                reasons = reason_tracker[problem_id]
+                if len(reasons) == 1:
+                    # 只有一种算法产生了推荐
+                    algorithm_type, weighted_score, original_reason = reasons[0]
+                    combined_reason = f"混合推荐 ({algorithm_type}: {original_reason})"
+                else:
+                    # 两种算法都产生了推荐
+                    cf_info = next((r for r in reasons if r[0] == "协同过滤"), None)
+                    cb_info = next((r for r in reasons if r[0] == "内容推荐"), None)
+                    
+                    if cf_info and cb_info:
+                        combined_reason = f"混合推荐 (协同过滤权重:{cf_weight:.2f}, 内容推荐权重:{cb_weight:.2f})"
+                    elif cf_info:
+                        combined_reason = f"混合推荐 (协同过滤推荐)"
+                    else:
+                        combined_reason = f"混合推荐 (内容推荐)"
+                
+                final_recommendations.append((problem_id, final_score, combined_reason))
+
+            # 按分数排序
+            final_recommendations.sort(key=lambda x: x[1], reverse=True)
             
-            # 添加平滑因子避免权重为0
-            total_rate = cf_acceptance_rate + cb_acceptance_rate
-            if total_rate > 0:
-                cf_weight = (cf_acceptance_rate + 0.1) / (total_rate + 0.2)
-                cb_weight = (cb_acceptance_rate + 0.1) / (total_rate + 0.2)
-            else:
-                cf_weight, cb_weight = 0.5, 0.5
+            # 如果推荐数量不足，补充多样化题目
+            if len(final_recommendations) < count:
+                additional_count = count - len(final_recommendations)
+                diverse_problems = AIRecommendationService.get_diverse_problems(user_id, additional_count)
+                existing_problem_ids = {rec[0] for rec in final_recommendations}
+                for problem_id, score, reason in diverse_problems:
+                    if problem_id not in existing_problem_ids:
+                        final_recommendations.append((problem_id, score * 0.7, "多样化题目补充推荐"))
             
-            return cf_weight, cb_weight
+            # 如果仍然没有足够的推荐，放宽过滤条件，允许推荐已解决过的题目
+            if len(final_recommendations) < count:
+                additional_count = count - len(final_recommendations)
+                # 从所有题目中选择，不再排除已解决的题目
+                all_problems = Problem.objects.filter(visible=True).order_by('-submission_number')[:additional_count * 2]
+                existing_problem_ids = {rec[0] for rec in final_recommendations}
+                for problem in all_problems:
+                    if len(final_recommendations) >= count:
+                        break
+                    if problem.id not in existing_problem_ids:
+                        acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                        final_recommendations.append((problem.id, acceptance_rate * 0.3, "全部题目补充推荐"))
+            
+            return final_recommendations[:count]
             
         except Exception as e:
-            logger.error(f"Error calculating algorithm weights: {e}")
-            return 0.5, 0.5
+            logger.error(f"Hybrid recommendation failed: {str(e)}")
+            # 回退到多样化推荐
+            return AIRecommendationService.get_diverse_problems(user_id, count)
+
 
     @staticmethod
     def process_user_feedback_for_online_learning(user_id, recommendation_id, accepted, solved):
@@ -1046,25 +1185,43 @@ class AIRecommendationService:
             # 计算每个题目的推荐分数
             problem_scores = []
             for problem in all_problems:
-                if problem.id in solved_problems:
-                    continue  
-                
-                # 提取题目特征
-                problem_features = AIRecommendationService._extract_problem_features(problem.id)
-                
-                # 预测分数
-                score = online_recommender.predict_score(user_features, problem_features)[0][0]
-                
-                problem_scores.append((problem.id, float(score), "在线学习推荐"))
+                is_solved = problem.id in solved_problems
+                if is_solved:
+                    # 对于已解决的题目，给一个较低的基础分数
+                    score = 0.1
+                    problem_scores.append((problem.id, float(score), "在线学习推荐"))
+                else:
+                    try:
+                        # 提取题目特征
+                        problem_features = AIRecommendationService._extract_problem_features(problem.id)
+                        
+                        # 预测分数
+                        score = online_recommender.predict_score(user_features, problem_features)[0][0]
+                        
+                        problem_scores.append((problem.id, float(score), "在线学习推荐"))
+                    except Exception as e:
+                        logger.warning(f"Online learning prediction failed for problem {problem.id}: {str(e)}")
+                        continue
             
             # 按分数排序
             problem_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # 如果推荐数量不足，补充多样化题目
+            if len(problem_scores) < count:
+                additional_count = count - len(problem_scores)
+                diverse_problems = AIRecommendationService.get_diverse_problems(user_id, additional_count)
+                existing_problem_ids = {rec[0] for rec in problem_scores}
+                for problem_id, score, reason in diverse_problems:
+                    if problem_id not in existing_problem_ids:
+                        problem_scores.append((problem_id, score * 0.7, "多样化题目补充推荐"))
+            
             return problem_scores[:count]
             
         except Exception as e:
             logger.error(f"Online learning recommendation failed: {str(e)}")
             # 出错时回退到混合推荐
             return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
+
 
     @staticmethod
     def multi_task_recommendations(user_id, count=10):
@@ -1100,6 +1257,9 @@ class AIRecommendationService:
             problem_scores = []
             for problem in all_problems:
                 if problem.id in solved_problems:
+                    # 对于已解决的题目，给一个较低的基础分数
+                    score = 0.1
+                    problem_scores.append((problem.id, float(score), "多任务学习推荐(已解决)"))
                     continue  # 跳过已解决的题目
                 
                 try:
@@ -1113,6 +1273,16 @@ class AIRecommendationService:
             
             # 按分数排序
             problem_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # 如果推荐数量不足，补充多样化题目
+            if len(problem_scores) < count:
+                additional_count = count - len(problem_scores)
+                diverse_problems = AIRecommendationService.get_diverse_problems(user_id, additional_count)
+                existing_problem_ids = {rec[0] for rec in problem_scores}
+                for problem_id, score, reason in diverse_problems:
+                    if problem_id not in existing_problem_ids:
+                        problem_scores.append((problem_id, score * 0.7, "多样化题目补充推荐"))
+            
             return problem_scores[:count]
             
         except Exception as e:
@@ -1682,12 +1852,17 @@ class AIRecommendationService:
                 AIRecommendationService.train_recommendation_model()
             
             # 加载模型
+            model_loaded = False
+            model = None
             if os.path.exists(model_path):
-                model = joblib.load(model_path)
-                model_loaded = True
+                try:
+                    model = joblib.load(model_path)
+                    model_loaded = True
+                except Exception as load_error:
+                    logger.error(f"Failed to load model: {str(load_error)}")
+                    model_loaded = False
             else:
-                # 如果无法加载模型，回退到混合推荐
-                return AIRecommendationService.hybrid_recommendations(user_id, count)
+                logger.info("Model file does not exist")
             
             # 获取用户提交记录
             submissions = Submission.objects.filter(user_id=user_id).select_related('problem')
@@ -1699,8 +1874,11 @@ class AIRecommendationService:
             # 为每个题目计算推荐分数
             problem_scores = []
             for problem in all_problems:
-                # 跳过已解决的题目
-                if problem.id in solved_problem_ids:
+                is_solved = problem.id in solved_problem_ids
+                if is_solved:
+                    # 对于已解决的题目，给一个较低的基础分数
+                    score = 0.1
+                    problem_scores.append((problem.id, score, "基于机器学习推荐"))
                     continue
                 
                 # 使用模型预测或回退到基于内容的相似度
@@ -1708,7 +1886,7 @@ class AIRecommendationService:
                 try:
                     if model_loaded:
                         features = AIRecommendationService._extract_user_problem_features(user_id, problem.id)
-                        score = model.predict_proba([features])[0][1]  # 获取正类概率
+                        score = model.predict_proba([features])[0][1]  
                         reason = "基于机器学习推荐"
                     else:
                         # 模型未加载，使用基于内容的相似度
@@ -1726,8 +1904,30 @@ class AIRecommendationService:
                 
                 problem_scores.append((problem.id, score, reason))
             
-            # 按分数排序并返回前count个
+            # 按分数排序
             problem_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # 如果推荐数量不足，补充多样化题目
+            if len(problem_scores) < count:
+                additional_count = count - len(problem_scores)
+                diverse_problems = AIRecommendationService.get_diverse_problems(user_id, additional_count)
+                existing_problem_ids = {rec[0] for rec in problem_scores}
+                for problem_id, score, reason in diverse_problems:
+                    if problem_id not in existing_problem_ids:
+                        problem_scores.append((problem_id, score * 0.7, "多样化题目补充推荐"))
+            
+            if len(problem_scores) < count:
+                additional_count = count - len(problem_scores)
+                
+                all_problems_sorted = Problem.objects.filter(visible=True).order_by('-submission_number')[:additional_count * 2]
+                existing_problem_ids = {rec[0] for rec in problem_scores}
+                for problem in all_problems_sorted:
+                    if len(problem_scores) >= count:
+                        break
+                    if problem.id not in existing_problem_ids:
+                        acceptance_rate = problem.accepted_number / problem.submission_number if problem.submission_number > 0 else 0
+                        problem_scores.append((problem.id, acceptance_rate * 0.3, "全部题目补充推荐"))
+            
             return problem_scores[:count]
             
         except Exception as e:
@@ -1872,24 +2072,39 @@ class AIRecommendationService:
             # 计算每个题目的推荐分数
             problem_scores = []
             for problem in all_problems:
-                if problem.id in solved_problems:
-                    continue  # 跳过已解决的题目
-                
-                # 提取题目特征
-                problem_features = AIRecommendationService._extract_problem_features(problem.id)
-                
-                # 预测分数
-                score = recommender.predict_score(user_features, problem_features)[0][0]
-                
-                problem_scores.append((problem.id, float(score), "深度学习推荐"))
+                # 不再排除已解决的题目，而是降低它们的推荐分数
+                is_solved = problem.id in solved_problems
+                if is_solved:
+                    # 对于已解决的题目，给一个较低的基础分数
+                    score = 0.1
+                    problem_scores.append((problem.id, float(score), "基于深度学习推荐"))
+                else:
+                    try:
+                        # 提取题目特征
+                        problem_features = AIRecommendationService._extract_problem_features(problem.id)
+                        score = recommender.predict_recommendation_score(user_features, problem_features)
+                        problem_scores.append((problem.id, float(score), "基于深度学习推荐"))
+                    except Exception as e:
+                        logger.warning(f"Deep learning prediction failed for problem {problem.id}: {str(e)}")
+                        continue
             
             # 按分数排序
             problem_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # 如果推荐数量不足，补充多样化题目
+            if len(problem_scores) < count:
+                additional_count = count - len(problem_scores)
+                diverse_problems = AIRecommendationService.get_diverse_problems(user_id, additional_count)
+                existing_problem_ids = {rec[0] for rec in problem_scores}
+                for problem_id, score, reason in diverse_problems:
+                    if problem_id not in existing_problem_ids:
+                        problem_scores.append((problem_id, score * 0.7, "多样化题目补充推荐"))
+            
             return problem_scores[:count]
             
         except Exception as e:
             logger.error(f"Deep learning recommendation failed: {str(e)}")
-            # 出错时回退到混合推荐
+            # 回退到混合推荐
             return AIRecommendationService.hybrid_recommendations(user_id=user_id, count=count)
 
     @staticmethod
