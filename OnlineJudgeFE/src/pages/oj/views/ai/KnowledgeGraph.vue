@@ -82,7 +82,7 @@
                                     <div class="detail-item">
                                         <span class="label">难度等级:</span>
                                         <span class="value">{{ getDifficultyText(selectedNodeDetail.difficulty)
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="label">推荐权重:</span>
@@ -699,9 +699,9 @@ export default {
                 } else if (node.embedding && node.embedding.length > 0) {
                     // 计算基于嵌入向量的相似度
                     try {
-                        const similarity = this.calculateEmbeddingSimilarity(
-                            node.embedding,
-                            this.selectedNodeDetail.embedding
+                        const similarity = this.calculateAdvancedSimilarity(
+                            this.selectedNodeDetail,
+                            node
                         );
 
                         console.log(`节点 ${node.id} 相似度:`, similarity);
@@ -741,52 +741,147 @@ export default {
         },
 
 
-
-        calculateEmbeddingSimilarity(embedding1, embedding2) {
+        calculateAdvancedSimilarity(node1, node2) {
             try {
-                // 检查输入数据
-                if (!embedding1 || !embedding2) {
-                    throw new Error('向量数据为空');
-                }
+                // 1. 向量相似度（60%权重）
+                const vectorSimilarity = this.calculateVectorSimilarity(node1.embedding, node2.embedding);
 
-                const vec1 = embedding1.split(',').map(Number);
-                const vec2 = embedding2.split(',').map(Number);
+                // 2. 结构相似度（30%权重）
+                const structuralSimilarity = this.calculateStructuralSimilarity(node1, node2);
 
-                // 检查向量维度是否一致
-                if (vec1.length !== vec2.length) {
-                    console.warn('向量维度不一致:', vec1.length, 'vs', vec2.length);
-                    return 0;
-                }
+                // 3. 学习路径相似度（10%权重）
+                const learningPathSimilarity = this.calculateLearningPathSimilarity(node1, node2);
 
-                // 检查是否有非数字值
-                if (vec1.some(isNaN) || vec2.some(isNaN)) {
-                    throw new Error('向量包含非数字值');
-                }
+                // 综合相似度
+                const finalSimilarity = 0.6 * vectorSimilarity + 0.3 * structuralSimilarity + 0.1 * learningPathSimilarity;
 
-                // 计算余弦相似度
-                let dotProduct = 0;
-                let norm1 = 0;
-                let norm2 = 0;
-
-                for (let i = 0; i < vec1.length; i++) {
-                    dotProduct += vec1[i] * vec2[i];
-                    norm1 += vec1[i] * vec1[i];
-                    norm2 += vec2[i] * vec2[i];
-                }
-
-                if (norm1 === 0 || norm2 === 0) {
-                    console.warn('向量模长为0');
-                    return 0;
-                }
-
-                const similarity = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
-                console.log('计算得到的相似度:', similarity);
-                return similarity;
+                return finalSimilarity;
             } catch (e) {
-                console.error('计算嵌入向量相似度失败:', e);
+                console.error('计算高级相似度失败:', e);
                 return 0;
             }
         },
+        calculateStructuralSimilarity(node1, node2) {
+            if (!node1 || !node2) return 0;
+
+            // 获取节点的邻居信息
+            const neighbors1 = this.getNeighbors(node1.id);
+            const neighbors2 = this.getNeighbors(node2.id);
+
+            // 计算Jaccard相似度
+            const intersection = neighbors1.filter(id => neighbors2.includes(id)).length;
+            const union = new Set([...neighbors1, ...neighbors2]).size;
+
+            const jaccardSimilarity = union > 0 ? intersection / union : 0;
+
+            // 计算共同邻居数量
+            const commonNeighbors = intersection;
+
+            // 计算路径长度相似度
+            const pathLengthSimilarity = this.calculatePathLengthSimilarity(node1.id, node2.id);
+
+            // 综合结构相似度
+            const structuralSimilarity = 0.5 * jaccardSimilarity + 0.3 * (commonNeighbors / Math.max(neighbors1.length, neighbors2.length)) + 0.2 * pathLengthSimilarity;
+
+            return structuralSimilarity;
+        },
+        getNeighbors(nodeId) {
+            if (!this.graphData.edges) return [];
+
+            const neighbors = new Set();
+
+            // 找到所有以该节点为源或目标的边
+            this.graphData.edges.forEach(edge => {
+                if (edge.source === nodeId) {
+                    neighbors.add(edge.target);
+                }
+                if (edge.target === nodeId) {
+                    neighbors.add(edge.source);
+                }
+            });
+
+            return Array.from(neighbors);
+        },
+        calculatePathLengthSimilarity(sourceId, targetId) {
+            if (sourceId === targetId) return 1;
+
+            // 使用BFS找到最短路径
+            const queue = [{ id: sourceId, distance: 0 }];
+            const visited = new Set([sourceId]);
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+
+                if (current.id === targetId) {
+                    return 1 / (current.distance + 1); // 路径越短，相似度越高
+                }
+
+                // 查找当前节点的所有邻居
+                this.graphData.edges.forEach(edge => {
+                    if (edge.source === current.id && !visited.has(edge.target)) {
+                        visited.add(edge.target);
+                        queue.push({ id: edge.target, distance: current.distance + 1 });
+                    }
+                    if (edge.target === current.id && !visited.has(edge.source)) {
+                        visited.add(edge.source);
+                        queue.push({ id: edge.source, distance: current.distance + 1 });
+                    }
+                });
+            }
+
+            // 如果无法到达目标节点，返回较低的相似度
+            return 0.1;
+        },
+
+
+        calculateLearningPathSimilarity(node1, node2) {
+            // 基于掌握程度的相似度
+            let proficiencySimilarity = 1;
+            if (node1.proficiency_level !== undefined && node2.proficiency_level !== undefined) {
+                proficiencySimilarity = 1 - Math.abs(node1.proficiency_level - node2.proficiency_level);
+            }
+
+            // 基于依赖关系的相似度
+            let dependencySimilarity = 0;
+            const node1Dependencies = this.getNodeDependencies(node1.id);
+            const node2Dependencies = this.getNodeDependencies(node2.id);
+
+            const commonDependencies = node1Dependencies.filter(id => node2Dependencies.includes(id)).length;
+            const totalDependencies = new Set([...node1Dependencies, ...node2Dependencies]).size;
+
+            if (totalDependencies > 0) {
+                dependencySimilarity = commonDependencies / totalDependencies;
+            }
+
+            // 综合学习路径相似度
+            return 0.6 * proficiencySimilarity + 0.4 * dependencySimilarity;
+        },
+        getNodeDependencies(nodeId) {
+            if (!this.graphData.edges) return [];
+
+            const dependencies = new Set();
+            const queue = [nodeId];
+            const visited = new Set();
+
+            while (queue.length > 0) {
+                const currentId = queue.shift();
+                if (visited.has(currentId)) continue;
+                visited.add(currentId);
+
+                // 找到当前节点的所有前置节点
+                this.graphData.edges.forEach(edge => {
+                    if (edge.target === currentId && !visited.has(edge.source)) {
+                        dependencies.add(edge.source);
+                        queue.push(edge.source);
+                    }
+                });
+            }
+
+            return Array.from(dependencies);
+        },
+
+
+
 
 
         // 获取带颜色的分类
@@ -911,6 +1006,58 @@ export default {
                 // 这里可以调用API将知识点添加到用户的学习路径中
             }
         },
+        async findSimilarPoints() {
+            if (!this.selectedNodeDetail) {
+                this.$Message.warning('请先选择一个知识点');
+                return;
+            }
+
+            this.similarPointsLoading = true;
+            this.similarPointsModalVisible = true;
+
+            try {
+                // 首先获取API推荐的相似知识点
+                const apiRes = await api.getRelatedKnowledgePoints({
+                    knowledge_point_id: this.selectedNodeDetail.id,
+                    top_k: 10
+                });
+
+                // 然后计算本地的高级相似度
+                const localSimilarities = [];
+
+                // 对于每个知识点，计算与选中节点的高级相似度
+                this.graphData.nodes.forEach(node => {
+                    if (node.id !== this.selectedNodeDetail.id && node.embedding) {
+                        const similarity = this.calculateAdvancedSimilarity(this.selectedNodeDetail, node);
+                        localSimilarities.push({
+                            ...node,
+                            similarity: similarity
+                        });
+                    }
+                });
+
+                // 合并API结果和本地计算结果
+                const combinedResults = [...apiRes.data.data.map(point => ({
+                    ...point,
+                    id: String(point.id)
+                })), ...localSimilarities];
+
+                // 按相似度排序
+                combinedResults.sort((a, b) => b.similarity - a.similarity);
+
+                // 取前10个结果
+                this.similarPoints = combinedResults.slice(0, 10);
+
+                // 高亮显示相似节点
+                this.highlightSimilarNodes();
+
+                this.similarPointsLoading = false;
+            } catch (err) {
+                console.error('获取相似知识点失败:', err);
+                this.similarPointsLoading = false;
+                this.$Message.error('获取相似知识点失败');
+            }
+        },
 
         async findSimilarPointsWithoutUI() {
             if (!this.selectedNodeDetail) {
@@ -974,10 +1121,11 @@ export default {
 
         // 获取相似度颜色（新增）
         getSimilarityColor(similarity) {
-            if (similarity > 0.8) return 'green';
-            if (similarity > 0.6) return 'blue';
-            if (similarity > 0.4) return 'orange';
-            return 'red';
+            if (similarity >= 0.8) return 'green';
+            if (similarity >= 0.6) return 'blue';
+            if (similarity >= 0.4) return 'orange';
+            if (similarity >= 0.2) return 'red';
+            return 'gray';
         },
 
         // 显示学习路径（新增）
