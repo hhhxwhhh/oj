@@ -671,5 +671,6 @@ export const m = {
   No_recommendation_to_feedback: "No recommendation to feedback",
   Failed_to_get_Assignment_Details: "Failed to get assignment details",
   undefined: "undefined",
-  Points: "Points"
+  Points: "Points",
+  Contest_Password_Required: "Contest password required"
 };

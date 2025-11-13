@@ -87,8 +87,8 @@
                 </el-button>
             </div>
             <el-table :data="problems" style="width: 100%">
-                <el-table-column prop="_id" label="ID" width="80" />
-                <el-table-column prop="title" :label="$t('m.Title')" />
+                <el-table-column prop="problem_id" label="ID" width="80" />
+                <el-table-column prop="problem_title" :label="$t('m.Title')" />
                 <el-table-column prop="score" :label="$t('m.Score')" width="100" />
                 <el-table-column fixed="right" :label="$t('m.Option')" width="100">
                     <template slot-scope="scope">
@@ -400,7 +400,7 @@ export default {
                 cancelButtonText: this.$t('m.Cancel'),
                 type: 'warning'
             }).then(() => {
-                api.removeProblemFromAssignment(this.assignmentId, row.problem.id).then(res => {
+                api.removeProblemFromAssignment(this.assignmentId, row.problem_id).then(res => {
                     this.getAssignmentProblems()
                     this.$message({
                         type: 'success',
