@@ -48,31 +48,19 @@ online_recommender=OnlineLearningRecommender()
 ql_recommender=EnhancedQLearningRecommender()
 
 def setup_nltk_environment():
-    """
-    配置NLTK环境以使用本地数据
-    """
-    # 添加当前目录下的nltk_data到搜索路径
     current_nltk_data = os.path.join(os.getcwd(), "nltk_data")
     if os.path.exists(current_nltk_data):
         nltk.data.path.insert(0, current_nltk_data)
-    
-    # 添加项目根目录下的nltk_data到搜索路径
     project_nltk_data = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "nltk_data")
     if os.path.exists(project_nltk_data) and project_nltk_data not in nltk.data.path:
         nltk.data.path.insert(0, project_nltk_data)
-    
-    # 添加用户主目录下的nltk_data到搜索路径
     home_nltk_data = os.path.expanduser("~/nltk_data")
     if os.path.exists(home_nltk_data) and home_nltk_data not in nltk.data.path:
         nltk.data.path.append(home_nltk_data)
 setup_nltk_environment()
 
 def check_nltk_availability():
-    """
-    检查NLTK数据是否可用
-    """
     try:
-        # 尝试加载必要的数据
         nltk.data.find('tokenizers/punkt')
         nltk.data.find('corpora/stopwords')
         return True
@@ -171,15 +159,12 @@ class AIService:
     def _call_azure(messages, ai_model):
         import requests
         import json
-        
-        # Azure OpenAI需要不同的端点格式
         url = ai_model.config.get("endpoint", "") + "/openai/deployments/" + ai_model.model + "/chat/completions?api-version=" + ai_model.config.get("api_version", "2023-05-15")
         headers = {
             "api-key": ai_model.api_key,
             "Content-Type": "application/json"
         }
         
-        # Azure需要移除一些配置项
         filtered_config = {k: v for k, v in ai_model.config.items() if k not in ["endpoint", "api_version"]}
         data = {
             "messages": messages,
@@ -205,8 +190,6 @@ class AIService:
     def _call_openai(messages, ai_model):
         import requests
         import json
-        
-        # 检查是否使用OpenKey服务
         if "openkey.cloud" in ai_model.api_key:
             url = "https://api.openkey.cloud/v1/chat/completions"
             headers = {
@@ -377,26 +360,26 @@ class AIService:
                     pass
 
             prompt = f"""
-{problem_context}请根据以下{language}代码和光标位置提供实时编程建议：
+                    {problem_context}请根据以下{language}代码和光标位置提供实时编程建议：
 
-代码:
-{code}
+                    代码:
+                    {code}
 
-光标位置: {cursor_position}
+                    光标位置: {cursor_position}
 
-请提供以下信息：
-1. 在光标位置可能的代码补全建议
-2. 当前代码行的潜在问题或改进建议
-3. 相关的编程知识点提醒
+                    请提供以下信息：
+                    1. 在光标位置可能的代码补全建议
+                    2. 当前代码行的潜在问题或改进建议
+                    3. 相关的编程知识点提醒
 
-请以以下JSON格式返回结果：
-{{
-    "suggestions": ["建议1", "建议2", "建议3"],
-    "completions": ["补全选项1", "补全选项2"],
-    "issues": ["潜在问题1", "潜在问题2"],
-    "knowledge_points": ["相关知识点1", "相关知识点2"]
-}}
-""".strip()
+                    请以以下JSON格式返回结果：
+                    {{
+                        "suggestions": ["建议1", "建议2", "建议3"],
+                        "completions": ["补全选项1", "补全选项2"],
+                        "issues": ["潜在问题1", "潜在问题2"],
+                        "knowledge_points": ["相关知识点1", "相关知识点2"]
+                    }}
+                    """.strip() if problem_id else f""
 
             messages = [
                 {"role": "system", "content": "你是一个专业的编程助手，擅长提供实时编程建议和代码补全。"},
@@ -409,11 +392,9 @@ class AIService:
             
             response = AIService.call_ai_model(messages, ai_model)
             
-            # 解析JSON响应
             import json
             import re
             
-            # 尝试提取JSON内容
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
                 response = json_match.group()
@@ -423,7 +404,6 @@ class AIService:
             
         except Exception as e:
             logger.error(f"Failed to generate real-time suggestion: {str(e)}")
-            # 返回默认建议
             return {
                 "suggestions": ["继续编写代码", "检查语法错误"],
                 "completions": [],
@@ -447,25 +427,25 @@ class AIService:
                     pass
 
             prompt = f"""
-{problem_context}请根据以下{language}代码和输入前缀提供代码自动补全建议：
+                    {problem_context}请根据以下{language}代码和输入前缀提供代码自动补全建议：
 
-代码:
-{code}
+                    代码:
+                    {code}
 
-输入前缀: {prefix}
+                    输入前缀: {prefix}
 
-请提供以下信息：
-1. 可能的补全选项列表（最多5个）
-2. 每个选项的简要说明
+                    请提供以下信息：
+                    1. 可能的补全选项列表（最多5个）
+                    2. 每个选项的简要说明
 
-请以以下JSON格式返回结果：
-{{
-    "completions": [
-        {{"text": "补全文本1", "description": "说明1"}},
-        {{"text": "补全文本2", "description": "说明2"}}
-    ]
-}}
-""".strip()
+                    请以以下JSON格式返回结果：
+                    {{
+                        "completions": [
+                            {{"text": "补全文本1", "description": "说明1"}},
+                            {{"text": "补全文本2", "description": "说明2"}}
+                        ]
+                    }}
+                    """.strip()
 
             messages = [
                 {"role": "system", "content": "你是一个专业的编程助手，擅长提供代码自动补全建议。"},
